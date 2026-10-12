@@ -1,0 +1,85 @@
+from pathlib import Path
+
+import h5py
+import numpy as np
+import pytest
+
+from xpsoverlaps.model import BasisSet, BasisShell
+from xpsoverlaps.overlap import basis_overlap
+from xpsoverlaps.readers.openmolcas.basis import square_from_symmetry_blocks
+from xpsoverlaps.readers.openmolcas.hdf5_reader import Caspt2Hdf5Reader, RasscfHdf5Reader
+
+
+DATA = Path(__file__).parents[1] / "data" / "molcas" / "brthph" / "s2p" / "mb"
+HDF5_FILES = [
+    (RasscfHdf5Reader, "valence.rasscf.h5"),
+    (RasscfHdf5Reader, "core.rasscf.h5"),
+    (Caspt2Hdf5Reader, "valence_caspt2.caspt2.h5"),
+    (Caspt2Hdf5Reader, "core_caspt2.caspt2.h5"),
+]
+
+
+def _molcas_ao_overlap(path):
+    with h5py.File(path, "r") as h5_file:
+        return square_from_symmetry_blocks(h5_file["AO_OVERLAP_MATRIX"][:], h5_file.attrs["NBAS"])
+
+
+@pytest.mark.parametrize("reader,hdf5_name", HDF5_FILES)
+def test_basis_overlap_matches_molcas_precomputed_ao_overlap(reader, hdf5_name):
+    calculation = reader().read(DATA / hdf5_name)
+
+    overlap = basis_overlap(calculation.basis, calculation.basis)
+
+    assert overlap.shape == (239, 239)
+    np.testing.assert_allclose(overlap, _molcas_ao_overlap(DATA / hdf5_name), rtol=0, atol=1e-10)
+
+
+@pytest.mark.parametrize("reader,hdf5_name", HDF5_FILES)
+def test_molecular_orbitals_are_orthonormal_with_computed_ao_overlap(reader, hdf5_name):
+    calculation = reader().read(DATA / hdf5_name)
+    coefficients = calculation.orbitals.coefficients
+
+    mo_overlap = coefficients.T @ basis_overlap(calculation.basis, calculation.basis) @ coefficients
+
+    np.testing.assert_allclose(mo_overlap, np.eye(coefficients.shape[1]), rtol=0, atol=1e-7)
+
+
+def test_cross_basis_overlap_between_calculations():
+    valence = RasscfHdf5Reader().read(DATA / "valence.rasscf.h5")
+    core = RasscfHdf5Reader().read(DATA / "core.rasscf.h5")
+
+    valence_core = basis_overlap(valence.basis, core.basis)
+
+    np.testing.assert_allclose(basis_overlap(core.basis, valence.basis), valence_core.T, atol=1e-12)
+    # Same geometry and basis set, so the cross overlap is the ordinary AO overlap.
+    np.testing.assert_allclose(valence_core, _molcas_ao_overlap(DATA / "core.rasscf.h5"), atol=1e-10)
+
+
+def _s_function(exponent, center, function_id=0):
+    return BasisShell(
+        center_index=0,
+        center_label="X",
+        coordinates=np.asarray(center, dtype=float),
+        angular_momentum=0,
+        cartesian=False,
+        r2_power=0,
+        exponents=np.array([exponent]),
+        contraction_coefficients=np.array([[1.0]]),
+        angular_coefficients=np.array([[1.0]]),
+        primitive_powers=np.array([[0, 0, 0]]),
+        magnetic_numbers=[0],
+        basis_function_ids=[function_id],
+    )
+
+
+def test_shell_overlap_of_normalized_s_primitives_matches_analytic_result():
+    alpha, beta, separation = 0.8, 1.7, 1.3
+    basis_a = BasisSet("a", [_s_function(alpha, [0.0, 0.0, 0.0])], ["a 1S"])
+    basis_b = BasisSet("b", [_s_function(beta, [0.0, 0.0, separation])], ["b 1S"])
+
+    expected = (2 * np.sqrt(alpha * beta) / (alpha + beta)) ** 1.5 * np.exp(
+        -alpha * beta / (alpha + beta) * separation**2
+    )
+
+    assert basis_overlap(basis_a, basis_b)[0, 0] == pytest.approx(expected, rel=1e-12)
+    assert basis_overlap(basis_a, basis_a)[0, 0] == pytest.approx(1.0, rel=1e-12)

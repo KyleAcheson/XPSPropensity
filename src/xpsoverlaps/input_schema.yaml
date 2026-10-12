@@ -1,0 +1,100 @@
+# JSON Schema (draft 2020-12), written in YAML, for XPSoverlaps input files.
+#
+# Structure and conditional requirements live here. Rules JSON Schema cannot
+# express (Initial/Final type equality, file existence) are checked in
+# xpsoverlaps/inputs.py.
+#
+# Properties restricted to a string `enum` are case-insensitive: input values
+# are lowercased before validation, so write enum (and matching `const`)
+# values in lowercase.
+
+$schema: https://json-schema.org/draft/2020-12/schema
+title: XPSoverlaps input
+type: object
+additionalProperties: false
+required: [Calculator, Initial]
+
+properties:
+  Calculator:
+    type: object
+    additionalProperties: false
+    required: [program, method]
+    properties:
+      program:
+        description: Electronic-structure code that produced the wavefunctions.
+        enum: [molcas]
+      method:
+        description: >-
+          'overlaps' uses initial and final state orbitals; 'chp' approximates
+          the overlaps from the initial state only (core-hole potential).
+        enum: [overlaps, chp]
+
+  Initial:
+    $ref: '#/$defs/calculation'
+    description: Initial N-electron calculation.
+
+  Final:
+    $ref: '#/$defs/calculation'
+    description: Final (N-1)-electron ionized calculation.
+
+$defs:
+  calculation:
+    type: object
+    additionalProperties: false
+    required: [type, wf_file]
+    properties:
+      type:
+        enum: [caspt2, rasscf]
+      wf_file:
+        description: >-
+          Wavefunction file: orbitals, basis and energies, plus CI vectors for
+          programs that write everything to one file (e.g. Molcas HDF5).
+        type: string
+        minLength: 1
+      state_file:
+        description: >-
+          Separate file containing state CI vectors, for programs that need one
+          (e.g. Molcas log). Which programs require it is set in allOf below.
+        type: string
+        minLength: 1
+
+allOf:
+  # The overlaps method needs a final-state calculation; chp does not.
+  - if:
+      required: [Calculator]
+      properties:
+        Calculator:
+          required: [method]
+          properties:
+            method: {const: overlaps}
+    then:
+      required: [Final]
+
+  # Programs that write CI vectors to a separate file require state_file.
+  # Molcas: orbitals in the HDF5 wf_file, CI vectors in the log state_file.
+  - if:
+      required: [Calculator]
+      properties:
+        Calculator:
+          required: [program]
+          properties:
+            program: {enum: [molcas]}
+    then:
+      properties:
+        Initial: {required: [state_file]}
+        Final: {required: [state_file]}
+
+  # Programs that write everything to wf_file reject state_file, so it is not
+  # silently ignored. Add such a program to this enum (and to
+  # Calculator.program above) to enable it, e.g. [orca].
+  # - if:
+  #     required: [Calculator]
+  #     properties:
+  #       Calculator:
+  #         required: [program]
+  #         properties:
+  #           program: {enum: [orca]}
+  #   then:
+  #     properties:
+  #       Initial: {not: {required: [state_file]}}
+  #       Final: {not: {required: [state_file]}}
