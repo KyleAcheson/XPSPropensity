@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import numpy as np
 
@@ -18,32 +18,68 @@ class Molecule:
 
 
 @dataclass
-class BasisShell:
-    """A contracted shell normalized to Cartesian primitive powers."""
+class AOBasis:
+    """Atomic-orbital basis of a calculation, in MO coefficient row order.
 
-    center_index: int
-    center_label: str
-    coordinates: np.ndarray
-    angular_momentum: int
-    cartesian: bool
-    r2_power: int
-    exponents: np.ndarray
-    contraction_coefficients: np.ndarray
-    angular_coefficients: np.ndarray
-    primitive_powers: np.ndarray
-    magnetic_numbers: List[int]
-    basis_function_ids: List[int]
+    Subclasses are basis *representations* (not programs); each has an
+    ``AOOverlapProvider`` in ``xpsoverlaps.overlap`` that computes AO overlaps.
+    """
 
-
-@dataclass
-class BasisSet:
     basis_id: str
-    shells: List[BasisShell]
     function_labels: List[str]
 
     @property
     def n_functions(self) -> int:
         return len(self.function_labels)
+
+
+@dataclass
+class GaussianShell:
+    """A contracted Gaussian shell expressed in Cartesian primitive powers.
+
+    Each primitive is ``x^a y^b z^c exp(-alpha r^2)`` with ``a + b + c ==
+    angular_momentum`` (L), centred at ``coordinates``. Conventions:
+
+    - ``contraction_coefficients`` (n_contractions x n_exponents): each row
+      is a unit-normalized contraction over radial primitives
+      ``r^L exp(-alpha r^2)``, whose normalized overlap is
+      ``(2 sqrt(alpha beta) / (alpha + beta)) ** (L + 1.5)``.
+    - ``angular_coefficients`` (n_angular x n_powers): row k expresses the
+      shell's k-th angular function in the Cartesian ``primitive_powers``
+      (n_powers x 3), normalized so each resulting AO has unit norm. Program
+      ordering, phase and normalization conventions are absorbed here.
+    - ``basis_function_ids``: AO index of each function, ordered
+      angular-major (all contractions of angular function 0, then 1, ...).
+    """
+
+    center_index: int
+    coordinates: np.ndarray
+    angular_momentum: int
+    exponents: np.ndarray
+    contraction_coefficients: np.ndarray
+    angular_coefficients: np.ndarray
+    primitive_powers: np.ndarray
+    basis_function_ids: List[int]
+
+
+@dataclass
+class GaussianBasis(AOBasis):
+    """AO basis given explicitly as contracted Gaussian shells."""
+
+    shells: List[GaussianShell] = field(default_factory=list)
+
+
+@dataclass
+class EngineBasis(AOBasis):
+    """AO basis whose integrals come from an electronic-structure engine.
+
+    ``engine`` names the registered overlap backend (e.g. ``"pyscf"``);
+    ``handle`` is whatever that backend needs, e.g. a PySCF ``Mole``. The
+    reader must ensure the engine's AO order matches the MO coefficient rows.
+    """
+
+    engine: str = ""
+    handle: Any = None
 
 
 @dataclass
@@ -124,7 +160,7 @@ class Calculation:
 
     provenance: Provenance
     molecule: Molecule
-    basis: BasisSet
+    basis: AOBasis
     orbitals: OrbitalSet
     active_space: ActiveSpace
     states: List[ElectronicState] = field(default_factory=list)

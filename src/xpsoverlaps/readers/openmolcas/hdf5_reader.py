@@ -9,7 +9,7 @@ import numpy as np
 
 from xpsoverlaps.model import (
     ActiveSpace,
-    BasisSet,
+    GaussianBasis,
     Calculation,
     ElectronicState,
     Molecule,
@@ -76,7 +76,7 @@ def _read_calculation(
             primitive_ids=h5_file["PRIMITIVE_IDS"][:],
         )
         basis_id = f"openmolcas:{path.resolve()}:basis"
-        basis = BasisSet(basis_id, list(basis_shells), list(ao_labels))
+        basis = GaussianBasis(basis_id, list(ao_labels), shells=list(basis_shells))
 
         nbas = np.asarray(_attribute_scalar(h5_file, "NBAS"), dtype=int).reshape(-1)
         coefficients = square_from_symmetry_blocks(h5_file["MO_VECTORS"][:], nbas).T

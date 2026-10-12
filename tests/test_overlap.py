@@ -4,8 +4,17 @@ import h5py
 import numpy as np
 import pytest
 
-from xpsoverlaps.model import BasisSet, BasisShell
-from xpsoverlaps.overlap import basis_overlap
+from xpsoverlaps.model import EngineBasis, GaussianBasis, GaussianShell
+from xpsoverlaps.overlap import (
+    AOOverlapProvider,
+    EngineOverlapProvider,
+    GaussianOverlapProvider,
+    basis_overlap,
+    get_overlap_provider,
+    mo_overlap,
+    register_engine,
+)
+from xpsoverlaps.overlap import engine as engine_module
 from xpsoverlaps.readers.openmolcas.basis import square_from_symmetry_blocks
 from xpsoverlaps.readers.openmolcas.hdf5_reader import Caspt2Hdf5Reader, RasscfHdf5Reader
 
@@ -35,13 +44,18 @@ def test_basis_overlap_matches_molcas_precomputed_ao_overlap(reader, hdf5_name):
 
 
 @pytest.mark.parametrize("reader,hdf5_name", HDF5_FILES)
-def test_molecular_orbitals_are_orthonormal_with_computed_ao_overlap(reader, hdf5_name):
+def test_molecular_orbitals_are_orthonormal_with_selected_provider(reader, hdf5_name):
     calculation = reader().read(DATA / hdf5_name)
-    coefficients = calculation.orbitals.coefficients
 
-    mo_overlap = coefficients.T @ basis_overlap(calculation.basis, calculation.basis) @ coefficients
-
-    np.testing.assert_allclose(mo_overlap, np.eye(coefficients.shape[1]), rtol=0, atol=1e-7)
+    assert isinstance(
+        get_overlap_provider(calculation.basis, calculation.basis), GaussianOverlapProvider
+    )
+    np.testing.assert_allclose(
+        mo_overlap(calculation, calculation),
+        np.eye(len(calculation.orbitals.orbital_ids)),
+        rtol=0,
+        atol=1e-7,
+    )
 
 
 def test_cross_basis_overlap_between_calculations():
@@ -55,27 +69,36 @@ def test_cross_basis_overlap_between_calculations():
     np.testing.assert_allclose(valence_core, _molcas_ao_overlap(DATA / "core.rasscf.h5"), atol=1e-10)
 
 
+def test_mo_overlap_between_calculations_uses_both_coefficient_sets():
+    valence = RasscfHdf5Reader().read(DATA / "valence.rasscf.h5")
+    core = RasscfHdf5Reader().read(DATA / "core.rasscf.h5")
+
+    expected = (
+        valence.orbitals.coefficients.T
+        @ basis_overlap(valence.basis, core.basis)
+        @ core.orbitals.coefficients
+    )
+
+    np.testing.assert_allclose(mo_overlap(valence, core), expected, atol=1e-12)
+
+
 def _s_function(exponent, center, function_id=0):
-    return BasisShell(
+    return GaussianShell(
         center_index=0,
-        center_label="X",
         coordinates=np.asarray(center, dtype=float),
         angular_momentum=0,
-        cartesian=False,
-        r2_power=0,
         exponents=np.array([exponent]),
         contraction_coefficients=np.array([[1.0]]),
         angular_coefficients=np.array([[1.0]]),
         primitive_powers=np.array([[0, 0, 0]]),
-        magnetic_numbers=[0],
         basis_function_ids=[function_id],
     )
 
 
 def test_shell_overlap_of_normalized_s_primitives_matches_analytic_result():
     alpha, beta, separation = 0.8, 1.7, 1.3
-    basis_a = BasisSet("a", [_s_function(alpha, [0.0, 0.0, 0.0])], ["a 1S"])
-    basis_b = BasisSet("b", [_s_function(beta, [0.0, 0.0, separation])], ["b 1S"])
+    basis_a = GaussianBasis("a", ["a 1S"], shells=[_s_function(alpha, [0.0, 0.0, 0.0])])
+    basis_b = GaussianBasis("b", ["b 1S"], shells=[_s_function(beta, [0.0, 0.0, separation])])
 
     expected = (2 * np.sqrt(alpha * beta) / (alpha + beta)) ** 1.5 * np.exp(
         -alpha * beta / (alpha + beta) * separation**2
@@ -83,3 +106,64 @@ def test_shell_overlap_of_normalized_s_primitives_matches_analytic_result():
 
     assert basis_overlap(basis_a, basis_b)[0, 0] == pytest.approx(expected, rel=1e-12)
     assert basis_overlap(basis_a, basis_a)[0, 0] == pytest.approx(1.0, rel=1e-12)
+
+
+@pytest.fixture
+def fake_engine(monkeypatch):
+    """Register a stand-in engine whose handles are precomputed AO matrices."""
+    monkeypatch.setattr(engine_module, "_ENGINES", {})
+    register_engine("fake", lambda handle_a, handle_b: handle_a @ handle_b.T)
+
+
+def test_engine_bases_use_registered_engine_backend(fake_engine):
+    handle_a, handle_b = np.eye(2), np.array([[1.0, 0.5], [0.0, 1.0]])
+    basis_a = EngineBasis("a", ["1", "2"], engine="fake", handle=handle_a)
+    basis_b = EngineBasis("b", ["1", "2"], engine="fake", handle=handle_b)
+
+    provider = get_overlap_provider(basis_a, basis_b)
+
+    assert isinstance(provider, EngineOverlapProvider)
+    np.testing.assert_allclose(provider.cross_overlap(basis_a, basis_b), handle_a @ handle_b.T)
+
+
+def test_engine_provider_rejects_unregistered_and_mismatched_engines(fake_engine):
+    fake = EngineBasis("a", ["1"], engine="fake", handle=np.eye(1))
+    other = EngineBasis("b", ["1"], engine="other", handle=np.eye(1))
+
+    with pytest.raises(NotImplementedError, match="No overlap backend registered for engine 'other'"):
+        EngineOverlapProvider().cross_overlap(other, other)
+    with pytest.raises(ValueError, match="between engines 'fake' and 'other'"):
+        EngineOverlapProvider().cross_overlap(fake, other)
+
+
+def test_provider_selection_rejects_mixed_basis_representations():
+    gaussian = GaussianBasis("a", ["a 1S"], shells=[_s_function(1.0, [0.0, 0.0, 0.0])])
+    engine = EngineBasis("b", ["b 1S"], engine="fake")
+
+    with pytest.raises(ValueError, match="same basis representation"):
+        get_overlap_provider(gaussian, engine)
+    with pytest.raises(TypeError, match="requires GaussianBasis"):
+        GaussianOverlapProvider().cross_overlap(gaussian, engine)
+
+
+def test_provider_without_compute_cannot_be_instantiated():
+    class IncompleteProvider(AOOverlapProvider):
+        basis_type = GaussianBasis
+
+    with pytest.raises(TypeError, match="abstract"):
+        IncompleteProvider()
+
+
+def test_base_class_validates_overlap_shape_for_every_provider(fake_engine):
+    register_engine("fake", lambda handle_a, handle_b: np.eye(3))
+    basis = EngineBasis("a", ["1", "2"], engine="fake")
+
+    with pytest.raises(ValueError, match=r"returned an AO overlap of shape \(3, 3\); expected \(2, 2\)"):
+        EngineOverlapProvider().cross_overlap(basis, basis)
+
+
+def test_base_class_validates_basis_type_for_every_provider():
+    gaussian = GaussianBasis("a", ["a 1S"], shells=[_s_function(1.0, [0.0, 0.0, 0.0])])
+
+    with pytest.raises(TypeError, match="EngineOverlapProvider requires EngineBasis, got GaussianBasis"):
+        EngineOverlapProvider().cross_overlap(gaussian, gaussian)

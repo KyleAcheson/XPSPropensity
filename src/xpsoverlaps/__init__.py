@@ -4,11 +4,13 @@ import logging
 
 from xpsoverlaps.model import (
     ActiveSpace,
-    BasisSet,
-    BasisShell,
+    AOBasis,
     Calculation,
     Configuration,
     ElectronicState,
+    EngineBasis,
+    GaussianBasis,
+    GaussianShell,
     Molecule,
     OrbitalSet,
     Provenance,
@@ -17,11 +19,13 @@ from xpsoverlaps.readers import get_calculation
 
 __all__ = [
     "ActiveSpace",
-    "BasisSet",
-    "BasisShell",
+    "AOBasis",
     "Calculation",
     "Configuration",
     "ElectronicState",
+    "EngineBasis",
+    "GaussianBasis",
+    "GaussianShell",
     "Molecule",
     "OrbitalSet",
     "Provenance",

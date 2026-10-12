@@ -1,13 +1,14 @@
-"""Overlap integrals between normalized Gaussian basis sets."""
+"""AO overlaps for bases given explicitly as contracted Gaussian shells."""
 
 from __future__ import annotations
 
 import numpy as np
 
-from xpsoverlaps.model import BasisSet, BasisShell
+from xpsoverlaps.model import GaussianBasis, GaussianShell
+from xpsoverlaps.overlap.base import AOOverlapProvider
 
 
-def shell_overlap(shell_a: BasisShell, shell_b: BasisShell) -> np.ndarray:
+def shell_overlap(shell_a: GaussianShell, shell_b: GaussianShell) -> np.ndarray:
     """Overlap block between the contracted functions of two shells.
 
     Rows and columns follow each shell's ``basis_function_ids`` order
@@ -65,7 +66,7 @@ def shell_overlap(shell_a: BasisShell, shell_b: BasisShell) -> np.ndarray:
     return block.reshape(len(shell_a.basis_function_ids), len(shell_b.basis_function_ids))
 
 
-def basis_overlap(basis_a: BasisSet, basis_b: BasisSet) -> np.ndarray:
+def basis_overlap(basis_a: GaussianBasis, basis_b: GaussianBasis) -> np.ndarray:
     """AO overlap matrix ``S[i, j] = <a_i | b_j>`` in each basis' function order.
 
     The two bases may differ (e.g. different geometries or basis sets);
@@ -77,3 +78,12 @@ def basis_overlap(basis_a: BasisSet, basis_b: BasisSet) -> np.ndarray:
         for shell_b in basis_b.shells:
             overlap[np.ix_(rows, shell_b.basis_function_ids)] = shell_overlap(shell_a, shell_b)
     return overlap
+
+
+class GaussianOverlapProvider(AOOverlapProvider):
+    """Program-independent AO overlaps for ``GaussianBasis`` representations."""
+
+    basis_type = GaussianBasis
+
+    def _compute(self, basis_a: GaussianBasis, basis_b: GaussianBasis) -> np.ndarray:
+        return basis_overlap(basis_a, basis_b)
