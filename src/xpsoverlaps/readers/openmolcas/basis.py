@@ -9,7 +9,7 @@ from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 
-from xpsoverlaps.model import BasisShell
+from xpsoverlaps.model import GaussianShell
 
 
 def _binomial(n: int, k: int) -> Fraction:
@@ -175,7 +175,7 @@ def reconstruct_basis(
     basis_ids: np.ndarray,
     primitive_data: np.ndarray,
     primitive_ids: np.ndarray,
-) -> Tuple[Tuple[BasisShell, ...], Tuple[str, ...]]:
+) -> Tuple[Tuple[GaussianShell, ...], Tuple[str, ...]]:
     """Normalize Molcas shell records and preserve its AO function ordering."""
     raw_ids = np.asarray(basis_ids, dtype=np.int64)
     raw_primitives = np.asarray(primitive_data, dtype=float)
@@ -346,18 +346,16 @@ def reconstruct_basis(
                     f"{shell['center_label']} {orbital}"
                 )
         final_shells.append(
-            BasisShell(
+            # Molcas-only details (r2 contaminants, magnetic numbers, Cartesian
+            # flag) are already encoded in the angular coefficients and labels.
+            GaussianShell(
                 center_index=shell["center"] - 1,
-                center_label=shell["center_label"],
                 coordinates=shell["coordinates"],
                 angular_momentum=l,
-                cartesian=shell["cartesian"],
-                r2_power=shell["r2"],
                 exponents=shell["exponents"],
                 contraction_coefficients=shell["coefficient_rows"],
                 angular_coefficients=shell["angular_coefficients"],
                 primitive_powers=shell["primitive_powers"],
-                magnetic_numbers=list(shell["magnetic_numbers"]),
                 basis_function_ids=list(ids),
             )
         )

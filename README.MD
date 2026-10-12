@@ -1,4 +1,4 @@
-# XPSoverlaps
+# XPSPropensity
 
 A module that computes approximate Dyson norms for shake-down XPS spectroscopy based on orbital overlaps only.
 
@@ -54,16 +54,15 @@ from xpsoverlaps.readers import get_calculation
 calculation = get_calculation(
     program="OpenMolcas",
     calculation_type="RASSCF",
-    wf_file="calculation.rasscf.h5",
-    state_file="calculation.log",
+    hdf5_file="calculation.rasscf.h5",
+    log_file="calculation.log",
 )
 ```
 
-Currently, `RASSCF` and `CASPT2` are supported for OpenMolcas. Every program
-needs a `wf_file`; `state_file` is only for programs that write CI data to a
-separate file. OpenMolcas requires both: the HDF5 data supplies geometry,
-orbitals, basis, and energies, while the log supplies spin/symmetry metadata
-and the dominant configuration.
+Currently, `RASSCF` and `CASPT2` are supported for OpenMolcas. Both input
+files are required; the HDF5 data supplies geometry, orbitals, basis, and
+energies, while the log supplies spin/symmetry metadata and the dominant
+configuration.
 
 The records are mutable dataclasses. Molecular coordinates and orbital
 coefficients are NumPy arrays; ordered orbitals and occupations use lists so
@@ -84,11 +83,8 @@ Run the focused reader tests with `pytest`. The package's current structure is:
 ```text
 src/xpsoverlaps/
 ├── __init__.py
-├── input_schema.yaml
-├── inputs.py
 ├── main.py
 ├── model.py
-├── propensity.py
 └── readers/
     ├── __init__.py
     ├── loader.py
@@ -98,13 +94,4 @@ src/xpsoverlaps/
         ├── caspt2_log.py
         ├── hdf5_reader.py
         └── rasscf_log.py
-```
-
-The format readers can also be used independently:
-
-```python
-from xpsoverlaps.readers.openmolcas import RasscfHdf5Reader, RasscfLogReader
-
-calculation = RasscfHdf5Reader().read("calculation.rasscf.h5")
-states = RasscfLogReader().read("calculation.log")
 ```
