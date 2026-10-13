@@ -1,8 +1,7 @@
-"""Atomic-orbital composition of molecular orbitals from Mulliken populations."""
+"""Atomic-orbital composition of molecular orbitals (Mulliken partition of each MO)."""
 
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass
 import re
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
@@ -19,19 +18,16 @@ _SHELL_LETTER = re.compile(r"^\d+([A-Za-z])")
 class AOContribution:
     label: str
     coefficient: float
-    population: float  # Mulliken gross population of this AO in the MO
+    weight: float  # fraction of the (normalized) MO assigned to this AO
 
 
 @dataclass
 class OrbitalComposition:
-    """AO make-up of one MO; populations sum to one over all AOs."""
+    """AO make-up of one MO: its largest AO contributions and its AO-group character."""
 
     orbital_id: str
-    contributions: List[AOContribution]  # sorted by decreasing population
+    dominant: List[AOContribution]  # largest weights above the threshold, decreasing
     groups: Dict[str, float]  # e.g. {"BR6 p": 0.74, ...}, sorted, non-negative, sums to one
-
-    def dominant(self, threshold: float = 0.05, max_count: int = 8) -> List[AOContribution]:
-        return [c for c in self.contributions if c.population >= threshold][:max_count]
 
 
 def ao_group(label: str) -> str:
@@ -45,50 +41,76 @@ def ao_group(label: str) -> str:
     return f"{atom} {match.group(1).lower() if match else orbital}"
 
 
+def _requested_ids(calculation: Calculation, orbital_ids: Optional[Iterable[str]]) -> List[str]:
+    return list(calculation.active_space.orbital_ids if orbital_ids is None else orbital_ids)
+
+
+def orbital_ao_weights(
+    calculation: Calculation,
+    orbital_ids: Optional[Iterable[str]] = None,
+    provider: Optional[AOOverlapProvider] = None,
+) -> np.ndarray:
+    """AO weights of each MO, shape (n_AO, n_orbitals); each column sums to one.
+
+    ``W[mu, k] = C[mu, k] * (S @ C)[mu, k]`` for the given MOs (default: the
+    active orbitals): the Mulliken partition of one normalized orbital, with
+    each AO-pair overlap term split equally. These are not electron
+    populations; they are not weighted by occupation.
+    """
+    basis, orbitals = calculation.basis, calculation.orbitals
+    if provider is None:
+        provider = get_overlap_provider(basis, basis)
+    positions = [orbitals.orbital_ids.index(i) for i in _requested_ids(calculation, orbital_ids)]
+    coefficients = orbitals.coefficients[:, positions]
+    return coefficients * (provider.cross_overlap(basis, basis) @ coefficients)
+
+
 def orbital_compositions(
     calculation: Calculation,
     orbital_ids: Optional[Iterable[str]] = None,
     provider: Optional[AOOverlapProvider] = None,
+    threshold: float = 0.05,
+    max_count: int = 8,
 ) -> Dict[str, OrbitalComposition]:
-    """Mulliken AO composition of the given MOs (default: the active orbitals).
+    """AO composition of the given MOs (default: the active orbitals).
 
-    The gross population of AO mu in MO k is ``C[mu, k] * (S @ C)[mu, k]``.
+    Group character uses every AO's weight; only the ``max_count`` largest
+    contributions with weight >= ``threshold`` are kept individually.
     """
-    basis, orbitals = calculation.basis, calculation.orbitals
-    if orbital_ids is None:
-        orbital_ids = calculation.active_space.orbital_ids
-    if provider is None:
-        provider = get_overlap_provider(basis, basis)
-    ao_overlap = provider.cross_overlap(basis, basis)
-    positions = [orbitals.orbital_ids.index(orbital_id) for orbital_id in orbital_ids]
-    coefficients = orbitals.coefficients[:, positions]
-    populations = coefficients * (ao_overlap @ coefficients)
+    orbital_ids = _requested_ids(calculation, orbital_ids)
+    labels = calculation.basis.function_labels
+    weights = orbital_ao_weights(calculation, orbital_ids, provider)
+    orbitals = calculation.orbitals
+    coefficients = orbitals.coefficients[:, [orbitals.orbital_ids.index(i) for i in orbital_ids]]
+
+    ao_groups = [ao_group(label) for label in labels]
+    group_names = list(dict.fromkeys(ao_groups))  # unique, in basis (atom) order
+    group_index = {name: index for index, name in enumerate(group_names)}
+    group_of_ao = np.array([group_index[name] for name in ao_groups])
+    group_weights = np.zeros((len(group_names), len(orbital_ids)))
+    np.add.at(group_weights, group_of_ao, weights)
 
     compositions = {}
     for column, orbital_id in enumerate(orbital_ids):
-        contributions = sorted(
-            (
-                AOContribution(label, float(coefficients[row, column]), float(populations[row, column]))
-                for row, label in enumerate(basis.function_labels)
-            ),
-            key=lambda contribution: -contribution.population,
-        )
+        column_weights = weights[:, column]
+        rows = np.flatnonzero(column_weights >= threshold)
+        rows = rows[np.argsort(-column_weights[rows])][:max_count]
+        dominant = [
+            AOContribution(labels[row], float(coefficients[row, column]), float(column_weights[row]))
+            for row in rows
+        ]
         compositions[orbital_id] = OrbitalComposition(
-            orbital_id, contributions, _group_populations(contributions)
+            orbital_id, dominant, _normalized_groups(group_names, group_weights[:, column])
         )
     return compositions
 
 
-def _group_populations(contributions: Sequence[AOContribution]) -> Dict[str, float]:
-    groups: Dict[str, float] = defaultdict(float)
-    for contribution in contributions:
-        groups[ao_group(contribution.label)] += contribution.population
-    # Mulliken group populations can be slightly negative; clip and renormalize.
-    clipped = {group: max(value, 0.0) for group, value in groups.items()}
-    total = sum(clipped.values()) or 1.0
-    return dict(
-        sorted(((group, value / total) for group, value in clipped.items()), key=lambda kv: -kv[1])
-    )
+def _normalized_groups(names: Sequence[str], weights: np.ndarray) -> Dict[str, float]:
+    # Mulliken-partitioned group weights can be slightly negative; clip and renormalize.
+    clipped = np.clip(weights, 0.0, None)
+    total = clipped.sum() or 1.0
+    order = np.argsort(-clipped, kind="stable")
+    return {names[index]: float(clipped[index] / total) for index in order}
 
 
 def composition_similarity(a: OrbitalComposition, b: OrbitalComposition) -> float:
@@ -96,19 +118,17 @@ def composition_similarity(a: OrbitalComposition, b: OrbitalComposition) -> floa
     return float(sum(min(value, b.groups.get(group, 0.0)) for group, value in a.groups.items()))
 
 
-def describe_orbital(
-    composition: OrbitalComposition, threshold: float = 0.05, max_count: int = 8
-) -> List[str]:
+def describe_orbital(composition: OrbitalComposition) -> List[str]:
     """Text lines listing an MO's dominant AO contributions and its overall character."""
     lines = [composition.orbital_id]
     character = ", ".join(
         f"{group} {value:.2f}" for group, value in list(composition.groups.items())[:3]
     )
     lines.append(f"  character: {character}")
-    lines.append(f"  {'AO':<18} {'coeff':>8} {'pop':>6}")
-    for contribution in composition.dominant(threshold, max_count):
+    lines.append(f"  {'AO':<18} {'coeff':>8} {'weight':>6}")
+    for contribution in composition.dominant:
         lines.append(
-            f"  {contribution.label:<18} {contribution.coefficient:+8.4f} {contribution.population:6.3f}"
+            f"  {contribution.label:<18} {contribution.coefficient:+8.4f} {contribution.weight:6.3f}"
         )
     return lines
 

@@ -8,6 +8,7 @@ from xpsoverlaps.composition import (
     ao_group,
     composition_similarity,
     describe_orbital_pairs,
+    orbital_ao_weights,
     orbital_compositions,
 )
 from xpsoverlaps.mapping import MappingOptions, OrbitalMappingError, match_active_orbitals
@@ -40,17 +41,29 @@ def test_ao_group_uses_atom_and_angular_momentum(label, group):
     assert ao_group(label) == group
 
 
-def test_mulliken_populations_sum_to_one_for_each_active_orbital(valence_and_core):
+def test_orbital_ao_weights_sum_to_one_for_each_active_orbital(valence_and_core):
     initial, _ = valence_and_core
 
-    compositions = orbital_compositions(initial)
+    weights = orbital_ao_weights(initial)
+
+    assert weights.shape == (239, 12)
+    np.testing.assert_allclose(weights.sum(axis=0), 1.0, atol=1e-8)
+
+
+def test_compositions_keep_only_dominant_contributions_but_group_every_ao(valence_and_core):
+    initial, _ = valence_and_core
+
+    compositions = orbital_compositions(initial, threshold=0.05, max_count=3)
 
     assert list(compositions) == initial.active_space.orbital_ids
     for composition in compositions.values():
-        assert sum(c.population for c in composition.contributions) == pytest.approx(1.0, abs=1e-8)
+        weights = [c.weight for c in composition.dominant]
+        assert 0 < len(weights) <= 3
+        assert all(w >= 0.05 for w in weights)
+        assert weights == sorted(weights, reverse=True)
         assert sum(composition.groups.values()) == pytest.approx(1.0)
-        populations = [c.population for c in composition.contributions]
-        assert populations == sorted(populations, reverse=True)
+        group_values = list(composition.groups.values())
+        assert group_values == sorted(group_values, reverse=True)
 
 
 def test_sulfur_2p_core_orbital_is_described_as_sulfur_p(valence_and_core):
@@ -59,7 +72,7 @@ def test_sulfur_2p_core_orbital_is_described_as_sulfur_p(valence_and_core):
     composition = orbital_compositions(initial, ["mo:33"])["mo:33"]
 
     assert next(iter(composition.groups)) == "S5 p"
-    assert composition.dominant()[0].label == "S5 2P[m=+0]"
+    assert composition.dominant[0].label == "S5 2P[m=+0]"
     lines = describe_orbital_pairs([(composition, composition)])
     assert any("S5 2P[m=+0]" in line and "|" in line for line in lines)
 

@@ -52,7 +52,7 @@ def map_active_orbitals(
     else:
         logger.info("No mapping warnings.")
     logger.info("")
-    logger.info("Dominant AO contributions (Mulliken populations) of the paired orbitals")
+    logger.info("Dominant AO contributions (AO weights, Mulliken partition) of the paired orbitals")
     logger.info("")
     pairs = [
         (initial_compositions[match.initial_id], final_compositions[match.final_id])
