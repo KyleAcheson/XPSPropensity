@@ -1,3 +1,4 @@
+import dataclasses
 from pathlib import Path
 
 import numpy as np
@@ -34,11 +35,28 @@ def valence_and_core():
 
 
 @pytest.mark.parametrize(
-    "label,group",
-    [("BR6 4P[m=-1]", "BR6 p"), ("C1 1S", "C1 s"), ("S5 3D[m=+2]", "S5 d"), ("C1 2Px", "C1 p")],
+    "atom,l,group",
+    [("BR6", 1, "BR6 p"), ("C1", 0, "C1 s"), ("S5", 2, "S5 d"), ("H7", 4, "H7 g"), ("X1", 12, "X1 l=12")],
 )
-def test_ao_group_uses_atom_and_angular_momentum(label, group):
-    assert ao_group(label) == group
+def test_ao_group_uses_atom_and_angular_momentum(atom, l, group):
+    assert ao_group(atom, l) == group
+
+
+def test_ao_groups_come_from_structured_metadata_not_label_text(valence_and_core):
+    initial, _ = valence_and_core
+    relabelled = dataclasses.replace(
+        initial,
+        basis=dataclasses.replace(
+            initial.basis, function_labels=[f"ao{i}" for i in range(initial.basis.n_functions)]
+        ),
+    )
+
+    original = orbital_compositions(initial)
+    unlabelled = orbital_compositions(relabelled)
+
+    for orbital_id, composition in original.items():
+        assert unlabelled[orbital_id].groups == pytest.approx(composition.groups)
+    assert next(iter(original["mo:33"].groups)) == "S5 p"
 
 
 def test_orbital_ao_weights_sum_to_one_for_each_active_orbital(valence_and_core):

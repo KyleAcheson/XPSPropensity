@@ -1,3 +1,4 @@
+import dataclasses
 from pathlib import Path
 import shutil
 
@@ -6,7 +7,7 @@ import numpy as np
 import pytest
 
 from xpsoverlaps.readers.loader import attach_states
-from xpsoverlaps.model import Configuration, ElectronicState
+from xpsoverlaps.model import Configuration, ElectronicState, GaussianBasis
 from xpsoverlaps.readers.openmolcas import (
     Caspt2LogReader,
     RasscfLogReader,
@@ -237,3 +238,34 @@ def test_ao_labels_match_molcas_basis_function_ids(hdf5_name):
         assert orbital.startswith(f"{contraction + l}{l_letters[l]}")
         if "[m=" in orbital:
             assert orbital.endswith(f"[m={m:+d}]")
+
+
+@pytest.mark.parametrize("hdf5_name", ["valence.rasscf.h5", "core.rasscf.h5"])
+def test_ao_centers_and_angular_momenta_match_molcas_basis_function_ids(hdf5_name):
+    calculation = RasscfHdf5Reader().read(DATA / hdf5_name)
+    with h5py.File(DATA / hdf5_name, "r") as h5_file:
+        basis_ids = h5_file["BASIS_FUNCTION_IDS"][:]
+
+    basis = calculation.basis
+    assert basis.function_centers == [int(c) - 1 for c in basis_ids[:, 0]]
+    assert basis.function_angular_momenta == [abs(int(l)) for l in basis_ids[:, 2]]
+    for label, center in zip(basis.function_labels, basis.function_centers):
+        assert label.split()[0] == calculation.molecule.atoms[center]
+
+
+def test_ao_basis_metadata_is_validated():
+    with pytest.raises(ValueError, match="one entry per AO label"):
+        GaussianBasis("b", ["a", "b"], function_centers=[0], function_angular_momenta=[0, 0])
+    with pytest.raises(ValueError, match="non-negative"):
+        GaussianBasis("b", ["a"], function_centers=[0], function_angular_momenta=[-1])
+
+
+def test_calculation_rejects_ao_centers_outside_the_molecule():
+    calculation = RasscfHdf5Reader().read(DATA / "valence.rasscf.h5")
+    centers = list(calculation.basis.function_centers)
+    centers[0] = len(calculation.molecule.atoms)
+
+    with pytest.raises(ValueError, match="AO center must index an atom"):
+        dataclasses.replace(
+            calculation, basis=dataclasses.replace(calculation.basis, function_centers=centers)
+        )
