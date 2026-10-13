@@ -3,7 +3,9 @@ from pathlib import Path
 import h5py
 import pytest
 
-from xpsoverlaps.readers import get_calculation
+from xpsoverlaps.readers import CalculationLoader, get_calculation
+from xpsoverlaps.readers import loader as loader_module
+from xpsoverlaps.readers.openmolcas import OpenMolcasLoader, RasscfHdf5Reader
 
 
 DATA = Path(__file__).parents[1] / "data" / "molcas" / "brthph" / "s2p" / "mb"
@@ -67,3 +69,60 @@ def test_get_calculation_rejects_unsupported_programs_and_methods():
             DATA / "unused.h5",
             DATA / "unused.log",
         )
+
+
+# --- Loader registration ----------------------------------------------------
+
+
+@pytest.fixture
+def isolated_registry(monkeypatch):
+    """Let tests define loaders without leaking them into the global registry."""
+    monkeypatch.setattr(loader_module, "_LOADERS", dict(loader_module._LOADERS))
+
+
+def test_openmolcas_loader_is_registered_under_both_names():
+    assert loader_module._LOADERS["openmolcas"] is OpenMolcasLoader
+    assert loader_module._LOADERS["molcas"] is OpenMolcasLoader
+
+
+def test_defining_a_loader_subclass_makes_get_calculation_support_it(isolated_registry):
+    class SingleFileLoader(CalculationLoader):
+        """A stand-in single-file program: everything comes from wf_file."""
+
+        programs = ("SingleFile",)
+        display_name = "SingleFile"
+        calculation_types = {"CASSCF"}
+
+        def _load(self, kind, wf_file, state_file):
+            assert state_file is None
+            return RasscfHdf5Reader().read(wf_file)
+
+    calculation = get_calculation(" singlefile ", "casscf", DATA / "valence.rasscf.h5")
+
+    assert calculation.basis.n_functions == 239
+    with pytest.raises(ValueError, match="Unsupported SingleFile calculation type 'RASSCF'"):
+        get_calculation("SingleFile", "RASSCF", DATA / "valence.rasscf.h5")
+
+
+def test_abstract_intermediate_loaders_are_not_registered(isolated_registry):
+    class PartialLoader(CalculationLoader):
+        programs = ("partial",)
+
+    assert "partial" not in loader_module._LOADERS
+
+
+def test_duplicate_program_names_are_rejected(isolated_registry):
+    with pytest.raises(ValueError, match="'Molcas' is already registered by OpenMolcasLoader"):
+
+        class ImpostorLoader(CalculationLoader):
+            programs = ("Molcas",)
+            display_name = "Impostor"
+            calculation_types = {"RASSCF"}
+
+            def _load(self, kind, wf_file, state_file):
+                raise AssertionError
+
+
+def test_unknown_program_lists_supported_programs():
+    with pytest.raises(NotImplementedError, match="supported programs are: molcas, openmolcas"):
+        get_calculation("ORCA", "CASSCF", DATA / "unused.h5")

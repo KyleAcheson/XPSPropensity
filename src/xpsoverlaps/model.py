@@ -188,3 +188,16 @@ class Calculation:
         known_ids = set(self.orbitals.orbital_ids)
         if any(orbital_id not in known_ids for orbital_id in self.active_space.orbital_ids):
             raise ValueError("Every active orbital ID must exist in the orbital set.")
+        for state in self.states:
+            configuration = state.dominant_configuration
+            if configuration is None:
+                continue
+            if not configuration.orbital_ids:
+                raise ValueError(
+                    f"State {state.state_id} configuration is not bound to orbital IDs."
+                )
+            if any(orbital_id not in known_ids for orbital_id in configuration.orbital_ids):
+                raise ValueError(
+                    f"State {state.state_id} configuration refers to orbital IDs that are "
+                    "not in the orbital set."
+                )

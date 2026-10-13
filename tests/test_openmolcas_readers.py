@@ -6,7 +6,7 @@ import h5py
 import numpy as np
 import pytest
 
-from xpsoverlaps.readers.loader import attach_states
+from xpsoverlaps.readers.loader import with_states
 from xpsoverlaps.model import Configuration, ElectronicState, GaussianBasis
 from xpsoverlaps.readers.openmolcas import (
     Caspt2LogReader,
@@ -175,7 +175,7 @@ def test_assembly_binds_ci_occupations_to_active_orbital_ids(
     calculation = hdf5_reader().read(DATA / hdf5_path)
     states = log_reader().read(DATA / log_path)
 
-    assembled = attach_states(calculation, states)
+    assembled = with_states(calculation, states)
     assert assembled.states[0].dominant_configuration.orbital_ids == calculation.active_space.orbital_ids
     assert len(assembled.states[0].dominant_configuration.orbital_ids) == 12
     assert [state.energy for state in assembled.states] == pytest.approx(
@@ -187,8 +187,8 @@ def test_assembly_rejects_states_from_a_different_calculation():
     calculation = RasscfHdf5Reader().read(DATA / "valence.rasscf.h5")
     states = Caspt2LogReader().read(DATA / "valence_caspt2.log")
 
-    with pytest.raises(ValueError, match="does not match log state"):
-        attach_states(calculation, states)
+    with pytest.raises(ValueError, match="does not match state .* from the state file"):
+        with_states(calculation, states)
 
 
 def test_rasscf_hdf5_reader_rejects_active_orbitals_out_of_ras_order(tmp_path):
@@ -207,20 +207,48 @@ def test_rasscf_hdf5_reader_rejects_active_orbitals_out_of_ras_order(tmp_path):
 def test_assembly_rejects_configuration_with_incompatible_orbital_count():
     calculation = RasscfHdf5Reader().read(DATA / "core.rasscf.h5")
     states = list(calculation.states)
-    states[0].dominant_configuration = Configuration(
-        configuration_id="bad",
-        occupations=["2"],
+    states[0] = dataclasses.replace(
+        states[0], dominant_configuration=Configuration(configuration_id="bad", occupations=["2"])
     )
 
     with pytest.raises(ValueError, match="occupations"):
-        attach_states(calculation, states)
+        with_states(calculation, states)
 
 
 def test_assembly_rejects_different_state_counts():
     calculation = RasscfHdf5Reader().read(DATA / "core.rasscf.h5")
 
-    with pytest.raises(ValueError, match="contains 40 states.*log contains 1"):
-        attach_states(calculation, [ElectronicState(state_id="rasscf:1")])
+    with pytest.raises(ValueError, match="contains 40 states.*state file contains 1"):
+        with_states(calculation, [ElectronicState(state_id="rasscf:1")])
+
+
+def test_with_states_returns_new_calculation_without_modifying_inputs():
+    calculation = Caspt2Hdf5Reader().read(DATA / "valence_caspt2.caspt2.h5")
+    states = Caspt2LogReader().read(DATA / "valence_caspt2.log")
+
+    assembled = with_states(calculation, states)
+
+    assert assembled is not calculation
+    assert assembled.states[0].spin == pytest.approx(0.0)
+    assert all(state.spin is None and state.dominant_configuration is None for state in calculation.states)
+    assert all(state.dominant_configuration.orbital_ids == [] for state in states)
+    assert assembled.basis is calculation.basis and assembled.orbitals is calculation.orbitals
+
+
+def test_calculation_rejects_configurations_not_bound_to_its_orbitals():
+    calculation = with_states(
+        Caspt2Hdf5Reader().read(DATA / "valence_caspt2.caspt2.h5"),
+        Caspt2LogReader().read(DATA / "valence_caspt2.log"),
+    )
+    unbound = dataclasses.replace(calculation.states[0].dominant_configuration, orbital_ids=[])
+    foreign = dataclasses.replace(
+        calculation.states[0].dominant_configuration, orbital_ids=[f"x:{i}" for i in range(12)]
+    )
+
+    for configuration, message in [(unbound, "not bound"), (foreign, "not in the orbital set")]:
+        states = [dataclasses.replace(calculation.states[0], dominant_configuration=configuration)]
+        with pytest.raises(ValueError, match=message):
+            dataclasses.replace(calculation, states=states + calculation.states[1:])
 
 
 @pytest.mark.parametrize("hdf5_name", ["valence.rasscf.h5", "core.rasscf.h5"])
