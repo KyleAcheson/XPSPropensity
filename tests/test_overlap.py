@@ -95,10 +95,21 @@ def _s_function(exponent, center, function_id=0):
     )
 
 
+def _s_basis(basis_id, exponent, center):
+    """A basis of one normalized s function on atom 0."""
+    return GaussianBasis(
+        basis_id,
+        [f"{basis_id} 1S"],
+        function_centers=[0],
+        function_angular_momenta=[0],
+        shells=[_s_function(exponent, center)],
+    )
+
+
 def test_shell_overlap_of_normalized_s_primitives_matches_analytic_result():
     alpha, beta, separation = 0.8, 1.7, 1.3
-    basis_a = GaussianBasis("a", ["a 1S"], shells=[_s_function(alpha, [0.0, 0.0, 0.0])])
-    basis_b = GaussianBasis("b", ["b 1S"], shells=[_s_function(beta, [0.0, 0.0, separation])])
+    basis_a = _s_basis("a", alpha, [0.0, 0.0, 0.0])
+    basis_b = _s_basis("b", beta, [0.0, 0.0, separation])
 
     expected = (2 * np.sqrt(alpha * beta) / (alpha + beta)) ** 1.5 * np.exp(
         -alpha * beta / (alpha + beta) * separation**2
@@ -117,8 +128,8 @@ def fake_engine(monkeypatch):
 
 def test_engine_bases_use_registered_engine_backend(fake_engine):
     handle_a, handle_b = np.eye(2), np.array([[1.0, 0.5], [0.0, 1.0]])
-    basis_a = EngineBasis("a", ["1", "2"], engine="fake", handle=handle_a)
-    basis_b = EngineBasis("b", ["1", "2"], engine="fake", handle=handle_b)
+    basis_a = EngineBasis("a", ["1", "2"], [0, 0], [0, 0], engine="fake", handle=handle_a)
+    basis_b = EngineBasis("b", ["1", "2"], [0, 0], [0, 0], engine="fake", handle=handle_b)
 
     provider = get_overlap_provider(basis_a, basis_b)
 
@@ -127,8 +138,8 @@ def test_engine_bases_use_registered_engine_backend(fake_engine):
 
 
 def test_engine_provider_rejects_unregistered_and_mismatched_engines(fake_engine):
-    fake = EngineBasis("a", ["1"], engine="fake", handle=np.eye(1))
-    other = EngineBasis("b", ["1"], engine="other", handle=np.eye(1))
+    fake = EngineBasis("a", ["1"], [0], [0], engine="fake", handle=np.eye(1))
+    other = EngineBasis("b", ["1"], [0], [0], engine="other", handle=np.eye(1))
 
     with pytest.raises(NotImplementedError, match="No overlap backend registered for engine 'other'"):
         EngineOverlapProvider().cross_overlap(other, other)
@@ -137,8 +148,8 @@ def test_engine_provider_rejects_unregistered_and_mismatched_engines(fake_engine
 
 
 def test_provider_selection_rejects_mixed_basis_representations():
-    gaussian = GaussianBasis("a", ["a 1S"], shells=[_s_function(1.0, [0.0, 0.0, 0.0])])
-    engine = EngineBasis("b", ["b 1S"], engine="fake")
+    gaussian = _s_basis("a", 1.0, [0.0, 0.0, 0.0])
+    engine = EngineBasis("b", ["b 1S"], [0], [0], engine="fake")
 
     with pytest.raises(ValueError, match="same basis representation"):
         get_overlap_provider(gaussian, engine)
@@ -156,14 +167,14 @@ def test_provider_without_compute_cannot_be_instantiated():
 
 def test_base_class_validates_overlap_shape_for_every_provider(fake_engine):
     register_engine("fake", lambda handle_a, handle_b: np.eye(3))
-    basis = EngineBasis("a", ["1", "2"], engine="fake")
+    basis = EngineBasis("a", ["1", "2"], [0, 0], [0, 0], engine="fake")
 
     with pytest.raises(ValueError, match=r"returned an AO overlap of shape \(3, 3\); expected \(2, 2\)"):
         EngineOverlapProvider().cross_overlap(basis, basis)
 
 
 def test_base_class_validates_basis_type_for_every_provider():
-    gaussian = GaussianBasis("a", ["a 1S"], shells=[_s_function(1.0, [0.0, 0.0, 0.0])])
+    gaussian = _s_basis("a", 1.0, [0.0, 0.0, 0.0])
 
     with pytest.raises(TypeError, match="EngineOverlapProvider requires EngineBasis, got GaussianBasis"):
         EngineOverlapProvider().cross_overlap(gaussian, gaussian)

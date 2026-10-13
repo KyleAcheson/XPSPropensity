@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import re
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -11,7 +10,6 @@ import numpy as np
 from xpsoverlaps.model import Calculation
 from xpsoverlaps.overlap import AOOverlapProvider, get_overlap_provider
 
-_SHELL_LETTER = re.compile(r"^\d+([A-Za-z])")
 
 
 @dataclass
@@ -30,15 +28,21 @@ class OrbitalComposition:
     groups: Dict[str, float]  # e.g. {"BR6 p": 0.74, ...}, sorted, non-negative, sums to one
 
 
-def ao_group(label: str) -> str:
-    """Group an AO label by atom and angular momentum, e.g. ``"BR6 4P[m=-1]"`` -> ``"BR6 p"``.
+_ANGULAR_LETTERS = "spdfghiklm"
 
-    The number in AO labels is a contraction index, not the atomic shell, so
-    groups deliberately use only the atom and the angular-momentum letter.
+
+def ao_group(atom_label: str, angular_momentum: int) -> str:
+    """AO group key from an atom and an angular momentum, e.g. ``("BR6", 1)`` -> ``"BR6 p"``.
+
+    Groups pool every contraction and component of one l on one atom, which
+    is meaningful for any basis set.
     """
-    atom, orbital = label.split(maxsplit=1)
-    match = _SHELL_LETTER.match(orbital)
-    return f"{atom} {match.group(1).lower() if match else orbital}"
+    letter = (
+        _ANGULAR_LETTERS[angular_momentum]
+        if angular_momentum < len(_ANGULAR_LETTERS)
+        else f"l={angular_momentum}"
+    )
+    return f"{atom_label} {letter}"
 
 
 def _requested_ids(calculation: Calculation, orbital_ids: Optional[Iterable[str]]) -> List[str]:
@@ -83,7 +87,11 @@ def orbital_compositions(
     orbitals = calculation.orbitals
     coefficients = orbitals.coefficients[:, [orbitals.orbital_ids.index(i) for i in orbital_ids]]
 
-    ao_groups = [ao_group(label) for label in labels]
+    basis, atoms = calculation.basis, calculation.molecule.atoms
+    ao_groups = [
+        ao_group(atoms[center], l)
+        for center, l in zip(basis.function_centers, basis.function_angular_momenta)
+    ]
     group_names = list(dict.fromkeys(ao_groups))  # unique, in basis (atom) order
     group_index = {name: index for index, name in enumerate(group_names)}
     group_of_ao = np.array([group_index[name] for name in ao_groups])

@@ -68,15 +68,24 @@ def _read_calculation(
         if center_coords.shape != (len(center_labels), 3):
             raise ValueError("Center coordinates and labels have incompatible dimensions.")
 
+        basis_function_ids = np.asarray(h5_file[prefix + "BASIS_FUNCTION_IDS"][:], dtype=int)
         basis_shells, ao_labels = reconstruct_basis(
             centers=center_coords,
             center_labels=center_labels,
-            basis_ids=h5_file[prefix + "BASIS_FUNCTION_IDS"][:],
+            basis_ids=basis_function_ids,
             primitive_data=h5_file["PRIMITIVES"][:],
             primitive_ids=h5_file["PRIMITIVE_IDS"][:],
         )
         basis_id = f"openmolcas:{path.resolve()}:basis"
-        basis = GaussianBasis(basis_id, list(ao_labels), shells=list(basis_shells))
+        # BASIS_FUNCTION_IDS rows are (center, contraction, l, m) with 1-based centers;
+        # Cartesian shells store negative l, so |l| is the angular momentum.
+        basis = GaussianBasis(
+            basis_id,
+            list(ao_labels),
+            function_centers=[int(center) - 1 for center in basis_function_ids[:, 0]],
+            function_angular_momenta=[abs(int(l)) for l in basis_function_ids[:, 2]],
+            shells=list(basis_shells),
+        )
 
         nbas = np.asarray(_attribute_scalar(h5_file, "NBAS"), dtype=int).reshape(-1)
         coefficients = square_from_symmetry_blocks(h5_file["MO_VECTORS"][:], nbas).T

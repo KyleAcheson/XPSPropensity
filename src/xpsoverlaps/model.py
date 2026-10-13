@@ -16,17 +16,30 @@ class Molecule:
 
 
 
-
 @dataclass
 class AOBasis:
     """Atomic-orbital basis of a calculation, in MO coefficient row order.
 
     Subclasses are basis *representations* (not programs); each has an
     ``AOOverlapProvider`` in ``xpsoverlaps.overlap`` that computes AO overlaps.
+
+    Per-AO metadata is structured and program neutral: ``function_centers``
+    gives each AO's atom (index into ``Molecule.atoms``) and
+    ``function_angular_momenta`` its angular momentum l. ``function_labels``
+    are for display only; analysis must not parse them.
     """
 
     basis_id: str
     function_labels: List[str]
+    function_centers: List[int]
+    function_angular_momenta: List[int]
+
+    def __post_init__(self) -> None:
+        n_functions = len(self.function_labels)
+        if len(self.function_centers) != n_functions or len(self.function_angular_momenta) != n_functions:
+            raise ValueError("AO centers and angular momenta must have one entry per AO label.")
+        if any(l < 0 for l in self.function_angular_momenta):
+            raise ValueError("AO angular momenta must be non-negative.")
 
     @property
     def n_functions(self) -> int:
@@ -170,6 +183,8 @@ class Calculation:
             raise ValueError("Orbital coefficients and basis must share a basis ID.")
         if self.orbitals.coefficients.shape[0] != self.basis.n_functions:
             raise ValueError("Orbital coefficient rows must match the ordered basis functions.")
+        if any(not 0 <= center < len(self.molecule.atoms) for center in self.basis.function_centers):
+            raise ValueError("Every AO center must index an atom of the molecule.")
         known_ids = set(self.orbitals.orbital_ids)
         if any(orbital_id not in known_ids for orbital_id in self.active_space.orbital_ids):
             raise ValueError("Every active orbital ID must exist in the orbital set.")
