@@ -6,7 +6,7 @@ import argparse
 import logging
 from pathlib import Path
 import sys
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 import yaml
 
@@ -14,7 +14,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from xpsoverlaps import propensity
-from xpsoverlaps.inputs import InputError, load_input
+from xpsoverlaps.inputs import CalculationInput, InputError, RunInput, load_input
 from xpsoverlaps.model import Calculation
 from xpsoverlaps.readers import get_calculation
 
@@ -22,13 +22,8 @@ from xpsoverlaps.readers import get_calculation
 logger = logging.getLogger("xpsoverlaps")
 
 
-def _load_block(run_input: Dict[str, Any], block: str) -> Calculation:
-    return get_calculation(
-        program=run_input["Calculator"]["program"],
-        calculation_type=run_input[block]["type"],
-        wf_file=run_input[block]["wf_file"],
-        state_file=run_input[block].get("state_file"),
-    )
+def _load_block(program: str, block: CalculationInput) -> Calculation:
+    return get_calculation(program, block["type"], block["wf_file"], block.get("state_file"))
 
 
 _WIDTH = 80
@@ -42,7 +37,7 @@ def _log_header() -> None:
     logger.info("")
 
 
-def _log_input(run_input: Dict[str, Any]) -> None:
+def _log_input(run_input: RunInput) -> None:
     """Dump the validated input, with file paths resolved."""
     printable = {
         block: {key: str(value) if isinstance(value, Path) else value for key, value in fields.items()}
@@ -108,10 +103,11 @@ def _run(input_file: Path) -> int:
     _log_input(run_input)
     _log_unmapped_ci_note()
 
-    initial = _load_block(run_input, "Initial")
+    program = run_input["Calculator"]["program"]
+    initial = _load_block(program, run_input["Initial"])
     _log_states("Initial", initial)
     if run_input["Calculator"]["method"] == "overlaps":
-        final = _load_block(run_input, "Final")
+        final = _load_block(program, run_input["Final"])
         _log_states("Final", final)
         propensity.propensity_overlaps(initial, final)
     else:

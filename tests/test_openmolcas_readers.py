@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from xpsoverlaps.readers.loader import with_states
-from xpsoverlaps.model import Configuration, ElectronicState, GaussianBasis
+from xpsoverlaps.model import Configuration, ElectronicState, EngineBasis, GaussianBasis
 from xpsoverlaps.readers.openmolcas import (
     Caspt2LogReader,
     RasscfLogReader,
@@ -283,9 +283,24 @@ def test_ao_centers_and_angular_momenta_match_molcas_basis_function_ids(hdf5_nam
 
 def test_ao_basis_metadata_is_validated():
     with pytest.raises(ValueError, match="one entry per AO label"):
-        GaussianBasis("b", ["a", "b"], function_centers=[0], function_angular_momenta=[0, 0])
+        GaussianBasis("b", ["a", "b"], [0], [0, 0], shells=[])
     with pytest.raises(ValueError, match="non-negative"):
-        GaussianBasis("b", ["a"], function_centers=[0], function_angular_momenta=[-1])
+        GaussianBasis("b", ["a"], [0], [-1], shells=[])
+    with pytest.raises(ValueError, match="cover every AO exactly once"):
+        GaussianBasis("b", ["a"], [0], [0], shells=[])
+    with pytest.raises(ValueError, match="needs an engine name"):
+        EngineBasis("b", ["a"], [0], [0], engine="", handle=None)
+
+
+def test_model_records_are_immutable_and_replace_revalidates():
+    calculation = RasscfHdf5Reader().read(DATA / "valence.rasscf.h5")
+
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        calculation.states = []
+    with pytest.raises(ValueError, match="share a basis ID"):
+        dataclasses.replace(
+            calculation, orbitals=dataclasses.replace(calculation.orbitals, basis_id="other")
+        )
 
 
 def test_calculation_rejects_ao_centers_outside_the_molecule():

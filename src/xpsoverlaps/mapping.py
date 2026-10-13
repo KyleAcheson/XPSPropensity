@@ -8,7 +8,7 @@ active orbital corresponds to each initial active orbital.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Mapping, Optional, Sequence
+from typing import Dict, List, Literal, Mapping, NamedTuple, Optional, Sequence
 
 import numpy as np
 
@@ -19,19 +19,18 @@ class OrbitalMappingError(ValueError):
     """Raised when active orbitals cannot be mapped consistently."""
 
 
-@dataclass
+@dataclass(frozen=True)
 class MappingOptions:
     min_overlap: float = 0.5  # warn if a matched |S| is below this
     close_second_ratio: float = 0.8  # warn if runner-up |S| / matched |S| is at least this
-    rotated_out: str = "error"  # "error" or "warning" for orbitals leaving the active space
+    rotated_out: Literal["error", "warning"] = "error"  # for orbitals leaving the active space
 
     def __post_init__(self) -> None:
         if self.rotated_out not in {"error", "warning"}:
             raise ValueError("rotated_out must be 'error' or 'warning'.")
 
 
-@dataclass
-class OrbitalMatch:
+class OrbitalMatch(NamedTuple):
     initial_id: str
     final_id: str
     overlap: float  # signed S_MO[initial, final]
@@ -42,7 +41,7 @@ class OrbitalMatch:
     assigned_by: str  # "overlap" or "composition"
 
 
-@dataclass
+@dataclass(frozen=True, eq=False)
 class OrbitalMapping:
     """Initial active orbital -> final active orbital, in initial active order."""
 

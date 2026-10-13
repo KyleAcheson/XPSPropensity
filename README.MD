@@ -134,7 +134,10 @@ Run the tests with `pytest`.
 ### Data model: what a loader must produce
 
 Everything downstream works only on `Calculation` (`model.py`). Constructing
-one validates it, so a loader that returns a `Calculation` is consistent.
+one validates it, so a loader that returns a `Calculation` is consistent. The
+records are immutable (frozen dataclasses): to change one, derive a copy with
+`dataclasses.replace`, which is validated again. The overview at the top of
+`model.py` shows how the parts refer to each other.
 
 | Part | Contents and conventions |
 |---|---|

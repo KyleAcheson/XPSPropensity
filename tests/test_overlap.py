@@ -149,7 +149,7 @@ def test_engine_provider_rejects_unregistered_and_mismatched_engines(fake_engine
 
 def test_provider_selection_rejects_mixed_basis_representations():
     gaussian = _s_basis("a", 1.0, [0.0, 0.0, 0.0])
-    engine = EngineBasis("b", ["b 1S"], [0], [0], engine="fake")
+    engine = EngineBasis("b", ["b 1S"], [0], [0], engine="fake", handle=None)
 
     with pytest.raises(ValueError, match="same basis representation"):
         get_overlap_provider(gaussian, engine)
@@ -167,7 +167,7 @@ def test_provider_without_compute_cannot_be_instantiated():
 
 def test_base_class_validates_overlap_shape_for_every_provider(fake_engine):
     register_engine("fake", lambda handle_a, handle_b: np.eye(3))
-    basis = EngineBasis("a", ["1", "2"], [0, 0], [0, 0], engine="fake")
+    basis = EngineBasis("a", ["1", "2"], [0, 0], [0, 0], engine="fake", handle=None)
 
     with pytest.raises(ValueError, match=r"returned an AO overlap of shape \(3, 3\); expected \(2, 2\)"):
         EngineOverlapProvider().cross_overlap(basis, basis)
