@@ -17,8 +17,11 @@ from xpsoverlaps.mapping import (
     MappingOptions,
     OrbitalMappingError,
     map_active_orbitals,
+    mapped_ci_report,
     mapping_report,
     match_active_orbitals,
+    open_shells_reordered,
+    remap_occupations,
 )
 from xpsoverlaps.readers import get_calculation
 
@@ -153,6 +156,36 @@ def test_mapping_report_lists_matches_warnings_and_compositions(valence_and_core
     assert "Mapping warnings:" in lines
     assert any(line.startswith("  - Close runner-up for mo:36 -> mo:36") for line in lines)
     assert any("S5 2P[m=+0]" in line and "|" in line for line in lines)
+
+
+def test_final_occupations_are_reordered_onto_initial_orbitals(valence_and_core):
+    initial, final = valence_and_core
+    mapping = map_active_orbitals(initial, final)
+
+    # Final mo:34/38/39 match initial mo:38/39/34, so those positions move.
+    assert "".join(remap_occupations(list("22u22222du00"), mapping)) == "22ud22222u00"
+    assert "".join(remap_occupations(list("222222222000"), mapping)) == "222222222000"
+
+
+def test_open_shell_reordering_is_detected(valence_and_core):
+    initial, final = valence_and_core
+    mapping = map_active_orbitals(initial, final)
+
+    assert not open_shells_reordered(list("22u22222du00"), mapping)  # open shells stay in order
+    assert open_shells_reordered(list("22u222u2ddu0"), mapping)  # final mo:38 and mo:39 swap order
+
+
+def test_mapped_ci_report_shows_both_calculations_on_initial_order(valence_and_core):
+    initial, final = valence_and_core
+
+    lines = mapped_ci_report(initial, final, map_active_orbitals(initial, final))
+
+    assert "  final:   mo:31 mo:32 mo:33 mo:39 mo:35 mo:36 mo:37 mo:34 mo:38 mo:40 mo:41 mo:42" in lines
+    assert any(line.split()[:3] == ["1", "-3157.05052010", "222222222000"] for line in lines)
+    assert any(line.split()[2:4] == ["22u22222du00", "22ud22222u00"] for line in lines)
+    flagged = [line.split()[0] for line in lines if line.endswith("  *")]
+    assert flagged == ["39", "40"]
+    assert lines[-2].startswith("* The mapping changes the order of the open shells")
 
 
 def test_mapping_does_not_modify_calculations(valence_and_core):

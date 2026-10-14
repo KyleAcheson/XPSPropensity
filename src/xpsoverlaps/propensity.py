@@ -6,7 +6,7 @@ import logging
 from typing import Optional
 
 from xpsoverlaps.frontier import FrontierOrbitals, frontier_report, map_frontier
-from xpsoverlaps.mapping import map_active_orbitals, mapping_report
+from xpsoverlaps.mapping import map_active_orbitals, mapped_ci_report, mapping_report
 from xpsoverlaps.model import Calculation
 
 logger = logging.getLogger(__name__)
@@ -24,6 +24,11 @@ def propensity_overlaps(
     mapping = map_active_orbitals(initial, final)
     logger.info("")
     for line in mapping_report(mapping):
+        logger.info(line)
+    logger.info("")
+    logger.info(_DASHES)
+    logger.info("")
+    for line in mapped_ci_report(initial, final, mapping):
         logger.info(line)
     logger.info("")
     logger.info(_DASHES)

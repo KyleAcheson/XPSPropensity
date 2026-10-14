@@ -303,3 +303,84 @@ def mapping_report(mapping: OrbitalMapping) -> List[str]:
         for match in mapping.matches
     ]
     return lines + describe_orbital_pairs(pairs)
+
+
+def remap_occupations(occupations: Sequence[str], mapping: OrbitalMapping) -> List[str]:
+    """Final-state occupations reordered onto the initial active orbitals.
+
+    Position k holds the occupation of the final orbital matched to initial
+    active orbital k, so initial and final strings compare position by position.
+    """
+    return [occupations[position] for position in mapping.active_index_map]
+
+
+def open_shells_reordered(occupations: Sequence[str], mapping: OrbitalMapping) -> bool:
+    """True if remapping changes the order of the singly occupied orbitals.
+
+    ``u``/``d`` couple the open shells in orbital order, so the remapped string
+    is then not the same CSF; its occupation numbers are still exact.
+    """
+    positions = [p for p in mapping.active_index_map if occupations[p] in "ud"]
+    return positions != sorted(positions)
+
+
+def mapped_ci_report(initial: Calculation, final: Calculation, mapping: OrbitalMapping) -> List[str]:
+    """Dominant CI vectors of both calculations on the initial active-orbital order."""
+    n_active = len(mapping.initial_active_ids)
+    width, raw_width, mapped_width = (
+        max(n_active, len(header)) for header in ("CI vector", "CI vector (raw)", "CI vector (mapped)")
+    )
+    lines = [
+        "Dominant CI vectors on the initial active-orbital order",
+        "",
+        "Position k refers to initial orbital k and to the final orbital matched to it:",
+        f"  initial: {' '.join(mapping.initial_active_ids)}",
+        f"  final:   {' '.join(match.final_id for match in mapping.matches)}",
+        "",
+        f"Initial states ({initial.provenance.method})",
+        f"{'State':>5}  {'Energy (Eh)':>16}  {'CI vector':<{width}}  {'Weight':>8}",
+    ]
+    for state in initial.states:
+        occupations = _occupation_string(state.dominant_configuration)
+        lines.append(f"{_state_columns(state)}  {occupations:<{width}}  {_weight(state):>8}")
+
+    lines += [
+        "",
+        f"Final states ({final.provenance.method})",
+        f"{'State':>5}  {'Energy (Eh)':>16}  {'CI vector (raw)':<{raw_width}}  "
+        f"{'CI vector (mapped)':<{mapped_width}}  {'Weight':>8}",
+    ]
+    any_reordered = False
+    for state in final.states:
+        configuration = state.dominant_configuration
+        raw, mapped, flag = "-", "-", ""
+        if configuration is not None:
+            raw = "".join(configuration.occupations)
+            mapped = "".join(remap_occupations(configuration.occupations, mapping))
+            if open_shells_reordered(configuration.occupations, mapping):
+                flag, any_reordered = "  *", True
+        lines.append(
+            f"{_state_columns(state)}  {raw:<{raw_width}}  {mapped:<{mapped_width}}  "
+            f"{_weight(state):>8}{flag}"
+        )
+    if any_reordered:
+        lines += [
+            "",
+            "* The mapping changes the order of the open shells: the occupation numbers are",
+            "  exact, but the u/d spin coupling of the mapped string is not the same CSF.",
+        ]
+    return lines
+
+
+def _occupation_string(configuration) -> str:
+    return "".join(configuration.occupations) if configuration is not None else "-"
+
+
+def _state_columns(state) -> str:
+    energy = f"{state.energy:.8f}" if state.energy is not None else "-"
+    return f"{state.state_id.split(':')[-1]:>5}  {energy:>16}"
+
+
+def _weight(state) -> str:
+    configuration = state.dominant_configuration
+    return f"{configuration.weight:.4f}" if configuration and configuration.weight is not None else "-"

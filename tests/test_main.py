@@ -90,6 +90,8 @@ def test_output_file_dumps_input_and_summarizes_states(tmp_path):
     assert "State       Energy (Eh)  Spin (S)  Dominant CI vector    Weight" in text
     assert "    1    -3157.05052010       0.0  222222222000          0.9052" in text
     assert "caspt2:" not in text
+    assert "Dominant CI vectors on the initial active-orbital order" in text
+    assert "22u22222du00     22ud22222u00" in text
     assert "HOMO  initial mo:34    -> final mo:39" in text
     assert "LUMO  initial mo:40    -> final mo:40" in text
 
