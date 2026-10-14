@@ -22,8 +22,10 @@ How the parts refer to each other (checked when a ``Calculation`` is created):
 - ``orbitals.basis_id == basis.basis_id``, and coefficient rows follow the
   basis' AO order.
 - ``basis.function_centers`` are indices into ``molecule.atoms``.
-- ``active_space.orbital_ids`` and each configuration's ``orbital_ids`` are
-  IDs from ``orbitals.orbital_ids``. MOs are referred to by ID, not position.
+- ``active_space.orbital_ids`` are IDs from ``orbitals.orbital_ids``; MOs are
+  referred to by ID, not position.
+- Each configuration has one occupation per active orbital, in
+  ``active_space.orbital_ids`` order.
 
 Units: lengths in bohr, energies in hartree, spin as S.
 
@@ -173,25 +175,21 @@ class ActiveSpace:
 
 @dataclass(frozen=True, eq=False)
 class Configuration:
-    """A CSF: one occupation per active orbital.
+    """A CSF: one occupation per active orbital, in active-space order.
 
     ``occupations`` use ``0``, ``2``, and ``u``/``d`` for singly occupied
-    orbitals, ``orbital_ids`` binds each position to an
-    orbital; it is empty until the configuration is attached to a calculation.
+    orbitals; position k refers to ``active_space.orbital_ids[k]``.
     """
 
     configuration_id: str
     occupations: List[str]
     coefficient: Optional[float] = None
     weight: Optional[float] = None
-    orbital_ids: List[str] = field(default_factory=list)
     source_metadata: Dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if any(occupation not in {"0", "u", "d", "2"} for occupation in self.occupations):
             raise ValueError("CI occupations must use only 0, u, d, or 2.")
-        if self.orbital_ids and len(self.orbital_ids) != len(self.occupations):
-            raise ValueError("CI occupations must match the configuration's orbital IDs.")
 
 
 @dataclass(frozen=True, eq=False)
@@ -233,14 +231,11 @@ class Calculation:
         known_ids = set(self.orbitals.orbital_ids)
         if any(orbital_id not in known_ids for orbital_id in self.active_space.orbital_ids):
             raise ValueError("Every active orbital ID must exist in the orbital set.")
+        n_active = len(self.active_space.orbital_ids)
         for state in self.states:
             configuration = state.dominant_configuration
-            if configuration is None:
-                continue
-            if not configuration.orbital_ids:
-                raise ValueError(f"State {state.state_id} configuration is not bound to orbital IDs.")
-            if any(orbital_id not in known_ids for orbital_id in configuration.orbital_ids):
+            if configuration is not None and len(configuration.occupations) != n_active:
                 raise ValueError(
-                    f"State {state.state_id} configuration refers to orbital IDs that are "
-                    "not in the orbital set."
+                    f"State {state.state_id} configuration has {len(configuration.occupations)} "
+                    f"occupations; the active space has {n_active} orbitals."
                 )

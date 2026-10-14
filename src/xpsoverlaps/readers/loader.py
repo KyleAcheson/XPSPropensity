@@ -9,12 +9,11 @@ subclass's module only has to be imported (see ``xpsoverlaps.readers``).
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-import dataclasses
 import inspect
 from pathlib import Path
-from typing import ClassVar, Dict, Optional, Sequence, Set, Tuple, Type
+from typing import ClassVar, Dict, Optional, Set, Tuple, Type
 
-from xpsoverlaps.model import Calculation, ElectronicState
+from xpsoverlaps.model import Calculation
 
 # Lower-case program name -> loader class; filled by CalculationLoader.__init_subclass__.
 _LOADERS: Dict[str, Type["CalculationLoader"]] = {}
@@ -84,55 +83,3 @@ def get_calculation(
         )
     return loader().load(calculation_type, wf_file, state_file)
 
-
-def with_states(
-    calculation: Calculation,
-    states: Sequence[ElectronicState],
-    energy_tolerance: float = 1e-6,
-) -> Calculation:
-    """Return a new calculation with state metadata from a separate source.
-
-    For programs that write orbitals and states to different files. States are
-    matched by position and keep the calculation's energies; when both sources
-    supply an energy they must agree within ``energy_tolerance`` (hartree).
-    Spin, symmetry and the dominant configuration (bound to the active
-    orbital IDs) come from ``states``. Neither input is modified.
-    """
-    if len(calculation.states) != len(states):
-        raise ValueError(
-            f"Calculation contains {len(calculation.states)} states but the state file "
-            f"contains {len(states)} states."
-        )
-
-    active_ids = calculation.active_space.orbital_ids
-    merged = []
-    for calculation_state, source_state in zip(calculation.states, states):
-        if (
-            calculation_state.energy is not None
-            and source_state.energy is not None
-            and abs(calculation_state.energy - source_state.energy) > energy_tolerance
-        ):
-            raise ValueError(
-                f"State {calculation_state.state_id} energy {calculation_state.energy:.8f} "
-                f"does not match state {source_state.state_id} energy "
-                f"{source_state.energy:.8f} from the state file; the files may not "
-                "belong to the same calculation."
-            )
-        configuration = source_state.dominant_configuration
-        if configuration is not None:
-            if len(configuration.occupations) != len(active_ids):
-                raise ValueError(
-                    f"State {source_state.state_id} dominant configuration has "
-                    f"{len(configuration.occupations)} occupations; "
-                    f"the active space has {len(active_ids)} orbitals."
-                )
-            configuration = dataclasses.replace(configuration, orbital_ids=list(active_ids))
-        merged.append(
-            dataclasses.replace(
-                calculation_state,
-                spin=source_state.spin,
-                symmetry=source_state.symmetry,
-                dominant_configuration=configuration,
-            )
-        )
-    return dataclasses.replace(calculation, states=merged)

@@ -1,17 +1,25 @@
-"""OpenMolcas source-file readers."""
+"""OpenMolcas readers: an HDF5 access layer, one reader per model record, and the loader."""
 
-from xpsoverlaps.readers.openmolcas.caspt2_log import Caspt2LogReader
+from xpsoverlaps.readers.openmolcas.caspt2_log import read_caspt2_states
+from xpsoverlaps.readers.openmolcas.hdf5_file import MolcasHdf5
 from xpsoverlaps.readers.openmolcas.hdf5_reader import (
-    Caspt2Hdf5Reader,
-    RasscfHdf5Reader,
+    read_active_space,
+    read_basis,
+    read_molecule,
+    read_orbitals,
+    read_state_energies,
 )
 from xpsoverlaps.readers.openmolcas.loader import OpenMolcasLoader
-from xpsoverlaps.readers.openmolcas.rasscf_log import RasscfLogReader
+from xpsoverlaps.readers.openmolcas.rasscf_log import read_rasscf_states
 
 __all__ = [
-    "Caspt2Hdf5Reader",
-    "Caspt2LogReader",
+    "MolcasHdf5",
     "OpenMolcasLoader",
-    "RasscfHdf5Reader",
-    "RasscfLogReader",
+    "read_active_space",
+    "read_basis",
+    "read_caspt2_states",
+    "read_molecule",
+    "read_orbitals",
+    "read_rasscf_states",
+    "read_state_energies",
 ]
