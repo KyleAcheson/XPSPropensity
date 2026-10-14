@@ -12,8 +12,12 @@ from xpsoverlaps.composition import (
     orbital_ao_weights,
     orbital_compositions,
 )
-from xpsoverlaps.mapping import MappingOptions, OrbitalMappingError, match_active_orbitals
-from xpsoverlaps.propensity import map_active_orbitals
+from xpsoverlaps.mapping import (
+    MappingOptions,
+    OrbitalMappingError,
+    map_active_orbitals,
+    match_active_orbitals,
+)
 from xpsoverlaps.readers import get_calculation
 
 
