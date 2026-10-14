@@ -30,6 +30,7 @@ class CalculationInput(_CalculationInputRequired, total=False):
     state_file: Path  # only for programs that write states to a separate file
     homo: int  # Initial only; 1-based MO indices, given together with lumo
     lumo: int
+    max_state: int  # Initial only; highest initial state used for shake-downs
 
 
 class _RunInputRequired(TypedDict):

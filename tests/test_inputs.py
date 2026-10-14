@@ -101,6 +101,14 @@ def _mutate_homo_zero(data):
     data["Initial"].update(homo=0, lumo=40)
 
 
+def _mutate_max_state_zero(data):
+    data["Initial"]["max_state"] = 0
+
+
+def _mutate_max_state_in_final(data):
+    data["Final"]["max_state"] = 4
+
+
 def _mutate_unknown_key(data):
     data["Initial"]["wf_fiel"] = "typo.h5"
 
@@ -129,6 +137,8 @@ def _mutate_missing_file(data):
         (_mutate_homo_in_final, "Final: Unevaluated properties are not allowed ('homo', 'lumo' were unexpected)"),
         (_mutate_homo_not_integer, "Initial.homo: '34' is not of type 'integer'"),
         (_mutate_homo_zero, "Initial.homo: 0 is less than the minimum of 1"),
+        (_mutate_max_state_zero, "Initial.max_state: 0 is less than the minimum of 1"),
+        (_mutate_max_state_in_final, "Final: Unevaluated properties are not allowed ('max_state' was unexpected)"),
         (_mutate_missing_wf_file, "Final: 'wf_file' is a required property"),
         (_mutate_missing_molcas_state_file, "Initial: 'state_file' is a required property"),
         (_mutate_missing_file, "Final.wf_file: file not found"),

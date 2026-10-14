@@ -19,7 +19,9 @@ def _record_calls(monkeypatch):
     monkeypatch.setattr(
         propensity,
         "propensity_overlaps",
-        lambda initial, final, frontier=None: calls.update(overlaps=(initial, final, frontier)),
+        lambda initial, final, frontier=None, max_state=None: calls.update(
+            overlaps=(initial, final, frontier)
+        ),
     )
     monkeypatch.setattr(
         propensity, "propensity_chp", lambda initial, frontier=None: calls.update(chp=(initial, frontier))
@@ -95,11 +97,12 @@ def test_output_file_dumps_input_and_summarizes_states(tmp_path):
     assert "HOMO  initial mo:34    -> final mo:39" in text
     assert "LUMO  initial mo:40    -> final mo:40" in text
     assert "Shake-down transitions between initial states" in text
-    assert "25 transitions: 17 computable, 8 not computable." in text
+    assert "states considered: 1..4 (max_state = 4)" in text
+    assert "5 transitions: 5 computable, 0 not computable." in text
 
 
 def test_uncaught_exception_is_logged_with_traceback(monkeypatch, tmp_path):
-    def failing_overlaps(initial, final, frontier=None):
+    def failing_overlaps(initial, final, frontier=None, max_state=None):
         raise RuntimeError("orbital mapping failed")
 
     monkeypatch.setattr(propensity, "propensity_overlaps", failing_overlaps)
@@ -123,7 +126,7 @@ def test_output_defaults_to_input_name_with_out_suffix(monkeypatch, tmp_path):
 
 
 def test_propensity_module_logs_to_output_file(monkeypatch, tmp_path):
-    def fake_overlaps(initial, final, frontier=None):
+    def fake_overlaps(initial, final, frontier=None, max_state=None):
         propensity.logger.info("message from propensity module")
 
     monkeypatch.setattr(propensity, "propensity_overlaps", fake_overlaps)
@@ -173,3 +176,15 @@ def test_main_rejects_invalid_homo_lumo_before_running(monkeypatch, tmp_path):
     assert calls == {}
     assert "LUMO mo:20 is not an active orbital" in (tmp_path / "chp.out").read_text(encoding="utf-8")
 
+
+def test_main_rejects_max_state_beyond_the_initial_states(monkeypatch, tmp_path):
+    calls = _record_calls(monkeypatch)
+    input_file = _chp_input(tmp_path)
+    run_input = yaml.safe_load(input_file.read_text(encoding="utf-8"))
+    run_input["Initial"]["max_state"] = 11  # the initial calculation has 10 states
+    input_file.write_text(yaml.safe_dump(run_input), encoding="utf-8")
+
+    assert main_module.main(["-i", str(input_file)]) == 1
+
+    assert calls == {}
+    assert "max_state 11 is outside 1..10" in (tmp_path / "chp.out").read_text(encoding="utf-8")

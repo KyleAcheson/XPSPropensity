@@ -49,6 +49,7 @@ Initial:
   state_file: ../data/molcas/brthph/s2p/mb/valence_caspt2.log      # CI configurations (Molcas only)
   homo: 34               # optional, given together with lumo: 1-based MO indices (Initial only)
   lumo: 40
+  max_state: 4           # optional: shake-downs only among initial states 1..max_state
 
 Final:
   type: caspt2

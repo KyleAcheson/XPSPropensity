@@ -62,9 +62,24 @@ def excitation(occupations: Sequence[str], reference: Sequence[str], orbital_ids
     return Excitation(tuple(holes), tuple(particles))
 
 
-def reference_state(calculation: Calculation) -> ElectronicState:
-    """The lowest-energy state, which must have a closed-shell dominant configuration."""
-    states = [s for s in calculation.states if s.energy is not None and s.dominant_configuration]
+def check_max_state(calculation: Calculation, max_state: Optional[int]) -> None:
+    """``max_state`` must be a state number of the calculation (1 = first state)."""
+    if max_state is not None and not 1 <= max_state <= len(calculation.states):
+        raise ShakeDownError(
+            f"max_state {max_state} is outside 1..{len(calculation.states)}, "
+            "the states of the initial calculation."
+        )
+
+
+def considered_states(calculation: Calculation, max_state: Optional[int] = None) -> List[ElectronicState]:
+    """States 1..max_state (all if None) that have an energy and a dominant configuration."""
+    check_max_state(calculation, max_state)
+    return [s for s in calculation.states[:max_state] if s.energy is not None and s.dominant_configuration]
+
+
+def reference_state(calculation: Calculation, max_state: Optional[int] = None) -> ElectronicState:
+    """The lowest-energy considered state, which must have a closed-shell dominant configuration."""
+    states = considered_states(calculation, max_state)
     if not states:
         raise ShakeDownError("No states with an energy and a dominant configuration.")
     reference = min(states, key=lambda state: state.energy)
@@ -77,16 +92,18 @@ def reference_state(calculation: Calculation) -> ElectronicState:
     return reference
 
 
-def find_shake_downs(calculation: Calculation, frontier: FrontierOrbitals) -> List[ShakeDown]:
-    """All pairs a -> b (b lower in energy, one electron moved), classified.
+def find_shake_downs(
+    calculation: Calculation, frontier: FrontierOrbitals, max_state: Optional[int] = None
+) -> List[ShakeDown]:
+    """All pairs a -> b among states 1..max_state (b lower in energy, one electron moved).
 
     Pairs whose configurations differ by more than one electron are not
     shake-downs and are not listed.
     """
     orbital_ids = calculation.active_space.orbital_ids
-    reference = reference_state(calculation)
+    reference = reference_state(calculation, max_state)
     ref = reference.dominant_configuration.occupations
-    states = [s for s in calculation.states if s.energy is not None and s.dominant_configuration]
+    states = considered_states(calculation, max_state)
     excitations = {s.state_id: excitation(s.dominant_configuration.occupations, ref, orbital_ids) for s in states}
 
     shake_downs = []
@@ -137,10 +154,11 @@ def _classify(a: str, b: str, moved: Tuple[str, str], exc_a: Excitation, exc_b: 
 
 
 def shake_down_report(calculation: Calculation, frontier: FrontierOrbitals,
-                      shake_downs: Sequence[ShakeDown]) -> List[str]:
+                      shake_downs: Sequence[ShakeDown], max_state: Optional[int] = None) -> List[str]:
     """Initial-state classification and the table of shake-down transitions."""
     orbital_ids = calculation.active_space.orbital_ids
-    reference = reference_state(calculation)
+    reference = reference_state(calculation, max_state)
+    states = considered_states(calculation, max_state)
     ref = reference.dominant_configuration.occupations
     by_id = {state.state_id: state for state in calculation.states}
 
@@ -156,13 +174,13 @@ def shake_down_report(calculation: Calculation, frontier: FrontierOrbitals,
         "Shake-down transitions between initial states",
         "",
         f"Orbital order: {orbital_ids[0]} ... {orbital_ids[-1]};  HOMO = {frontier.homo}, LUMO = {frontier.lumo}",
-        f"Reference (ground) state: {number(reference.state_id)}",
+        f"Reference (ground) state: {number(reference.state_id)};  states considered: "
+        f"{number(states[0].state_id)}..{number(states[-1].state_id)}"
+        + (f" (max_state = {max_state})" if max_state is not None else ""),
         "",
         f"{'State':>5}  {'Configuration':<{width}}  Excitation from the reference",
     ]
-    for state in sorted(calculation.states, key=lambda s: s.energy if s.energy is not None else 0.0):
-        if state.dominant_configuration is None:
-            continue
+    for state in sorted(states, key=lambda s: s.energy):
         exc = excitation(state.dominant_configuration.occupations, ref, orbital_ids)
         text = (
             "reference" if not exc.holes

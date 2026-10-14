@@ -44,6 +44,12 @@ properties:
         description: 1-based MO index of the LUMO; see homo.
         type: integer
         minimum: 1
+      max_state:
+        description: >-
+          Optional. Only initial states 1..max_state (numbered as in the
+          output, 1 = lowest) are considered for shake-down transitions.
+        type: integer
+        minimum: 1
     dependentRequired:
       homo: [lumo]
       lumo: [homo]

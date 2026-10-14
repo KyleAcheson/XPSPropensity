@@ -15,6 +15,7 @@ if __package__ in {None, ""}:
 
 from xpsoverlaps import propensity
 from xpsoverlaps.frontier import FrontierOrbitalError, frontier_from_indices
+from xpsoverlaps.shakedown import ShakeDownError, check_max_state
 from xpsoverlaps.inputs import CalculationInput, InputError, RunInput, load_input
 from xpsoverlaps.model import Calculation
 from xpsoverlaps.readers import get_calculation
@@ -109,20 +110,22 @@ def _run(input_file: Path) -> int:
     _log_states("Initial", initial)
 
     frontier = None
-    if "homo" in run_input["Initial"]:  # the schema guarantees lumo is given too
-        try:
+    max_state = run_input["Initial"].get("max_state")
+    try:
+        if "homo" in run_input["Initial"]:  # the schema guarantees lumo is given too
             frontier = frontier_from_indices(
                 initial, run_input["Initial"]["homo"], run_input["Initial"]["lumo"]
             )
-        except FrontierOrbitalError as error:
-            logger.error("%s", error)
-            print(error, file=sys.stderr)
-            return 1
+        check_max_state(initial, max_state)
+    except (FrontierOrbitalError, ShakeDownError) as error:
+        logger.error("%s", error)
+        print(error, file=sys.stderr)
+        return 1
 
     if run_input["Calculator"]["method"] == "overlaps":
         final = _load_block(program, run_input["Final"])
         _log_states("Final", final)
-        propensity.propensity_overlaps(initial, final, frontier)
+        propensity.propensity_overlaps(initial, final, frontier, max_state)
     else:
         propensity.propensity_chp(initial, frontier)
     return 0

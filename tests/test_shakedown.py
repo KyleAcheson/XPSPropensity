@@ -7,6 +7,7 @@ from xpsoverlaps.readers import get_calculation
 from xpsoverlaps.shakedown import (
     Excitation,
     ShakeDownError,
+    check_max_state,
     excitation,
     find_shake_downs,
     reference_state,
@@ -104,3 +105,22 @@ def test_report_lists_states_transitions_and_summary(initial):
     assert row.split()[3:12] == ["2222222u2d00", "222u22222d00", "mo:34", "->", "mo:38", "5e", "ES", "mo:38", "mo:34"]
     assert "25 transitions: 17 computable, 8 not computable." in lines
 
+
+def test_max_state_limits_the_states_considered(initial):
+    pairs = [
+        (sd.initial_state.split(":")[1], sd.lower_state.split(":")[1])
+        for sd in find_shake_downs(initial, FRONTIER, max_state=4)
+    ]
+
+    # 4 -> 3 is not a shake-down: it would move two electrons.
+    assert pairs == [("2", "1"), ("3", "1"), ("3", "2"), ("4", "1"), ("4", "2")]
+    assert find_shake_downs(initial, FRONTIER, max_state=1) == []
+    lines = shake_down_report(initial, FRONTIER, find_shake_downs(initial, FRONTIER, 4), max_state=4)
+    assert "Reference (ground) state: 1;  states considered: 1..4 (max_state = 4)" in lines
+    assert [line.split()[0] for line in lines[6:10]] == ["1", "2", "3", "4"]
+
+
+@pytest.mark.parametrize("max_state", [0, 11])
+def test_max_state_outside_the_states_is_rejected(initial, max_state):
+    with pytest.raises(ShakeDownError, match=f"max_state {max_state} is outside 1..10"):
+        check_max_state(initial, max_state)
