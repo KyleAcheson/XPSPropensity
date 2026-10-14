@@ -47,6 +47,8 @@ Initial:
   type: caspt2           # or rasscf; must match Final
   wf_file: ../data/molcas/brthph/s2p/mb/valence_caspt2.caspt2.h5   # orbitals, basis, energies
   state_file: ../data/molcas/brthph/s2p/mb/valence_caspt2.log      # CI configurations (Molcas only)
+  homo: 34               # optional, given together with lumo: 1-based MO indices (Initial only)
+  lumo: 40
 
 Final:
   type: caspt2
@@ -55,7 +57,9 @@ Final:
 ```
 
 Relative paths are resolved from the input file's directory. Choice values are
-case-insensitive. Run with:
+case-insensitive. `homo`/`lumo` must be two different active orbitals; choosing
+the right ones is up to the user. The final-state HOMO/LUMO are the orbitals
+they map onto. Run with:
 
 ```bash
 python src/xpsoverlaps/main.py -i inputs/input.yaml -o output.log
@@ -92,6 +96,7 @@ src/xpsoverlaps/
 ├── model.py             # program-neutral data model (Calculation and its parts)
 ├── composition.py       # AO composition of MOs (Mulliken partition)
 ├── mapping.py           # initial -> final active-orbital mapping
+├── frontier.py          # HOMO/LUMO from the input, carried to the final state by the mapping
 ├── propensity.py        # propensity workflows (overlaps, chp)
 ├── overlap/             # AO overlap providers and MO overlaps
 │   ├── base.py          #   AOOverlapProvider interface

@@ -76,6 +76,31 @@ def _mutate_unknown_program(data):
     data["Calculator"]["program"] = "orca"
 
 
+def test_homo_and_lumo_are_optional_but_accepted_together(tmp_path):
+    data = _valid_input()
+    assert "homo" not in load_input(_write(tmp_path, data))["Initial"]
+
+    data["Initial"].update(homo=34, lumo=40)
+    loaded = load_input(_write(tmp_path, data))["Initial"]
+    assert (loaded["homo"], loaded["lumo"]) == (34, 40)
+
+
+def _mutate_homo_without_lumo(data):
+    data["Initial"]["homo"] = 34
+
+
+def _mutate_homo_in_final(data):
+    data["Final"].update(homo=39, lumo=40)
+
+
+def _mutate_homo_not_integer(data):
+    data["Initial"].update(homo="34", lumo=40)
+
+
+def _mutate_homo_zero(data):
+    data["Initial"].update(homo=0, lumo=40)
+
+
 def _mutate_unknown_key(data):
     data["Initial"]["wf_fiel"] = "typo.h5"
 
@@ -99,7 +124,11 @@ def _mutate_missing_file(data):
         (_mutate_type_mismatch, "Final.type: 'rasscf' must match Initial.type 'caspt2'"),
         (_mutate_unknown_type, "Initial.type: 'mrci' is not one of"),
         (_mutate_unknown_program, "Calculator.program: 'orca' is not one of"),
-        (_mutate_unknown_key, "Additional properties are not allowed"),
+        (_mutate_unknown_key, "Unevaluated properties are not allowed ('wf_fiel' was unexpected)"),
+        (_mutate_homo_without_lumo, "Initial: 'lumo' is a dependency of 'homo'"),
+        (_mutate_homo_in_final, "Final: Unevaluated properties are not allowed ('homo', 'lumo' were unexpected)"),
+        (_mutate_homo_not_integer, "Initial.homo: '34' is not of type 'integer'"),
+        (_mutate_homo_zero, "Initial.homo: 0 is less than the minimum of 1"),
         (_mutate_missing_wf_file, "Final: 'wf_file' is a required property"),
         (_mutate_missing_molcas_state_file, "Initial: 'state_file' is a required property"),
         (_mutate_missing_file, "Final.wf_file: file not found"),

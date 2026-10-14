@@ -17,9 +17,13 @@ INPUT = ROOT / "inputs" / "input.yaml"
 def _record_calls(monkeypatch):
     calls = {}
     monkeypatch.setattr(
-        propensity, "propensity_overlaps", lambda initial, final: calls.update(overlaps=(initial, final))
+        propensity,
+        "propensity_overlaps",
+        lambda initial, final, frontier=None: calls.update(overlaps=(initial, final, frontier)),
     )
-    monkeypatch.setattr(propensity, "propensity_chp", lambda initial: calls.update(chp=(initial,)))
+    monkeypatch.setattr(
+        propensity, "propensity_chp", lambda initial, frontier=None: calls.update(chp=(initial, frontier))
+    )
     return calls
 
 
@@ -53,9 +57,10 @@ def test_main_overlaps_loads_initial_and_final_calculations(monkeypatch, tmp_pat
     assert main_module.main(["-i", str(INPUT), "-o", str(tmp_path / "run.out")]) == 0
 
     assert set(calls) == {"overlaps"}
-    initial, final = calls["overlaps"]
+    initial, final, frontier = calls["overlaps"]
     assert len(initial.states) == 10
     assert len(final.states) == 40
+    assert (frontier.homo, frontier.lumo) == ("mo:34", "mo:40")
 
 
 def test_main_chp_loads_only_initial_calculation(monkeypatch, tmp_path):
@@ -64,8 +69,9 @@ def test_main_chp_loads_only_initial_calculation(monkeypatch, tmp_path):
     assert main_module.main(["-i", str(_chp_input(tmp_path))]) == 0
 
     assert set(calls) == {"chp"}
-    (initial,) = calls["chp"]
+    initial, frontier = calls["chp"]
     assert len(initial.states) == 10
+    assert (frontier.homo, frontier.lumo) == ("mo:34", "mo:40")
 
 
 def test_output_file_dumps_input_and_summarizes_states(tmp_path):
@@ -84,10 +90,12 @@ def test_output_file_dumps_input_and_summarizes_states(tmp_path):
     assert "State       Energy (Eh)  Spin (S)  Dominant CI vector    Weight" in text
     assert "    1    -3157.05052010       0.0  222222222000          0.9052" in text
     assert "caspt2:" not in text
+    assert "HOMO  initial mo:34    -> final mo:39" in text
+    assert "LUMO  initial mo:40    -> final mo:40" in text
 
 
 def test_uncaught_exception_is_logged_with_traceback(monkeypatch, tmp_path):
-    def failing_overlaps(initial, final):
+    def failing_overlaps(initial, final, frontier=None):
         raise RuntimeError("orbital mapping failed")
 
     monkeypatch.setattr(propensity, "propensity_overlaps", failing_overlaps)
@@ -111,7 +119,7 @@ def test_output_defaults_to_input_name_with_out_suffix(monkeypatch, tmp_path):
 
 
 def test_propensity_module_logs_to_output_file(monkeypatch, tmp_path):
-    def fake_overlaps(initial, final):
+    def fake_overlaps(initial, final, frontier=None):
         propensity.logger.info("message from propensity module")
 
     monkeypatch.setattr(propensity, "propensity_overlaps", fake_overlaps)
@@ -147,3 +155,16 @@ def test_main_requires_input_option(capsys):
     with pytest.raises(SystemExit):
         main_module.main([])
     assert "the following arguments are required: -i/--input" in capsys.readouterr().err
+
+
+def test_main_rejects_invalid_homo_lumo_before_running(monkeypatch, tmp_path):
+    calls = _record_calls(monkeypatch)
+    input_file = _chp_input(tmp_path)
+    run_input = yaml.safe_load(input_file.read_text(encoding="utf-8"))
+    run_input["Initial"]["lumo"] = 20  # an inactive orbital
+    input_file.write_text(yaml.safe_dump(run_input), encoding="utf-8")
+
+    assert main_module.main(["-i", str(input_file)]) == 1
+
+    assert calls == {}
+    assert "LUMO mo:20 is not an active orbital" in (tmp_path / "chp.out").read_text(encoding="utf-8")
