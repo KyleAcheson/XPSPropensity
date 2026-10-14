@@ -8,6 +8,7 @@ from typing import Optional
 from xpsoverlaps.frontier import FrontierOrbitals, frontier_report, map_frontier
 from xpsoverlaps.mapping import map_active_orbitals, mapped_ci_report, mapping_report
 from xpsoverlaps.model import Calculation
+from xpsoverlaps.shakedown import ShakeDownError, find_shake_downs, shake_down_report
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,23 @@ def propensity_overlaps(
             logger.info(line)
     logger.info("")
     logger.info(_DASHES)
+    logger.info("")
+    _log_shake_downs(initial, frontier)
+    logger.info("")
+    logger.info(_DASHES)
+
+
+def _log_shake_downs(initial: Calculation, frontier: Optional[FrontierOrbitals]) -> None:
+    if frontier is None:
+        logger.info("Shake-down transitions need the HOMO/LUMO; not identified.")
+        return
+    try:
+        shake_downs = find_shake_downs(initial, frontier)
+    except ShakeDownError as error:
+        logger.warning("Shake-down transitions not identified: %s", error)
+        return
+    for line in shake_down_report(initial, frontier, shake_downs):
+        logger.info(line)
 
 
 def propensity_chp(initial: Calculation, frontier: Optional[FrontierOrbitals] = None) -> None:

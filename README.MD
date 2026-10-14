@@ -97,6 +97,7 @@ src/xpsoverlaps/
 ├── composition.py       # AO composition of MOs (Mulliken partition)
 ├── mapping.py           # initial -> final active-orbital mapping
 ├── frontier.py          # HOMO/LUMO from the input, carried to the final state by the mapping
+├── shakedown.py         # shake-down transitions between initial states and their i, j, k roles
 ├── propensity.py        # propensity workflows (overlaps, chp)
 ├── overlap/             # AO overlap providers and MO overlaps
 │   ├── base.py          #   AOOverlapProvider interface

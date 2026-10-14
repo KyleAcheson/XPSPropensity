@@ -94,6 +94,8 @@ def test_output_file_dumps_input_and_summarizes_states(tmp_path):
     assert "22u22222du00     22ud22222u00" in text
     assert "HOMO  initial mo:34    -> final mo:39" in text
     assert "LUMO  initial mo:40    -> final mo:40" in text
+    assert "Shake-down transitions between initial states" in text
+    assert "25 transitions: 17 computable, 8 not computable." in text
 
 
 def test_uncaught_exception_is_logged_with_traceback(monkeypatch, tmp_path):
@@ -170,3 +172,4 @@ def test_main_rejects_invalid_homo_lumo_before_running(monkeypatch, tmp_path):
 
     assert calls == {}
     assert "LUMO mo:20 is not an active orbital" in (tmp_path / "chp.out").read_text(encoding="utf-8")
+
