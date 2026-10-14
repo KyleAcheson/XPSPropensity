@@ -5,14 +5,13 @@ calculations. Nothing is permuted here; the mapping records which final
 active orbital corresponds to each initial active orbital.
 
 ``map_active_orbitals(initial, final)`` is the entry point: it computes the
-overlaps and AO compositions, calls ``match_active_orbitals`` and logs the
-result.
+overlaps and AO compositions and calls ``match_active_orbitals``. It does no
+logging; ``mapping_report(mapping)`` turns the result into text lines.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-import logging
 from typing import Dict, List, Literal, Mapping, NamedTuple, Optional, Sequence
 
 import numpy as np
@@ -25,10 +24,6 @@ from xpsoverlaps.composition import (
 )
 from xpsoverlaps.model import Calculation
 from xpsoverlaps.overlap import get_overlap_provider, mo_overlap
-
-logger = logging.getLogger(__name__)
-
-_DASHES = "-" * 80
 
 
 class OrbitalMappingError(ValueError):
@@ -64,6 +59,8 @@ class OrbitalMapping:
     matches: List[OrbitalMatch]
     initial_active_ids: List[str]
     final_active_ids: List[str]
+    initial_compositions: Mapping[str, OrbitalComposition]
+    final_compositions: Mapping[str, OrbitalComposition]
     warnings: List[str] = field(default_factory=list)
 
     def final_id(self, initial_id: str) -> str:
@@ -180,7 +177,14 @@ def match_active_orbitals(
         warnings.extend(_match_warnings(match, options))
         matches.append(match)
 
-    return OrbitalMapping(matches, list(initial_active_ids), list(final_active_ids), warnings)
+    return OrbitalMapping(
+        matches=matches,
+        initial_active_ids=list(initial_active_ids),
+        final_active_ids=list(final_active_ids),
+        initial_compositions=initial_compositions,
+        final_compositions=final_compositions,
+        warnings=warnings,
+    )
 
 
 def _check_active_space_rotation(
@@ -265,48 +269,37 @@ def format_mapping(mapping: OrbitalMapping) -> List[str]:
 def map_active_orbitals(
     initial: Calculation, final: Calculation, options: Optional[MappingOptions] = None
 ) -> OrbitalMapping:
-    """Map the initial active orbitals onto the final ones and log the result.
+    """Map the initial active orbitals onto the final ones (no logging).
 
     Uses state-averaged orbitals (one orbital set per calculation). Nothing is
     permuted; the returned mapping only records the correspondence.
     """
     provider = get_overlap_provider(initial.basis, final.basis)
-    overlap = mo_overlap(initial, final, provider)
-    initial_compositions = orbital_compositions(initial, provider=provider)
-    final_compositions = orbital_compositions(final, provider=provider)
-
-    mapping = match_active_orbitals(
-        overlap,
+    return match_active_orbitals(
+        mo_overlap(initial, final, provider),
         initial.orbitals.orbital_ids,
         final.orbitals.orbital_ids,
         initial.active_space.orbital_ids,
         final.active_space.orbital_ids,
-        initial_compositions,
-        final_compositions,
+        orbital_compositions(initial, provider=provider),
+        orbital_compositions(final, provider=provider),
         options,
     )
 
-    logger.info("")
-    logger.info("Active orbital mapping (initial -> final), by MO overlap")
-    logger.info("")
-    for line in format_mapping(mapping):
-        logger.info(line)
-    logger.info("")
+
+def mapping_report(mapping: OrbitalMapping) -> List[str]:
+    """Text report of a mapping: match table, warnings, and paired orbital compositions."""
+    lines = ["Active orbital mapping (initial -> final), by MO overlap", ""]
+    lines += format_mapping(mapping)
+    lines.append("")
     if mapping.warnings:
-        logger.info("Mapping warnings:")
-        for warning in mapping.warnings:
-            logger.warning("  - %s", warning)
+        lines.append("Mapping warnings:")
+        lines += [f"  - {warning}" for warning in mapping.warnings]
     else:
-        logger.info("No mapping warnings.")
-    logger.info("")
-    logger.info("Dominant AO contributions (AO weights, Mulliken partition) of the paired orbitals")
-    logger.info("")
+        lines.append("No mapping warnings.")
+    lines += ["", "Dominant AO contributions (AO weights, Mulliken partition) of the paired orbitals", ""]
     pairs = [
-        (initial_compositions[match.initial_id], final_compositions[match.final_id])
+        (mapping.initial_compositions[match.initial_id], mapping.final_compositions[match.final_id])
         for match in mapping.matches
     ]
-    for line in describe_orbital_pairs(pairs):
-        logger.info(line)
-    logger.info("")
-    logger.info(_DASHES)
-    return mapping
+    return lines + describe_orbital_pairs(pairs)

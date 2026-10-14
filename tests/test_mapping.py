@@ -1,4 +1,5 @@
 import dataclasses
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -16,6 +17,7 @@ from xpsoverlaps.mapping import (
     MappingOptions,
     OrbitalMappingError,
     map_active_orbitals,
+    mapping_report,
     match_active_orbitals,
 )
 from xpsoverlaps.readers import get_calculation
@@ -128,6 +130,29 @@ def test_valence_to_core_active_mapping(valence_and_core):
     assert mapping.active_index_map == [0, 1, 2, 8, 4, 5, 6, 3, 7, 9, 10, 11]
     assert len(mapping.warnings) == 1
     assert mapping.warnings[0].startswith("Close runner-up for mo:36 -> mo:36")
+
+
+def test_map_active_orbitals_does_no_logging(valence_and_core, caplog):
+    initial, final = valence_and_core
+
+    with caplog.at_level(logging.DEBUG, logger="xpsoverlaps"):
+        mapping = map_active_orbitals(initial, final)
+
+    assert caplog.records == []
+    assert set(mapping.initial_compositions) == set(initial.active_space.orbital_ids)
+    assert set(mapping.final_compositions) == set(final.active_space.orbital_ids)
+
+
+def test_mapping_report_lists_matches_warnings_and_compositions(valence_and_core):
+    initial, final = valence_and_core
+
+    lines = mapping_report(map_active_orbitals(initial, final))
+
+    assert lines[0] == "Active orbital mapping (initial -> final), by MO overlap"
+    assert any(line.startswith("mo:34    mo:39") for line in lines)
+    assert "Mapping warnings:" in lines
+    assert any(line.startswith("  - Close runner-up for mo:36 -> mo:36") for line in lines)
+    assert any("S5 2P[m=+0]" in line and "|" in line for line in lines)
 
 
 def test_mapping_does_not_modify_calculations(valence_and_core):
