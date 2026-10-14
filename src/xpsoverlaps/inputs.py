@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Literal, TypedDict
 
 import jsonschema
 import yaml
@@ -11,6 +11,32 @@ import yaml
 
 SCHEMA_PATH = Path(__file__).with_name("input_schema.yaml")
 _FILE_KEYS = ("wf_file", "state_file")
+
+
+# Shape of a validated input file (see input_schema.yaml). Choice values are
+# lower case and file paths are absolute. Optional keys live in the
+# ``total=False`` subclasses (Python 3.9 has no ``NotRequired``).
+class CalculatorInput(TypedDict):
+    program: str
+    method: Literal["overlaps", "chp"]
+
+
+class _CalculationInputRequired(TypedDict):
+    type: str
+    wf_file: Path
+
+
+class CalculationInput(_CalculationInputRequired, total=False):
+    state_file: Path  # only for programs that write states to a separate file
+
+
+class _RunInputRequired(TypedDict):
+    Calculator: CalculatorInput
+    Initial: CalculationInput
+
+
+class RunInput(_RunInputRequired, total=False):
+    Final: CalculationInput  # required by the schema when method is "overlaps"
 
 
 class InputError(ValueError):
@@ -61,7 +87,7 @@ def _lowercase_choices(data: Any, schema: Dict[str, Any], root: Dict[str, Any]) 
             _lowercase_choices(data[key], property_schema, root)
 
 
-def load_input(source: str | Path) -> Dict[str, Any]:
+def load_input(source: str | Path) -> RunInput:
     """Read and validate an input file.
 
     Relative ``wf_file``/``state_file`` paths are resolved against the input

@@ -25,73 +25,174 @@ $$
 This program extracts the basis set, ci vectors, and converged orbitals from an electronic structure calculation and
 compute the approximate Dyson norm based on these propensity rules for a variety of transition types.
 
-### Initial implementation
+### Installation
 
-The `src/xpsoverlaps` package starts with program-neutral records in
-`model.py` and format-specific readers under `readers/openmolcas`. The
-RASSCF HDF5 reader normalizes geometry, contracted basis shells, AO labels,
-MO coefficients/energies/occupations, RAS partitions, and RASSCF root
-energies. The CASPT2 log reader preserves every printed mixed-state
-configuration and its coefficient and weight. The supplied core and valence
-fixtures include CASPT2 mixed-state tables; each state stores only its
-dominant printed configuration and its coefficient and weight.
-The supplied TZ HDF5 files contain 239 basis functions.
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[test]"
+```
 
-`RasscfLogReader` reads RASSCF root energies and selects each root's
-highest-weight configuration from the printed CI-coefficient table in the
-RASSCF log.
+Requires Python ≥ 3.9 with `numpy`, `h5py`, `pyyaml` and `jsonschema`.
 
-`Caspt2Hdf5Reader` is a separate reader for CASPT2 HDF5 results. It normalizes
-the same geometry, basis, orbital, and active-space fields as the RASSCF HDF5
-reader, while taking state energies from `STATE_PT2_ENERGIES`.
+### Running
 
-Use the program-neutral constructor to combine an OpenMolcas HDF5 file with
-its matching state/CI log:
+The program is driven by a YAML input file (see `inputs/input.yaml`):
+
+```yaml
+Calculator:
+  program: molcas        # electronic-structure code
+  method: overlaps       # 'overlaps' (needs Initial and Final) or 'chp' (Initial only)
+
+Initial:
+  type: caspt2           # or rasscf; must match Final
+  wf_file: ../data/molcas/brthph/s2p/mb/valence_caspt2.caspt2.h5   # orbitals, basis, energies
+  state_file: ../data/molcas/brthph/s2p/mb/valence_caspt2.log      # CI configurations (Molcas only)
+
+Final:
+  type: caspt2
+  wf_file: ../data/molcas/brthph/s2p/mb/core_caspt2.caspt2.h5
+  state_file: ../data/molcas/brthph/s2p/mb/core_caspt2.log
+```
+
+Relative paths are resolved from the input file's directory. Choice values are
+case-insensitive. Run with:
+
+```bash
+python src/xpsoverlaps/main.py -i inputs/input.yaml -o output.log
+# or, once installed:
+xpsoverlaps -i inputs/input.yaml -o output.log
+```
+
+The propensity rules themselves are not implemented yet; `method: chp` is a
+placeholder.
+
+### Using it from Python
 
 ```python
 from xpsoverlaps.readers import get_calculation
+from xpsoverlaps.overlap import mo_overlap
 
-calculation = get_calculation(
-    program="OpenMolcas",
-    calculation_type="RASSCF",
-    hdf5_file="calculation.rasscf.h5",
-    log_file="calculation.log",
-)
+initial = get_calculation("molcas", "caspt2", wf_file="valence.caspt2.h5", state_file="valence.log")
+final = get_calculation("molcas", "caspt2", wf_file="core.caspt2.h5", state_file="core.log")
+
+S_MO = mo_overlap(initial, final)   # rows: initial MOs, columns: final MOs
 ```
 
-Currently, `RASSCF` and `CASPT2` are supported for OpenMolcas. Both input
-files are required; the HDF5 data supplies geometry, orbitals, basis, and
-energies, while the log supplies spin/symmetry metadata and the dominant
-configuration.
+Supported: OpenMolcas (`molcas`/`openmolcas`) `RASSCF` and `CASPT2`, each read
+from an HDF5 file (`wf_file`) plus its log (`state_file`). Molecular symmetry
+is not supported yet.
 
-The records are mutable dataclasses. Molecular coordinates and orbital
-coefficients are NumPy arrays; ordered orbitals and occupations use lists so
-they can be reordered in place. Keep their corresponding arrays and IDs in
-sync when changing an ordering.
-
-`get_calculation` dispatches to the requested program's readers and combines
-their results with the internal `attach_states` helper (both live in
-`readers/loader.py`). `attach_states` associates dominant-configuration
-occupation positions with the HDF5 calculation's ordered active-orbital IDs,
-validates their lengths, and checks that HDF5 and log state energies agree.
-HDF5 `CI_VECTORS` are not yet decoded into occupation records by the RASSCF
-reader. No overlap calculations or transition analysis are performed by these
-readers.
-
-Run the focused reader tests with `pytest`. The package's current structure is:
+### Package structure
 
 ```text
 src/xpsoverlaps/
-├── __init__.py
-├── main.py
-├── model.py
+├── main.py              # command-line entry point
+├── inputs.py            # YAML input loading and validation
+├── input_schema.yaml    # input schema (JSON Schema written in YAML)
+├── model.py             # program-neutral data model (Calculation and its parts)
+├── composition.py       # AO composition of MOs (Mulliken partition)
+├── mapping.py           # initial -> final active-orbital mapping
+├── propensity.py        # propensity workflows (overlaps, chp)
+├── overlap/             # AO overlap providers and MO overlaps
+│   ├── base.py          #   AOOverlapProvider interface
+│   ├── gaussian.py      #   integrals for GaussianBasis
+│   ├── engine.py        #   integrals from a program's own engine (EngineBasis)
+│   ├── providers.py     #   provider selection by basis type
+│   └── mo.py            #   mo_overlap
 └── readers/
-    ├── __init__.py
-    ├── loader.py
+    ├── loader.py        # CalculationLoader base class and get_calculation
     └── openmolcas/
-        ├── __init__.py
-        ├── basis.py
-        ├── caspt2_log.py
-        ├── hdf5_reader.py
-        └── rasscf_log.py
+        ├── hdf5_file.py     # HDF5 access layer (all Molcas format details)
+        ├── hdf5_reader.py   # one reader per record: molecule, basis, orbitals, active space
+        ├── rasscf_log.py    # RASSCF states from the log
+        ├── caspt2_log.py    # MS-CASPT2 states from the log
+        ├── basis.py         # Molcas basis-set reconstruction
+        └── loader.py        # OpenMolcasLoader: reads each record and builds the Calculation
+tests/                   # pytest suite (uses the data in data/molcas)
 ```
+
+Run the tests with `pytest`.
+
+### Adding a new electronic-structure program
+
+1. **Record readers** under `readers/<program>/`: one function per model record
+   (molecule, basis, orbitals, active space, states), each returning that
+   record. Records that depend on others take them as arguments, e.g.
+   `read_basis(file, molecule)`. Keep file-format details in one access layer
+   that the readers share (see `openmolcas/hdf5_file.py`).
+2. **A loader**: a subclass of `CalculationLoader`. Defining it registers it;
+   `get_calculation` does not need to change. Template for a program that
+   writes everything to one file (`readers/myprogram/loader.py`):
+
+   ```python
+   """MyProgram loader: every record is read from one output file."""
+
+   from pathlib import Path
+   from typing import List, Optional
+
+   from xpsoverlaps.model import (
+       ActiveSpace, AOBasis, Calculation, ElectronicState, Molecule, OrbitalSet, Provenance,
+   )
+   from xpsoverlaps.readers.loader import CalculationLoader
+
+
+   # Record readers: one per model record; records they depend on are arguments.
+   def read_molecule(path: Path) -> Molecule: ...
+   def read_basis(path: Path, molecule: Molecule) -> AOBasis: ...   # GaussianBasis or EngineBasis
+   def read_orbitals(path: Path, basis: AOBasis) -> OrbitalSet: ...
+   def read_active_space(path: Path, orbitals: OrbitalSet) -> ActiveSpace: ...
+   def read_states(path: Path) -> List[ElectronicState]: ...
+
+
+   class MyProgramLoader(CalculationLoader):
+       programs = ("myprogram",)          # names accepted by get_calculation (any case)
+       display_name = "MyProgram"         # used in error messages
+       calculation_types = {"CASSCF"}     # upper case
+
+       def _load(self, kind: str, wf_file: Path, state_file: Optional[Path]) -> Calculation:
+           molecule = read_molecule(wf_file)
+           basis = read_basis(wf_file, molecule)
+           orbitals = read_orbitals(wf_file, basis)
+           active_space = read_active_space(wf_file, orbitals)
+           return Calculation(
+               provenance=Provenance("MyProgram", kind, [str(wf_file)]),
+               molecule=molecule,
+               basis=basis,
+               orbitals=orbitals,
+               active_space=active_space,
+               states=read_states(wf_file),
+           )
+   ```
+
+   - If states are in a second file, read them from `state_file` and check
+     they match the wavefunction file (`OpenMolcasLoader` compares energies).
+   - If several readers parse the same file, open it once in an access object
+     and pass that instead of the path (see `MolcasHdf5`).
+   - Check the new readers with `Cᵀ S C = I` (orthonormal orbitals), as the
+     Molcas tests do.
+3. **Import its package** in `readers/__init__.py`, so the loader is registered
+   (`readers/myprogram/__init__.py` imports the loader module).
+4. **Add the program name** to `Calculator.program` in `input_schema.yaml`
+   (and any rules for its file keys).
+
+### Data model: what a loader must produce
+
+Everything downstream works only on `Calculation` (`model.py`). Constructing
+one validates it, so a loader that returns a `Calculation` is consistent. The
+records are immutable (frozen dataclasses): to change one, derive a copy with
+`dataclasses.replace`, which is validated again. The overview at the top of
+`model.py` shows how the parts refer to each other.
+
+| Part | Contents and conventions |
+|---|---|
+| `Provenance` | program, method, source files |
+| `Molecule` | atom labels and coordinates (N × 3 array, **bohr**) |
+| `basis` | An `AOBasis` subclass with one entry per AO, **in the row order of the MO coefficients**: `function_labels` (display only), `function_centers` (index into `Molecule.atoms`), `function_angular_momenta` (l). Either a `GaussianBasis` (contracted Gaussian shells; normalization conventions in the `GaussianShell` docstring) or an `EngineBasis` (integrals from a registered engine backend) |
+| `OrbitalSet` | `coefficients` (n_AO × n_MO array, AOs as rows), one `orbital_ids` entry per MO (stable IDs such as `mo:34`), `energies`, `occupations`, and the program's orbital type labels. `basis_id` must equal the basis' `basis_id` |
+| `ActiveSpace` | active `orbital_ids` in the order used by the CI occupation strings (RAS1, then RAS2, then RAS3), a partition label per orbital, and the number of active electrons |
+| `ElectronicState` | `state_id`, `energy` (hartree), `spin` (S), `symmetry`, and `dominant_configuration` |
+| `Configuration` | `occupations` as a list of `0`, `u`, `d`, `2` per active orbital, `coefficient` and `weight`; position k refers to `active_space.orbital_ids[k]`. `u`/`d` are spin-coupling labels of a CSF (as printed by Molcas), not α/β electrons |
+
+Things to check in a new reader: orbitals must be orthonormal with the AO
+overlap (`Cᵀ S C = I`; the tests check this for Molcas), and only the dominant
+configuration of each state is kept.

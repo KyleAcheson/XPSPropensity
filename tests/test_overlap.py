@@ -16,15 +16,16 @@ from xpsoverlaps.overlap import (
 )
 from xpsoverlaps.overlap import engine as engine_module
 from xpsoverlaps.readers.openmolcas.basis import square_from_symmetry_blocks
-from xpsoverlaps.readers.openmolcas.hdf5_reader import Caspt2Hdf5Reader, RasscfHdf5Reader
+from xpsoverlaps.readers import get_calculation
 
 
 DATA = Path(__file__).parents[1] / "data" / "molcas" / "brthph" / "s2p" / "mb"
+# (calculation type, HDF5 file, matching log)
 HDF5_FILES = [
-    (RasscfHdf5Reader, "valence.rasscf.h5"),
-    (RasscfHdf5Reader, "core.rasscf.h5"),
-    (Caspt2Hdf5Reader, "valence_caspt2.caspt2.h5"),
-    (Caspt2Hdf5Reader, "core_caspt2.caspt2.h5"),
+    ("RASSCF", "valence.rasscf.h5", "valence-tz.log"),
+    ("RASSCF", "core.rasscf.h5", "core-tz.log"),
+    ("CASPT2", "valence_caspt2.caspt2.h5", "valence_caspt2.log"),
+    ("CASPT2", "core_caspt2.caspt2.h5", "core_caspt2.log"),
 ]
 
 
@@ -33,9 +34,9 @@ def _molcas_ao_overlap(path):
         return square_from_symmetry_blocks(h5_file["AO_OVERLAP_MATRIX"][:], h5_file.attrs["NBAS"])
 
 
-@pytest.mark.parametrize("reader,hdf5_name", HDF5_FILES)
-def test_basis_overlap_matches_molcas_precomputed_ao_overlap(reader, hdf5_name):
-    calculation = reader().read(DATA / hdf5_name)
+@pytest.mark.parametrize("kind,hdf5_name,log_name", HDF5_FILES)
+def test_basis_overlap_matches_molcas_precomputed_ao_overlap(kind, hdf5_name, log_name):
+    calculation = get_calculation("molcas", kind, DATA / hdf5_name, DATA / log_name)
 
     overlap = basis_overlap(calculation.basis, calculation.basis)
 
@@ -43,9 +44,9 @@ def test_basis_overlap_matches_molcas_precomputed_ao_overlap(reader, hdf5_name):
     np.testing.assert_allclose(overlap, _molcas_ao_overlap(DATA / hdf5_name), rtol=0, atol=1e-10)
 
 
-@pytest.mark.parametrize("reader,hdf5_name", HDF5_FILES)
-def test_molecular_orbitals_are_orthonormal_with_selected_provider(reader, hdf5_name):
-    calculation = reader().read(DATA / hdf5_name)
+@pytest.mark.parametrize("kind,hdf5_name,log_name", HDF5_FILES)
+def test_molecular_orbitals_are_orthonormal_with_selected_provider(kind, hdf5_name, log_name):
+    calculation = get_calculation("molcas", kind, DATA / hdf5_name, DATA / log_name)
 
     assert isinstance(
         get_overlap_provider(calculation.basis, calculation.basis), GaussianOverlapProvider
@@ -59,8 +60,8 @@ def test_molecular_orbitals_are_orthonormal_with_selected_provider(reader, hdf5_
 
 
 def test_cross_basis_overlap_between_calculations():
-    valence = RasscfHdf5Reader().read(DATA / "valence.rasscf.h5")
-    core = RasscfHdf5Reader().read(DATA / "core.rasscf.h5")
+    valence = get_calculation("molcas", "RASSCF", DATA / "valence.rasscf.h5", DATA / "valence-tz.log")
+    core = get_calculation("molcas", "RASSCF", DATA / "core.rasscf.h5", DATA / "core-tz.log")
 
     valence_core = basis_overlap(valence.basis, core.basis)
 
@@ -70,8 +71,8 @@ def test_cross_basis_overlap_between_calculations():
 
 
 def test_mo_overlap_between_calculations_uses_both_coefficient_sets():
-    valence = RasscfHdf5Reader().read(DATA / "valence.rasscf.h5")
-    core = RasscfHdf5Reader().read(DATA / "core.rasscf.h5")
+    valence = get_calculation("molcas", "RASSCF", DATA / "valence.rasscf.h5", DATA / "valence-tz.log")
+    core = get_calculation("molcas", "RASSCF", DATA / "core.rasscf.h5", DATA / "core-tz.log")
 
     expected = (
         valence.orbitals.coefficients.T
@@ -149,7 +150,7 @@ def test_engine_provider_rejects_unregistered_and_mismatched_engines(fake_engine
 
 def test_provider_selection_rejects_mixed_basis_representations():
     gaussian = _s_basis("a", 1.0, [0.0, 0.0, 0.0])
-    engine = EngineBasis("b", ["b 1S"], [0], [0], engine="fake")
+    engine = EngineBasis("b", ["b 1S"], [0], [0], engine="fake", handle=None)
 
     with pytest.raises(ValueError, match="same basis representation"):
         get_overlap_provider(gaussian, engine)
@@ -167,7 +168,7 @@ def test_provider_without_compute_cannot_be_instantiated():
 
 def test_base_class_validates_overlap_shape_for_every_provider(fake_engine):
     register_engine("fake", lambda handle_a, handle_b: np.eye(3))
-    basis = EngineBasis("a", ["1", "2"], [0, 0], [0, 0], engine="fake")
+    basis = EngineBasis("a", ["1", "2"], [0, 0], [0, 0], engine="fake", handle=None)
 
     with pytest.raises(ValueError, match=r"returned an AO overlap of shape \(3, 3\); expected \(2, 2\)"):
         EngineOverlapProvider().cross_overlap(basis, basis)

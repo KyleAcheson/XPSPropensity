@@ -1,182 +1,97 @@
-"""HDF5 readers for OpenMolcas RASSCF and CASPT2 calculations."""
+"""Record readers for OpenMolcas HDF5 files (RASSCF and CASPT2 alike).
+
+Each function builds one model record from an open ``MolcasHdf5`` file and
+the records it depends on; call them in order:
+molecule -> basis -> orbitals -> active space.
+"""
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import List
 
-import h5py
 import numpy as np
 
-from xpsoverlaps.model import (
-    ActiveSpace,
-    GaussianBasis,
-    Calculation,
-    ElectronicState,
-    Molecule,
-    OrbitalSet,
-    Provenance,
-)
-from xpsoverlaps.readers.openmolcas.basis import (
-    _decode,
-    reconstruct_basis,
-    square_from_symmetry_blocks,
-)
+from xpsoverlaps.model import ActiveSpace, GaussianBasis, Molecule, OrbitalSet
+from xpsoverlaps.readers.openmolcas.basis import reconstruct_basis
+from xpsoverlaps.readers.openmolcas.hdf5_file import MolcasHdf5
+
+_ACTIVE_TYPES = ("1", "2", "3")  # MO_TYPEINDICES of RAS1, RAS2, RAS3
 
 
-def _attribute_scalar(file: h5py.File, name: str, default=None):
-    if name not in file.attrs:
-        return default
-    value = np.asarray(file.attrs[name])
-    return value.item() if value.size == 1 else value
+def read_molecule(h5: MolcasHdf5) -> Molecule:
+    labels = h5.strings("CENTER_LABELS")
+    coordinates = np.asarray(h5.dataset("CENTER_COORDINATES"), dtype=float)
+    if coordinates.shape != (len(labels), 3):
+        raise ValueError("Center coordinates and labels have incompatible dimensions.")
+    return Molecule(atoms=labels, coordinates=coordinates, units="bohr")
 
 
-def _read_calculation(
-    source: str | Path,
-    energy_dataset: str,
-    method: str,
-) -> Calculation:
-    """Read common Molcas HDF5 fields and states from the specified energy dataset."""
-    path = Path(source)
-    with h5py.File(path, "r") as h5_file:
-        nsym = int(_attribute_scalar(h5_file, "NSYM", 1))
-        prefix = "DESYM_" if nsym > 1 else ""
-        required = (
-            "CENTER_COORDINATES",
-            "CENTER_LABELS",
-            "BASIS_FUNCTION_IDS",
-            "PRIMITIVES",
-            "PRIMITIVE_IDS",
-            "MO_VECTORS",
-            "MO_ENERGIES",
-            "MO_OCCUPATIONS",
-            "MO_TYPEINDICES",
-            energy_dataset,
-        )
-        center_datasets = {"CENTER_COORDINATES", "CENTER_LABELS", "BASIS_FUNCTION_IDS"}
-        missing = [
-            prefix + name if name in center_datasets else name
-            for name in required
-            if (prefix + name if name in center_datasets else name) not in h5_file
-        ]
-        if missing:
-            raise ValueError(f"{path} is missing required Molcas datasets: {', '.join(missing)}")
-        if "NBAS" not in h5_file.attrs:
-            raise ValueError(f"{path} is missing the required Molcas NBAS attribute.")
-
-        center_coords = np.asarray(h5_file[prefix + "CENTER_COORDINATES"][:], dtype=float)
-        center_labels = tuple(_decode(value) for value in h5_file[prefix + "CENTER_LABELS"][:])
-        if center_coords.shape != (len(center_labels), 3):
-            raise ValueError("Center coordinates and labels have incompatible dimensions.")
-
-        basis_function_ids = np.asarray(h5_file[prefix + "BASIS_FUNCTION_IDS"][:], dtype=int)
-        basis_shells, ao_labels = reconstruct_basis(
-            centers=center_coords,
-            center_labels=center_labels,
-            basis_ids=basis_function_ids,
-            primitive_data=h5_file["PRIMITIVES"][:],
-            primitive_ids=h5_file["PRIMITIVE_IDS"][:],
-        )
-        basis_id = f"openmolcas:{path.resolve()}:basis"
-        # BASIS_FUNCTION_IDS rows are (center, contraction, l, m) with 1-based centers;
-        # Cartesian shells store negative l, so |l| is the angular momentum.
-        basis = GaussianBasis(
-            basis_id,
-            list(ao_labels),
-            function_centers=[int(center) - 1 for center in basis_function_ids[:, 0]],
-            function_angular_momenta=[abs(int(l)) for l in basis_function_ids[:, 2]],
-            shells=list(basis_shells),
-        )
-
-        nbas = np.asarray(_attribute_scalar(h5_file, "NBAS"), dtype=int).reshape(-1)
-        coefficients = square_from_symmetry_blocks(h5_file["MO_VECTORS"][:], nbas).T
-        energies = np.asarray(h5_file["MO_ENERGIES"][:], dtype=float).reshape(-1)
-        occupations = np.asarray(h5_file["MO_OCCUPATIONS"][:], dtype=float).reshape(-1)
-        raw_types = tuple(_decode(value) for value in h5_file["MO_TYPEINDICES"][:])
-        if coefficients.shape[0] != basis.n_functions:
-            raise ValueError(
-                f"MO coefficient matrix has {coefficients.shape[0]} AO rows; "
-                f"the reconstructed basis has {basis.n_functions} functions."
-            )
-        if coefficients.shape[1] != len(energies) or len(energies) != len(raw_types):
-            raise ValueError("MO vectors, energies, and type indices have inconsistent sizes.")
-        if len(occupations) != coefficients.shape[1]:
-            raise ValueError("MO occupations do not match the MO vector count.")
-
-        orbital_ids = tuple(f"mo:{index + 1}" for index in range(coefficients.shape[1]))
-        orbitals = OrbitalSet(
-            basis_id=basis_id,
-            coefficients=np.asarray(coefficients, dtype=float),
-            orbital_ids=list(orbital_ids),
-            energies=[float(value) for value in energies],
-            occupations=[float(value) for value in occupations],
-            source_type_labels=list(raw_types),
-        )
-        active_indices = [
-            index
-            for index, label in enumerate(raw_types)
-            if label in {"1", "2", "3"}
-        ]
-        if not active_indices:
-            raise ValueError("MO_TYPEINDICES contains no RAS active orbitals.")
-        # CI occupation strings list RAS1, then RAS2, then RAS3 orbitals; the
-        # active orbitals taken in MO order must follow the same partition order.
-        active_types = [raw_types[index] for index in active_indices]
-        if active_types != sorted(active_types):
-            raise ValueError(
-                "Active orbitals in MO order are not ordered RAS1, RAS2, RAS3 "
-                f"(found {''.join(active_types)}); occupation strings cannot be "
-                "mapped to orbital IDs."
-            )
-        active_electrons = _attribute_scalar(h5_file, "NACTEL")
-        active_space = ActiveSpace(
-            orbital_ids=[orbital_ids[index] for index in active_indices],
-            partitions=[raw_types[index] for index in active_indices],
-            electron_count=int(active_electrons) if active_electrons is not None else None,
-        )
-
-        state_energies = np.asarray(h5_file[energy_dataset][:], dtype=float).reshape(-1)
-        if "NSTATES" in h5_file.attrs:
-            expected_states = int(_attribute_scalar(h5_file, "NSTATES"))
-            if len(state_energies) != expected_states:
-                raise ValueError(
-                    f"{energy_dataset} contains {len(state_energies)} energies; "
-                    f"Molcas metadata declares {expected_states} states."
-                )
-        states = [
-            ElectronicState(
-                state_id=f"{method.lower()}:{index + 1}",
-                energy=float(energy),
-            )
-            for index, energy in enumerate(state_energies)
-        ]
-
-    return Calculation(
-        provenance=Provenance(
-            program="OpenMolcas",
-            method=method,
-            source_files=[str(path.resolve())],
-        ),
-        molecule=Molecule(
-            atoms=list(center_labels),
-            coordinates=center_coords,
-            units="bohr",
-        ),
-        basis=basis,
-        orbitals=orbitals,
-        active_space=active_space,
-        states=states,
+def read_basis(h5: MolcasHdf5, molecule: Molecule) -> GaussianBasis:
+    # Rows are (center, contraction, l, m) with 1-based centers; Cartesian
+    # shells store negative l, so |l| is the angular momentum.
+    function_ids = np.asarray(h5.dataset("BASIS_FUNCTION_IDS"), dtype=int)
+    shells, labels = reconstruct_basis(
+        centers=molecule.coordinates,
+        center_labels=molecule.atoms,
+        basis_ids=function_ids,
+        primitive_data=h5.dataset("PRIMITIVES"),
+        primitive_ids=h5.dataset("PRIMITIVE_IDS"),
+    )
+    return GaussianBasis(
+        basis_id=f"openmolcas:{h5.path}:basis",
+        function_labels=list(labels),
+        function_centers=[int(center) - 1 for center in function_ids[:, 0]],
+        function_angular_momenta=[abs(int(l)) for l in function_ids[:, 2]],
+        shells=list(shells),
     )
 
 
-class RasscfHdf5Reader:
-    """Read normalized calculation data and RASSCF root energies."""
+def read_orbitals(h5: MolcasHdf5, basis: GaussianBasis) -> OrbitalSet:
+    coefficients = h5.mo_coefficients()
+    if coefficients.shape[0] != basis.n_functions:
+        raise ValueError(
+            f"MO coefficient matrix has {coefficients.shape[0]} AO rows; "
+            f"the basis has {basis.n_functions} functions."
+        )
+    return OrbitalSet(
+        basis_id=basis.basis_id,
+        coefficients=coefficients,
+        orbital_ids=[f"mo:{index + 1}" for index in range(coefficients.shape[1])],
+        energies=[float(value) for value in np.ravel(h5.dataset("MO_ENERGIES"))],
+        occupations=[float(value) for value in np.ravel(h5.dataset("MO_OCCUPATIONS"))],
+        source_type_labels=h5.strings("MO_TYPEINDICES"),
+    )
 
-    def read(self, source: str | Path) -> Calculation:
-        return _read_calculation(source, "ROOT_ENERGIES", "RASSCF")
+
+def read_active_space(h5: MolcasHdf5, orbitals: OrbitalSet) -> ActiveSpace:
+    """RAS orbitals in MO order, which must be RAS1, RAS2, RAS3 like the CI strings."""
+    active = [
+        (orbital_id, label)
+        for orbital_id, label in zip(orbitals.orbital_ids, orbitals.source_type_labels)
+        if label in _ACTIVE_TYPES
+    ]
+    if not active:
+        raise ValueError("MO_TYPEINDICES contains no RAS active orbitals.")
+    partitions = [label for _, label in active]
+    if partitions != sorted(partitions):
+        raise ValueError(
+            "Active orbitals in MO order are not ordered RAS1, RAS2, RAS3 "
+            f"(found {''.join(partitions)}); occupation strings cannot be mapped to orbitals."
+        )
+    electrons = h5.attribute("NACTEL")
+    return ActiveSpace(
+        orbital_ids=[orbital_id for orbital_id, _ in active],
+        partitions=partitions,
+        electron_count=int(electrons) if electrons is not None else None,
+    )
 
 
-class Caspt2Hdf5Reader:
-    """Read normalized calculation data and CASPT2 state energies."""
-
-    def read(self, source: str | Path) -> Calculation:
-        return _read_calculation(source, "STATE_PT2_ENERGIES", "CASPT2")
+def read_state_energies(h5: MolcasHdf5, dataset: str) -> List[float]:
+    """State energies from e.g. ``ROOT_ENERGIES`` (RASSCF) or ``STATE_PT2_ENERGIES`` (CASPT2)."""
+    energies = [float(value) for value in np.ravel(h5.dataset(dataset))]
+    expected = h5.attribute("NSTATES")
+    if expected is not None and len(energies) != int(expected):
+        raise ValueError(
+            f"{dataset} contains {len(energies)} energies; Molcas metadata declares {expected} states."
+        )
+    return energies

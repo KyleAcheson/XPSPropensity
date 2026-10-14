@@ -6,79 +6,74 @@ import h5py
 import numpy as np
 import pytest
 
-from xpsoverlaps.readers.loader import attach_states
-from xpsoverlaps.model import Configuration, ElectronicState, GaussianBasis
+from xpsoverlaps.model import Configuration, EngineBasis, GaussianBasis
+from xpsoverlaps.readers import get_calculation
 from xpsoverlaps.readers.openmolcas import (
-    Caspt2LogReader,
-    RasscfLogReader,
-)
-from xpsoverlaps.readers.openmolcas.hdf5_reader import (
-    Caspt2Hdf5Reader,
-    RasscfHdf5Reader,
+    MolcasHdf5,
+    read_active_space,
+    read_basis,
+    read_caspt2_states,
+    read_molecule,
+    read_orbitals,
+    read_rasscf_states,
+    read_state_energies,
 )
 from xpsoverlaps.readers.openmolcas.basis import square_from_symmetry_blocks
 
 
 DATA = Path(__file__).parents[1] / "data" / "molcas" / "brthph" / "s2p" / "mb"
+HDF5_FILES = ["valence.rasscf.h5", "core.rasscf.h5", "valence_caspt2.caspt2.h5", "core_caspt2.caspt2.h5"]
+FILE_PAIRS = [
+    ("RASSCF", "valence.rasscf.h5", "valence-tz.log", "ROOT_ENERGIES", 10),
+    ("RASSCF", "core.rasscf.h5", "core-tz.log", "ROOT_ENERGIES", 40),
+    ("CASPT2", "valence_caspt2.caspt2.h5", "valence_caspt2.log", "STATE_PT2_ENERGIES", 10),
+    ("CASPT2", "core_caspt2.caspt2.h5", "core_caspt2.log", "STATE_PT2_ENERGIES", 40),
+]
 
 
-@pytest.mark.parametrize(
-    "hdf5_name,expected_states",
-    [("valence_caspt2.caspt2.h5", 10), ("core_caspt2.caspt2.h5", 40)],
-)
-def test_caspt2_hdf5_reader_uses_pt2_state_energies_and_shared_fields(
-    hdf5_name, expected_states
-):
-    hdf5_path = DATA / hdf5_name
-    calculation = Caspt2Hdf5Reader().read(hdf5_path)
-
-    assert calculation.provenance.method == "CASPT2"
-    assert calculation.provenance.source_files == [str(hdf5_path.resolve())]
-    assert calculation.molecule.atoms == ["C1", "C2", "C3", "C4", "S5", "BR6", "H7", "H8", "H9"]
-    assert calculation.molecule.coordinates.shape == (9, 3)
-    assert calculation.molecule.units == "bohr"
-    assert calculation.basis.n_functions == 239
-    assert calculation.orbitals.coefficients.shape == (239, 239)
-    assert len(calculation.orbitals.orbital_ids) == 239
-    assert calculation.active_space.orbital_ids == [
-        f"mo:{index}" for index in range(31, 43)
-    ]
-    assert len(calculation.states) == expected_states
-    assert [state.state_id for state in calculation.states] == [
-        f"caspt2:{index}" for index in range(1, expected_states + 1)
-    ]
-
-    with h5py.File(hdf5_path, "r") as h5_file:
-        pt2_energies = h5_file["STATE_PT2_ENERGIES"][:]
-        assert "ROOT_ENERGIES" not in h5_file
-    assert [state.energy for state in calculation.states] == pytest.approx(pt2_energies)
-    assert all(state.dominant_configuration is None for state in calculation.states)
+def _records(path):
+    with MolcasHdf5(path) as h5:
+        molecule = read_molecule(h5)
+        basis = read_basis(h5, molecule)
+        orbitals = read_orbitals(h5, basis)
+        return molecule, basis, orbitals, read_active_space(h5, orbitals)
 
 
-@pytest.mark.parametrize("calculation_name,expected_roots", [("core", 40), ("valence", 10)])
-def test_rasscf_hdf5_reader_normalizes_tz_orbitals_basis_and_active_space(
-    calculation_name, expected_roots
-):
-    hdf5_path = DATA / f"{calculation_name}.rasscf.h5"
-    calculation = RasscfHdf5Reader().read(hdf5_path)
+# --- HDF5 access layer and record readers ---------------------------------
 
-    assert len(calculation.molecule.atoms) == 9
-    assert calculation.molecule.atoms[0] == "C1"
-    assert calculation.molecule.coordinates.shape == (9, 3)
-    assert calculation.molecule.units == "bohr"
-    assert calculation.basis.n_functions == 239
-    assert len(calculation.basis.shells) > 0
-    assert calculation.orbitals.coefficients.shape == (239, 239)
-    assert len(calculation.orbitals.orbital_ids) == 239
-    assert calculation.orbitals.basis_id == calculation.basis.basis_id
-    assert len(calculation.active_space.orbital_ids) == 12
-    assert len(calculation.states) == expected_roots
-    assert all(state.dominant_configuration is None for state in calculation.states)
 
-    for shell in calculation.basis.shells:
-        coefficients = shell.contraction_coefficients
+def test_missing_dataset_is_reported_with_its_name():
+    with MolcasHdf5(DATA / "valence.rasscf.h5") as h5:
+        with pytest.raises(ValueError, match="missing the Molcas dataset NOT_A_DATASET"):
+            h5.dataset("NOT_A_DATASET")
+
+
+@pytest.mark.parametrize("hdf5_name", HDF5_FILES)
+def test_hdf5_record_readers(hdf5_name):
+    molecule, basis, orbitals, active_space = _records(DATA / hdf5_name)
+
+    assert molecule.atoms == ["C1", "C2", "C3", "C4", "S5", "BR6", "H7", "H8", "H9"]
+    assert molecule.coordinates.shape == (9, 3)
+    assert molecule.units == "bohr"
+    assert basis.n_functions == 239
+    assert orbitals.coefficients.shape == (239, 239)
+    assert orbitals.basis_id == basis.basis_id
+    assert active_space.orbital_ids == [f"mo:{index}" for index in range(31, 43)]
+    assert active_space.partitions == list("111222222222")
+
+    with h5py.File(DATA / hdf5_name, "r") as h5_file:
+        ao_overlap = square_from_symmetry_blocks(h5_file["AO_OVERLAP_MATRIX"][:], h5_file.attrs["NBAS"])
+        assert active_space.electron_count == int(h5_file.attrs["NACTEL"])
+    coefficients = orbitals.coefficients
+    np.testing.assert_allclose(coefficients.T @ ao_overlap @ coefficients, np.eye(239), atol=1e-7)
+
+
+def test_basis_contractions_are_normalized():
+    _, basis, _, _ = _records(DATA / "valence.rasscf.h5")
+
+    for shell in basis.shells:
         exponents = shell.exponents
-        for row in coefficients:
+        for row in shell.contraction_coefficients:
             norm = sum(row**2)
             for i in range(len(exponents)):
                 for j in range(i + 1, len(exponents)):
@@ -88,110 +83,19 @@ def test_rasscf_hdf5_reader_normalizes_tz_orbitals_basis_and_active_space(
                     norm += 2 * row[i] * row[j] * overlap
             assert norm == pytest.approx(1.0, abs=1e-10)
 
-    ordered_ids = sorted(
-        function_id
-        for shell in calculation.basis.shells
-        for function_id in shell.basis_function_ids
-    )
-    assert ordered_ids == list(range(calculation.basis.n_functions))
 
-    with h5py.File(hdf5_path, "r") as h5_file:
-        ao_overlap = square_from_symmetry_blocks(
-            h5_file["AO_OVERLAP_MATRIX"][:], h5_file.attrs["NBAS"]
-        )
-        assert calculation.active_space.electron_count == int(h5_file.attrs["NACTEL"])
-    mo_overlap = calculation.orbitals.coefficients.T @ ao_overlap @ calculation.orbitals.coefficients
-    assert np.allclose(mo_overlap, np.eye(239), atol=1e-7)
+@pytest.mark.parametrize("kind,hdf5_name,log_name,dataset,n_states", FILE_PAIRS)
+def test_read_state_energies(kind, hdf5_name, log_name, dataset, n_states):
+    with MolcasHdf5(DATA / hdf5_name) as h5:
+        energies = read_state_energies(h5, dataset)
+    with h5py.File(DATA / hdf5_name, "r") as h5_file:
+        expected = h5_file[dataset][:]
+
+    assert energies == pytest.approx(expected)
+    assert len(energies) == n_states
 
 
-@pytest.mark.parametrize(
-    "calculation_name,expected_roots,expected_spin",
-    [("core", 40, 0.5), ("valence", 10, 0.0)],
-)
-def test_caspt2_log_reader_preserves_printed_mixed_state_ci(
-    calculation_name, expected_roots, expected_spin
-):
-    states = Caspt2LogReader().read(DATA / f"{calculation_name}_caspt2.log")
-
-    assert len(states) == expected_roots
-    assert states[0].state_id == "mixed:1"
-    assert states[0].energy is not None
-    assert states[0].spin == pytest.approx(expected_spin)
-    assert all(
-        state.dominant_configuration is not None
-        for state in states
-    )
-    assert all(len(state.dominant_configuration.occupations) == 12 for state in states)
-
-
-def test_caspt2_reader_preserves_known_core_dominant_configuration():
-    states = Caspt2LogReader().read(DATA / "core_caspt2.log")
-    dominant = states[0].dominant_configuration
-
-    assert dominant is not None
-    assert dominant.configuration_id == "421"
-    assert dominant.occupations == list("22u222222000")
-    assert dominant.coefficient == pytest.approx(0.939017)
-    assert dominant.weight == pytest.approx(0.881753)
-    assert dominant.orbital_ids == []
-
-
-def test_rasscf_log_reader_reads_roots_and_dominant_ci_vectors():
-    states = RasscfLogReader().read(DATA / "valence-tz.log")
-
-    assert len(states) == 10
-    assert [state.state_id for state in states] == [
-        f"rasscf:{root}" for root in range(1, 11)
-    ]
-    assert states[0].energy == pytest.approx(-3156.32326124)
-    assert states[0].spin == pytest.approx(0.0)
-    assert states[0].symmetry == "1"
-    assert states[0].dominant_configuration.configuration_id == "1"
-    assert states[0].dominant_configuration.occupations == list("222222222000")
-    assert states[0].dominant_configuration.coefficient == pytest.approx(-0.94966)
-    assert states[0].dominant_configuration.weight == pytest.approx(0.90185)
-    assert states[1].dominant_configuration.configuration_id == "3"
-    assert states[1].dominant_configuration.occupations == list("2222222u2d00")
-    assert states[1].dominant_configuration.weight == pytest.approx(0.53722)
-    assert all(
-        state.dominant_configuration is not None
-        and len(state.dominant_configuration.occupations) == 12
-        for state in states
-    )
-
-
-@pytest.mark.parametrize(
-    "hdf5_reader,hdf5_path,log_reader,log_path",
-    [
-        (RasscfHdf5Reader, "valence.rasscf.h5", RasscfLogReader, "valence-tz.log"),
-        (Caspt2Hdf5Reader, "valence_caspt2.caspt2.h5", Caspt2LogReader, "valence_caspt2.log"),
-        (RasscfHdf5Reader, "core.rasscf.h5", RasscfLogReader, "core-tz.log"),
-        (Caspt2Hdf5Reader, "core_caspt2.caspt2.h5", Caspt2LogReader, "core_caspt2.log"),
-    ],
-)
-def test_assembly_binds_ci_occupations_to_active_orbital_ids(
-    hdf5_reader, hdf5_path, log_reader, log_path
-):
-    calculation = hdf5_reader().read(DATA / hdf5_path)
-    states = log_reader().read(DATA / log_path)
-
-    assembled = attach_states(calculation, states)
-    assert assembled.states[0].dominant_configuration.orbital_ids == calculation.active_space.orbital_ids
-    assert len(assembled.states[0].dominant_configuration.orbital_ids) == 12
-    assert [state.energy for state in assembled.states] == pytest.approx(
-        [state.energy for state in states], abs=1e-6
-    )
-
-
-def test_assembly_rejects_states_from_a_different_calculation():
-    calculation = RasscfHdf5Reader().read(DATA / "valence.rasscf.h5")
-    states = Caspt2LogReader().read(DATA / "valence_caspt2.log")
-
-    with pytest.raises(ValueError, match="does not match log state"):
-        attach_states(calculation, states)
-
-
-def test_rasscf_hdf5_reader_rejects_active_orbitals_out_of_ras_order(tmp_path):
+def test_active_orbitals_out_of_ras_order_are_rejected(tmp_path):
     hdf5_path = tmp_path / "reordered.rasscf.h5"
     shutil.copy(DATA / "valence.rasscf.h5", hdf5_path)
     with h5py.File(hdf5_path, "r+") as h5_file:
@@ -201,67 +105,114 @@ def test_rasscf_hdf5_reader_rejects_active_orbitals_out_of_ras_order(tmp_path):
         h5_file["MO_TYPEINDICES"][:] = types
 
     with pytest.raises(ValueError, match="not ordered RAS1, RAS2, RAS3"):
-        RasscfHdf5Reader().read(hdf5_path)
-
-
-def test_assembly_rejects_configuration_with_incompatible_orbital_count():
-    calculation = RasscfHdf5Reader().read(DATA / "core.rasscf.h5")
-    states = list(calculation.states)
-    states[0].dominant_configuration = Configuration(
-        configuration_id="bad",
-        occupations=["2"],
-    )
-
-    with pytest.raises(ValueError, match="occupations"):
-        attach_states(calculation, states)
-
-
-def test_assembly_rejects_different_state_counts():
-    calculation = RasscfHdf5Reader().read(DATA / "core.rasscf.h5")
-
-    with pytest.raises(ValueError, match="contains 40 states.*log contains 1"):
-        attach_states(calculation, [ElectronicState(state_id="rasscf:1")])
+        _records(hdf5_path)
 
 
 @pytest.mark.parametrize("hdf5_name", ["valence.rasscf.h5", "core.rasscf.h5"])
-def test_ao_labels_match_molcas_basis_function_ids(hdf5_name):
-    calculation = RasscfHdf5Reader().read(DATA / hdf5_name)
+def test_ao_metadata_matches_molcas_basis_function_ids(hdf5_name):
+    molecule, basis, _, _ = _records(DATA / hdf5_name)
     with h5py.File(DATA / hdf5_name, "r") as h5_file:
         basis_ids = h5_file["BASIS_FUNCTION_IDS"][:]
-        center_labels = [label.decode().strip() for label in h5_file["CENTER_LABELS"][:]]
 
-    l_letters = "SPDFGH"
-    for label, (center, contraction, l, m) in zip(calculation.basis.function_labels, basis_ids):
+    assert basis.function_centers == [int(c) - 1 for c in basis_ids[:, 0]]
+    assert basis.function_angular_momenta == [abs(int(l)) for l in basis_ids[:, 2]]
+    for label, (center, contraction, l, m) in zip(basis.function_labels, basis_ids):
         atom, orbital = label.split()
-        assert atom == center_labels[center - 1]
+        assert atom == molecule.atoms[center - 1]
         # Principal number is contraction + l; spherical labels (l > 0) carry m.
-        assert orbital.startswith(f"{contraction + l}{l_letters[l]}")
+        assert orbital.startswith(f"{contraction + l}{'SPDFGH'[l]}")
         if "[m=" in orbital:
             assert orbital.endswith(f"[m={m:+d}]")
 
 
-@pytest.mark.parametrize("hdf5_name", ["valence.rasscf.h5", "core.rasscf.h5"])
-def test_ao_centers_and_angular_momenta_match_molcas_basis_function_ids(hdf5_name):
-    calculation = RasscfHdf5Reader().read(DATA / hdf5_name)
+# --- Log state readers -----------------------------------------------------
+
+
+@pytest.mark.parametrize("name,n_states,spin", [("core", 40, 0.5), ("valence", 10, 0.0)])
+def test_caspt2_log_states(name, n_states, spin):
+    states = read_caspt2_states(DATA / f"{name}_caspt2.log")
+
+    assert [state.state_id for state in states] == [f"caspt2:{i}" for i in range(1, n_states + 1)]
+    assert all(state.spin == pytest.approx(spin) for state in states)
+    assert all(len(state.dominant_configuration.occupations) == 12 for state in states)
+
+
+def test_caspt2_log_known_core_dominant_configuration():
+    dominant = read_caspt2_states(DATA / "core_caspt2.log")[0].dominant_configuration
+
+    assert dominant.configuration_id == "421"
+    assert dominant.occupations == list("22u222222000")
+    assert dominant.coefficient == pytest.approx(0.939017)
+    assert dominant.weight == pytest.approx(0.881753)
+
+
+def test_rasscf_log_states():
+    states = read_rasscf_states(DATA / "valence-tz.log")
+
+    assert [state.state_id for state in states] == [f"rasscf:{root}" for root in range(1, 11)]
+    assert states[0].energy == pytest.approx(-3156.32326124)
+    assert states[0].spin == pytest.approx(0.0)
+    assert states[0].symmetry == "1"
+    first, second = states[0].dominant_configuration, states[1].dominant_configuration
+    assert (first.configuration_id, first.occupations) == ("1", list("222222222000"))
+    assert first.coefficient == pytest.approx(-0.94966)
+    assert first.weight == pytest.approx(0.90185)
+    assert (second.configuration_id, second.occupations) == ("3", list("2222222u2d00"))
+    assert second.weight == pytest.approx(0.53722)
+
+
+# --- OpenMolcas loader: records combined into one Calculation ----------------
+
+
+@pytest.mark.parametrize("kind,hdf5_name,log_name,dataset,n_states", FILE_PAIRS)
+def test_loader_combines_hdf5_records_and_log_states(kind, hdf5_name, log_name, dataset, n_states):
+    calculation = get_calculation("molcas", kind, DATA / hdf5_name, DATA / log_name)
     with h5py.File(DATA / hdf5_name, "r") as h5_file:
-        basis_ids = h5_file["BASIS_FUNCTION_IDS"][:]
+        hdf5_energies = h5_file[dataset][:]
 
-    basis = calculation.basis
-    assert basis.function_centers == [int(c) - 1 for c in basis_ids[:, 0]]
-    assert basis.function_angular_momenta == [abs(int(l)) for l in basis_ids[:, 2]]
-    for label, center in zip(basis.function_labels, basis.function_centers):
-        assert label.split()[0] == calculation.molecule.atoms[center]
-
-
-def test_ao_basis_metadata_is_validated():
-    with pytest.raises(ValueError, match="one entry per AO label"):
-        GaussianBasis("b", ["a", "b"], function_centers=[0], function_angular_momenta=[0, 0])
-    with pytest.raises(ValueError, match="non-negative"):
-        GaussianBasis("b", ["a"], function_centers=[0], function_angular_momenta=[-1])
+    assert calculation.provenance.source_files == [
+        str((DATA / hdf5_name).resolve()),
+        str((DATA / log_name).resolve()),
+    ]
+    assert len(calculation.states) == n_states
+    # Energies are the full-precision HDF5 values; everything else comes from the log.
+    assert [state.energy for state in calculation.states] == list(hdf5_energies)
+    assert all(state.spin is not None for state in calculation.states)
+    assert all(len(state.dominant_configuration.occupations) == 12 for state in calculation.states)
 
 
-def test_calculation_rejects_ao_centers_outside_the_molecule():
-    calculation = RasscfHdf5Reader().read(DATA / "valence.rasscf.h5")
+def test_loader_rejects_log_with_different_state_count():
+    with pytest.raises(ValueError, match="HDF5 file contains 10 states but the log contains 40"):
+        get_calculation("molcas", "CASPT2", DATA / "valence_caspt2.caspt2.h5", DATA / "core_caspt2.log")
+
+
+def test_loader_rejects_log_from_a_different_calculation(tmp_path):
+    hdf5_path = tmp_path / "shifted.rasscf.h5"
+    shutil.copy(DATA / "valence.rasscf.h5", hdf5_path)
+    with h5py.File(hdf5_path, "r+") as h5_file:
+        h5_file["ROOT_ENERGIES"][:] = h5_file["ROOT_ENERGIES"][:] + 0.5
+
+    with pytest.raises(ValueError, match="does not match .* in the HDF5 file"):
+        get_calculation("molcas", "RASSCF", hdf5_path, DATA / "valence-tz.log")
+
+
+# --- Model validation on a loaded calculation -----------------------------
+
+
+@pytest.fixture(scope="module")
+def calculation():
+    return get_calculation("molcas", "RASSCF", DATA / "valence.rasscf.h5", DATA / "valence-tz.log")
+
+
+def test_calculation_rejects_configuration_of_wrong_length(calculation):
+    short = Configuration(configuration_id="bad", occupations=["2"])
+    states = [dataclasses.replace(calculation.states[0], dominant_configuration=short)]
+
+    with pytest.raises(ValueError, match="configuration has 1 occupations; the active space has 12"):
+        dataclasses.replace(calculation, states=states + calculation.states[1:])
+
+
+def test_calculation_rejects_ao_centers_outside_the_molecule(calculation):
     centers = list(calculation.basis.function_centers)
     centers[0] = len(calculation.molecule.atoms)
 
@@ -269,3 +220,23 @@ def test_calculation_rejects_ao_centers_outside_the_molecule():
         dataclasses.replace(
             calculation, basis=dataclasses.replace(calculation.basis, function_centers=centers)
         )
+
+
+def test_model_records_are_immutable_and_replace_revalidates(calculation):
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        calculation.states = []
+    with pytest.raises(ValueError, match="share a basis ID"):
+        dataclasses.replace(
+            calculation, orbitals=dataclasses.replace(calculation.orbitals, basis_id="other")
+        )
+
+
+def test_ao_basis_metadata_is_validated():
+    with pytest.raises(ValueError, match="one entry per AO label"):
+        GaussianBasis("b", ["a", "b"], [0], [0, 0], shells=[])
+    with pytest.raises(ValueError, match="non-negative"):
+        GaussianBasis("b", ["a"], [0], [-1], shells=[])
+    with pytest.raises(ValueError, match="cover every AO exactly once"):
+        GaussianBasis("b", ["a"], [0], [0], shells=[])
+    with pytest.raises(ValueError, match="needs an engine name"):
+        EngineBasis("b", ["a"], [0], [0], engine="", handle=None)

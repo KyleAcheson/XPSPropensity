@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, NamedTuple, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -11,16 +10,13 @@ from xpsoverlaps.model import Calculation
 from xpsoverlaps.overlap import AOOverlapProvider, get_overlap_provider
 
 
-
-@dataclass
-class AOContribution:
+class AOContribution(NamedTuple):
     label: str
     coefficient: float
     weight: float  # fraction of the (normalized) MO assigned to this AO
 
 
-@dataclass
-class OrbitalComposition:
+class OrbitalComposition(NamedTuple):
     """AO make-up of one MO: its largest AO contributions and its AO-group character."""
 
     orbital_id: str
