@@ -28,6 +28,8 @@ class _CalculationInputRequired(TypedDict):
 
 class CalculationInput(_CalculationInputRequired, total=False):
     state_file: Path  # only for programs that write states to a separate file
+    homo: int  # Initial only; 1-based MO indices, given together with lumo
+    lumo: int
 
 
 class _RunInputRequired(TypedDict):

@@ -32,15 +32,33 @@ properties:
   Initial:
     $ref: '#/$defs/calculation'
     description: Initial N-electron calculation.
+    properties:
+      homo:
+        description: >-
+          1-based MO index of the HOMO in this calculation. Optional, but must be
+          given together with lumo; the final-state HOMO/LUMO follow from the
+          orbital mapping.
+        type: integer
+        minimum: 1
+      lumo:
+        description: 1-based MO index of the LUMO; see homo.
+        type: integer
+        minimum: 1
+    dependentRequired:
+      homo: [lumo]
+      lumo: [homo]
+    unevaluatedProperties: false
 
   Final:
     $ref: '#/$defs/calculation'
     description: Final (N-1)-electron ionized calculation.
+    unevaluatedProperties: false
 
 $defs:
+  # Shared keys of Initial and Final. Unknown keys are rejected by
+  # unevaluatedProperties in each block, so Initial can add its own keys.
   calculation:
     type: object
-    additionalProperties: false
     required: [type, wf_file]
     properties:
       type:
