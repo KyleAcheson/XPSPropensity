@@ -99,6 +99,8 @@ def test_output_file_dumps_input_and_summarizes_states(tmp_path):
     assert "Shake-down transitions between initial states" in text
     assert "states considered: 1..4 (max_state = 4)" in text
     assert "5 transitions: 5 computable, 0 not computable." in text
+    assert "Propensity rules" in text
+    assert "  3 -> 2  5e ES   D1                       0.015099" in text
 
 
 def test_uncaught_exception_is_logged_with_traceback(monkeypatch, tmp_path):

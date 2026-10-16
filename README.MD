@@ -99,6 +99,7 @@ src/xpsoverlaps/
 ├── mapping.py           # initial -> final active-orbital mapping
 ├── frontier.py          # HOMO/LUMO from the input, carried to the final state by the mapping
 ├── shakedown.py         # shake-down transitions between initial states and their i, j, k roles
+├── rules.py             # propensity rules (3e GS, 3e ES, 5e ES) and their spin channels
 ├── propensity.py        # propensity workflows (overlaps, chp)
 ├── overlap/             # AO overlap providers and MO overlaps
 │   ├── base.py          #   AOOverlapProvider interface

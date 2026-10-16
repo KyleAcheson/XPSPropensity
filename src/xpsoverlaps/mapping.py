@@ -61,10 +61,18 @@ class OrbitalMapping:
     final_active_ids: List[str]
     initial_compositions: Mapping[str, OrbitalComposition]
     final_compositions: Mapping[str, OrbitalComposition]
+    mo_overlap: np.ndarray  # S_MO[initial MO, final MO] = <psi_initial|phi_final>, signed
+    initial_orbital_ids: List[str]  # row order of mo_overlap
+    final_orbital_ids: List[str]  # column order of mo_overlap
     warnings: List[str] = field(default_factory=list)
 
     def final_id(self, initial_id: str) -> str:
         return next(match.final_id for match in self.matches if match.initial_id == initial_id)
+
+    def overlap(self, initial_id: str, final_id: str) -> float:
+        """Signed <psi_initial|phi_final> between any two orbitals."""
+        row = self.initial_orbital_ids.index(initial_id)
+        return float(self.mo_overlap[row, self.final_orbital_ids.index(final_id)])
 
     @property
     def active_index_map(self) -> List[int]:
@@ -183,6 +191,9 @@ def match_active_orbitals(
         final_active_ids=list(final_active_ids),
         initial_compositions=initial_compositions,
         final_compositions=final_compositions,
+        mo_overlap=overlap,
+        initial_orbital_ids=list(initial_orbital_ids),
+        final_orbital_ids=list(final_orbital_ids),
         warnings=warnings,
     )
 

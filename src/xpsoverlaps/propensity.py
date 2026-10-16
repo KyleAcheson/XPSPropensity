@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
 from xpsoverlaps.frontier import FrontierOrbitals, frontier_report, map_frontier
-from xpsoverlaps.mapping import map_active_orbitals, mapped_ci_report, mapping_report
+from xpsoverlaps.mapping import OrbitalMapping, map_active_orbitals, mapped_ci_report, mapping_report
 from xpsoverlaps.model import Calculation
-from xpsoverlaps.shakedown import ShakeDownError, find_shake_downs, shake_down_report
+from xpsoverlaps.rules import compute_propensity, propensity_report
+from xpsoverlaps.shakedown import ShakeDown, ShakeDownError, find_shake_downs, shake_down_report
 
 logger = logging.getLogger(__name__)
 
@@ -46,23 +47,37 @@ def propensity_overlaps(
     logger.info("")
     logger.info(_DASHES)
     logger.info("")
-    _log_shake_downs(initial, frontier, max_state)
+    shake_downs = _log_shake_downs(initial, frontier, max_state)
     logger.info("")
     logger.info(_DASHES)
+    if shake_downs:
+        logger.info("")
+        _log_propensities(shake_downs, initial, final, mapping)
+        logger.info("")
+        logger.info(_DASHES)
 
 
 def _log_shake_downs(
     initial: Calculation, frontier: Optional[FrontierOrbitals], max_state: Optional[int]
-) -> None:
+) -> List[ShakeDown]:
     if frontier is None:
         logger.info("Shake-down transitions need the HOMO/LUMO; not identified.")
-        return
+        return []
     try:
         shake_downs = find_shake_downs(initial, frontier, max_state)
     except ShakeDownError as error:
         logger.warning("Shake-down transitions not identified: %s", error)
-        return
+        return []
     for line in shake_down_report(initial, frontier, shake_downs, max_state):
+        logger.info(line)
+    return shake_downs
+
+
+def _log_propensities(
+    shake_downs: List[ShakeDown], initial: Calculation, final: Calculation, mapping: OrbitalMapping
+) -> None:
+    results = [compute_propensity(sd, initial, mapping) for sd in shake_downs if sd.computable]
+    for line in propensity_report(results, mapping, final):
         logger.info(line)
 
 
