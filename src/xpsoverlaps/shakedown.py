@@ -5,12 +5,15 @@ closed-shell reference, to a lower-energy initial state b reached by moving one
 electron. The source of that electron decides the case
 (see the propensity-rule notes):
 
-- k -> i, b is the reference ................ 3e GS
+- k -> i, b is the reference, i the HOMO ..... 3e GS
+- k -> i, b is the reference, i below HOMO ... 5e GS (j = HOMO)
 - k -> j, a lower virtual (same hole i) ..... 3e ES
 - j -> i, j doubly occupied in a (same k) .... 5e ES
 
-When the HOMO takes no part it is a doubly occupied spectator d and is left
-out. Only HOMO and LUMO are known, so the orbital order needed for
+In the excited-state cases the HOMO, when it takes no part, is a doubly
+occupied spectator d and is left out. In ground-state shake-down from a
+HOMO-n pump it is kept as j: the closed-shell final state then depends on it
+through the minors M1 and M3. Only HOMO and LUMO are known, so the orbital order needed for
 e_i < e_j < e_k can only be checked when j or i is the LUMO or HOMO; other
 pairs are reported as not computable.
 """
@@ -40,7 +43,7 @@ class ShakeDown(NamedTuple):
     initial_state: str  # state a
     lower_state: str  # state b, lower in energy
     moved: Tuple[str, str]  # (from orbital, to orbital) of the shake-down electron
-    case: Optional[str]  # "3e GS", "3e ES", "5e ES", or None if no case applies
+    case: Optional[str]  # "3e GS", "5e GS", "3e ES", "5e ES", or None if no case applies
     i: Optional[str] = None
     j: Optional[str] = None
     k: Optional[str] = None
@@ -132,7 +135,9 @@ def _classify(a: str, b: str, moved: Tuple[str, str], exc_a: Excitation, exc_b: 
     spectator = homo if i != homo else None
 
     if b_is_reference:  # k -> i
-        return ShakeDown(a, b, moved, "3e GS", i=i, k=k, d=spectator)
+        if i == homo:
+            return ShakeDown(a, b, moved, "3e GS", i=i, k=k)
+        return ShakeDown(a, b, moved, "5e GS", i=i, j=homo, k=k) # assumes i < homo and j = homo - what about i < homo-1?
 
     if exc_b.holes[0] == i:  # k -> j, virtual to virtual
         j = target

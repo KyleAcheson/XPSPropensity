@@ -48,7 +48,8 @@ $i$ & pump hole: emptied by the pump & occupied & HOMO$-n$, $n\ge 0$ \\
 $k$ & pump particle: filled by the pump & virtual & LUMO$+m$, $m\ge 0$ \\
 $j$ (3e ES) & receives the shake-down electron & virtual, below $k$ & LUMO$+l$, $l<m$ \\
 $j$ (5e ES) & gives the shake-down electron; doubly occupied in $a$ & occupied, above $i$ & HOMO$-n'$, $n'<n$ \\
-$d$ & HOMO when it is none of $i, j$; doubly occupied throughout & occupied & HOMO \\
+$j$ (5e GS) & doubly occupied throughout; kept in the closed-shell rule & occupied, above $i$ & HOMO \\
+$d$ & HOMO when it is none of $i, j$ (ES cases); doubly occupied throughout & occupied & HOMO \\
 \bottomrule
 \end{tabularx}
 \medskip
@@ -68,7 +69,8 @@ $b$ with $a$ (both written as excitations from the reference):
 \toprule
 $b$ compared with $a=(i\to k)$ & Shake-down electron & Case \\
 \midrule
-$b$ is the reference & $k\to i$, from the virtual $k$ into the hole & 3e GS \\
+$b$ is the reference, $i$ = HOMO & $k\to i$, from the virtual $k$ into the hole & 3e GS \\
+$b$ is the reference, $i$ = HOMO$-n$ & $k\to i$, with $j$ = HOMO & 5e GS \\
 same hole $i$, lower particle & $k\to j$, from the virtual $k$ into a lower virtual & 3e ES \\
 same particle $k$, different hole & $j\to i$, from a doubly occupied $j$ into the hole & 5e ES \\
 \bottomrule
@@ -154,19 +156,25 @@ value is below 0.9.
 \begin{center}
 \begin{tabular}{@{}lll@{}}
 \toprule
-& 3e (GS, ES) & 5e ES \\
+& 3e & 5e \\
 \midrule
-$\Pi$ (direct) & $S_{jk}$ & $M_1M_2$ \\
-$\Omega$ (exchange) & $S_{ik}S_{ji}$ & $M_3M_4$ \\
-Singlet $\to D_1$ & $|\Pi+\Omega|^2$ & $|\Pi+\Omega|^2$ \\
-Triplet channels & $|\Pi-\Omega|^2\times$ spin weight & $|\Pi-\Omega|^2\times$ spin weight \\
-GS shake-down & $2|S_{ik}|^2$ & --- \\
+ES: $\Pi$ (direct) & $S_{ii}S_{jk}$ & $M_1M_2$ \\
+ES: $\Omega$ (exchange) & $S_{ik}S_{ji}$ & $M_3M_4$ \\
+ES: singlet $\to D_1$ & $|\Pi+\Omega|^2$ & $|\Pi+\Omega|^2$ \\
+ES: triplet $\to D_2$, $Q$ & $\tfrac13,\tfrac23\,|\Pi-\Omega|^2$ & $\tfrac13,\tfrac23\,|\Pi-\Omega|^2$ \\
+GS: singlet $\to$ closed shell & $2|S_{ii}S_{ik}|^2$ & $2|M_1M_3|^2$ \\
+GS: triplet & dark & dark \\
 \bottomrule
 \end{tabular}
 \end{center}
-with $M_1=1-S_{ij}S_{ji}$, $M_2=S_{ij}-S_{ik}S_{kj}$, $M_3=S_{ij}S_{jk}-S_{ik}$,
-$M_4=S_{kj}-S_{ij}S_{ki}$. The GS shake-down uses $2|S_{ik}|^2$ for every pump, including
-HOMO$-n$ pumps ($d$ omitted).
+with the $2\times2$ minors of the valence overlap block
+\begin{align*}
+M_1&=S_{ii}S_{jj}-S_{ij}S_{ji}, & M_2&=S_{ij}S_{kk}-S_{ik}S_{kj},\\
+M_3&=S_{ij}S_{jk}-S_{ik}S_{jj}, & M_4&=S_{ii}S_{kj}-S_{ij}S_{ki}.
+\end{align*}
+3e GS is a HOMO pump; a GS shake-down from a HOMO$-n$ pump is 5e GS, with the HOMO as $j$
+(no spectator). The code keeps $S_{ii}$, $S_{jj}$, $S_{kk}$ in the formulas it prints and
+sets them to 1.
 
 \section{Not computed}
 
@@ -189,7 +197,7 @@ Bromothiophene, S\,2p core hole; HOMO = mo:34, LUMO = mo:40.
 $a\to b$ & $a$ & $b$ & Electron & Case & $i$ & $j$ & $k$ ($d$) \\
 \midrule
 $2\to1$ & mo:34$\to$40 & reference & 40$\to$34 & 3e GS & 34 & -- & 40 \\
-$5\to1$ & mo:38$\to$41 & reference & 41$\to$38 & 3e GS & 38 & -- & 41 (34) \\
+$5\to1$ & mo:38$\to$41 & reference & 41$\to$38 & 5e GS & 38 & 34 & 41 \\
 $5\to3$ & mo:38$\to$41 & mo:38$\to$40 & 41$\to$40 & 3e ES & 38 & 40 & 41 (34) \\
 $5\to4$ & mo:38$\to$41 & mo:34$\to$41 & 34$\to$38 & 5e ES & 38 & 34 & 41 \\
 $6\to5$ & mo:37$\to$41 & mo:38$\to$41 & 38$\to$37 & 5e ES & 37 & 38 & 41 (34) \\
