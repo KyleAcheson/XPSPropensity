@@ -13,16 +13,19 @@ electron. The source of that electron decides the case
 In the excited-state cases the HOMO, when it takes no part, is a doubly
 occupied spectator d and is left out. In ground-state shake-down from a
 HOMO-n pump it is kept as j: the closed-shell final state then depends on it
-through the minors M1 and M3. Only HOMO and LUMO are known, so the orbital order needed for
-e_i < e_j < e_k can only be checked when j or i is the LUMO or HOMO; other
-pairs are reported as not computable.
+through the minors M1 and M3.
+
+The orbital order (``OrbitalOrder``, from populations or the input HOMO/LUMO)
+checks that the shake-down electron moves down: j below k in 3e ES, j above i
+in 5e ES. A pair whose electron would move up, or whose roles include a core
+(RAS1) or RAS3 orbital, is reported as not computable.
 """
 
 from __future__ import annotations
 
 from typing import List, NamedTuple, Optional, Sequence, Tuple
 
-from xpsoverlaps.frontier import FrontierOrbitals
+from xpsoverlaps.frontier import OrbitalOrder
 from xpsoverlaps.model import Calculation, ElectronicState
 
 _ELECTRONS = {"0": 0, "u": 1, "d": 1, "2": 2}
@@ -96,7 +99,7 @@ def reference_state(calculation: Calculation, max_state: Optional[int] = None) -
 
 
 def find_shake_downs(
-    calculation: Calculation, frontier: FrontierOrbitals, max_state: Optional[int] = None
+    calculation: Calculation, order: OrbitalOrder, max_state: Optional[int] = None
 ) -> List[ShakeDown]:
     """All pairs a -> b among states 1..max_state (b lower in energy, one electron moved).
 
@@ -120,19 +123,22 @@ def find_shake_downs(
             moved = (move.holes[0], move.particles[0])
             shake_downs.append(
                 _classify(a.state_id, b.state_id, moved, excitations[a.state_id], excitations[b.state_id],
-                          b is reference, frontier)
+                          b is reference, order)
             )
     return shake_downs
 
 
 def _classify(a: str, b: str, moved: Tuple[str, str], exc_a: Excitation, exc_b: Excitation,
-              b_is_reference: bool, frontier: FrontierOrbitals) -> ShakeDown:
-    homo, lumo = frontier
+              b_is_reference: bool, order: OrbitalOrder) -> ShakeDown:
+    homo = order.homo
     source, target = moved
     if len(exc_a.holes) != 1 or (not b_is_reference and len(exc_b.holes) != 1):
         return ShakeDown(a, b, moved, None, reason="double excitation: no rule")
     i, k = exc_a.holes[0], exc_a.particles[0]
     spectator = homo if i != homo else None
+    unranked = _unranked(order, i=i, k=k)
+    if unranked:
+        return ShakeDown(a, b, moved, None, i=i, k=k, reason=unranked)
 
     if b_is_reference:  # k -> i
         if i == homo:
@@ -141,24 +147,31 @@ def _classify(a: str, b: str, moved: Tuple[str, str], exc_a: Excitation, exc_b: 
 
     if exc_b.holes[0] == i:  # k -> j, virtual to virtual
         j = target
-        reason = None
-        if k == lumo:
-            reason = "electron would move up: k is the LUMO, j lies above it"
-        elif j != lumo:
-            reason = "orbital order unknown: j and k both lie above the LUMO"
+        reason = _unranked(order, j=j) or (
+            _moves_up(order, j, "j", k, "k") if order.level(j) > order.level(k) else None)
         return ShakeDown(a, b, moved, "3e ES", i=i, j=j, k=k, d=spectator, reason=reason)
 
     # j -> i, the donor j was doubly occupied in a; k is a spin-coupling spectator
     j = source
-    reason = None
-    if i == homo:
-        reason = "electron would move up: i is the HOMO, j lies below it"
-    elif j != homo:
-        reason = "orbital order unknown: j and i both lie below the HOMO"
+    reason = _unranked(order, j=j) or (
+        _moves_up(order, i, "i", j, "j") if order.level(j) < order.level(i) else None)
     return ShakeDown(a, b, moved, "5e ES", i=i, j=j, k=k, d=homo if j != homo else None, reason=reason)
 
 
-def shake_down_report(calculation: Calculation, frontier: FrontierOrbitals,
+def _unranked(order: OrbitalOrder, **roles: str) -> Optional[str]:
+    """Why a shake-down involving a core (RAS1) or RAS3 orbital has no rule, or None."""
+    for role, orbital_id in roles.items():
+        if not order.is_valence(orbital_id):
+            return f"{role} = {orbital_id} is a {order.label(orbital_id)} orbital: no rule"
+    return None
+
+
+def _moves_up(order: OrbitalOrder, upper: str, upper_role: str, lower: str, lower_role: str) -> str:
+    return (f"electron would move up: {upper_role} ({order.label(upper)}) lies above "
+            f"{lower_role} ({order.label(lower)})")
+
+
+def shake_down_report(calculation: Calculation, order: OrbitalOrder,
                       shake_downs: Sequence[ShakeDown], max_state: Optional[int] = None) -> List[str]:
     """Initial-state classification and the table of shake-down transitions."""
     orbital_ids = calculation.active_space.orbital_ids
@@ -178,7 +191,7 @@ def shake_down_report(calculation: Calculation, frontier: FrontierOrbitals,
     lines = [
         "Shake-down transitions between initial states",
         "",
-        f"Orbital order: {orbital_ids[0]} ... {orbital_ids[-1]};  HOMO = {frontier.homo}, LUMO = {frontier.lumo}",
+        f"Active orbitals: {orbital_ids[0]} ... {orbital_ids[-1]};  HOMO = {order.homo}, LUMO = {order.lumo}",
         f"Reference (ground) state: {number(reference.state_id)};  states considered: "
         f"{number(states[0].state_id)}..{number(states[-1].state_id)}"
         + (f" (max_state = {max_state})" if max_state is not None else ""),

@@ -4,27 +4,27 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from xpsoverlaps.frontier import FrontierOrbitals
+from xpsoverlaps.frontier import orbital_order
 from xpsoverlaps.mapping import map_active_orbitals
 from xpsoverlaps.readers import get_calculation
 from xpsoverlaps.rules import RULES, RoleOverlaps, compute_propensity, propensity_report
-from xpsoverlaps.shakedown import find_shake_downs
+from xpsoverlaps.shakedown import find_shake_downs, reference_state
 
 
 DATA = Path(__file__).parents[1] / "data" / "molcas" / "brthph" / "s2p" / "mb"
-FRONTIER = FrontierOrbitals("mo:34", "mo:40")
 
 
 @pytest.fixture(scope="module")
 def setup():
     initial = get_calculation(
-        "molcas", "caspt2", DATA / "valence_caspt2.caspt2.h5", DATA / "valence_caspt2.log"
+        "molcas", "caspt2", DATA / "valence_caspt2.caspt2.h5", DATA / "valence_caspt2.log",
+        mcscf_file=DATA / "valence.rasscf.h5",
     )
     final = get_calculation("molcas", "caspt2", DATA / "core_caspt2.caspt2.h5", DATA / "core_caspt2.log")
     mapping = map_active_orbitals(initial, final)
     shake_downs = {
         (sd.initial_state.split(":")[1], sd.lower_state.split(":")[1]): sd
-        for sd in find_shake_downs(initial, FRONTIER, max_state=4)
+        for sd in find_shake_downs(initial, orbital_order(initial, reference_state(initial)), max_state=4)
     }
     return initial, final, mapping, shake_downs
 

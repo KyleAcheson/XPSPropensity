@@ -95,8 +95,8 @@ def test_output_file_dumps_input_and_summarizes_states(tmp_path):
     assert "caspt2:" not in text
     assert "Dominant CI vectors on the initial active-orbital order" in text
     assert "22u22222du00     22ud22222u00" in text
-    assert "HOMO  initial mo:34    -> final mo:39" in text
-    assert "LUMO  initial mo:40    -> final mo:40" in text
+    assert "HOMO      mo:34         1.5967     -0.2721  mo:39" in text
+    assert "HOMO mo:34 set by the input (agrees with the populations)." in text
     assert "Shake-down transitions between initial states" in text
     assert "states considered: 1..4 (max_state = 4)" in text
     assert "5 transitions: 5 computable, 0 not computable." in text
@@ -165,6 +165,24 @@ def test_main_requires_input_option(capsys):
     with pytest.raises(SystemExit):
         main_module.main([])
     assert "the following arguments are required: -i/--input" in capsys.readouterr().err
+
+
+def test_main_orders_orbitals_by_population_without_homo_lumo(tmp_path):
+    run_input = yaml.safe_load(INPUT.read_text(encoding="utf-8"))
+    for key in ("homo", "lumo"):
+        del run_input["Initial"][key]
+    for block in ("Initial", "Final"):
+        for key in ("wf_file", "state_file", "mcscf_file"):
+            if key in run_input[block]:
+                run_input[block][key] = str((INPUT.parent / run_input[block][key]).resolve())
+    input_file = tmp_path / "no_frontier.yaml"
+    input_file.write_text(yaml.safe_dump(run_input), encoding="utf-8")
+
+    assert main_module.main(["-i", str(input_file), "-o", str(tmp_path / "run.out")]) == 0
+
+    text = (tmp_path / "run.out").read_text(encoding="utf-8")
+    assert "HOMO/LUMO from the populations (not given in the input)." in text
+    assert "  3 -> 2  5e ES   D1                       0.015099" in text
 
 
 def test_main_rejects_invalid_homo_lumo_before_running(monkeypatch, tmp_path):

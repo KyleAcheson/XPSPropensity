@@ -48,7 +48,7 @@ Initial:
   wf_file: ../data/molcas/brthph/s2p/mb/valence_caspt2.caspt2.h5   # orbitals, basis, energies
   state_file: ../data/molcas/brthph/s2p/mb/valence_caspt2.log      # CI configurations (Molcas only)
   mcscf_file: ../data/molcas/brthph/s2p/mb/valence.rasscf.h5       # caspt2 only: its RASSCF file (Initial only)
-  homo: 34               # optional, given together with lumo: 1-based MO indices (Initial only)
+  homo: 34               # optional override of the population-based HOMO/LUMO: 1-based MO indices, given together
   lumo: 40
   max_state: 4           # optional: shake-downs only among initial states 1..max_state
 
@@ -59,9 +59,13 @@ Final:
 ```
 
 Relative paths are resolved from the input file's directory. Choice values are
-case-insensitive. `homo`/`lumo` must be two different active orbitals; choosing
-the right ones is up to the user. The final-state HOMO/LUMO are the orbitals
-they map onto. Run with:
+case-insensitive. The initial RAS2 orbitals are split into occupied and
+virtual by the ground state's configuration and ordered by their populations
+(lowest occupied = HOMO, highest virtual = LUMO); RAS1 orbitals are labelled
+core and not ranked. `homo`/`lumo` override that
+HOMO and LUMO; they must be two different active orbitals, and choosing the
+right ones is up to the user. The final-state HOMO/LUMO are the orbitals they
+map onto. Run with:
 
 ```bash
 python src/xpsoverlaps/main.py -i inputs/input.yaml -o output.log

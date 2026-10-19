@@ -36,9 +36,10 @@ properties:
     properties:
       homo:
         description: >-
-          1-based MO index of the HOMO in this calculation. Optional, but must be
-          given together with lumo; the final-state HOMO/LUMO follow from the
-          orbital mapping.
+          Optional override of the HOMO, as a 1-based MO index; must be given
+          together with lumo. By default the HOMO/LUMO and the order of the
+          active orbitals come from the orbital populations; the final-state
+          HOMO/LUMO follow from the orbital mapping.
         type: integer
         minimum: 1
       lumo:
