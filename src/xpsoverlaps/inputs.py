@@ -28,10 +28,10 @@ class _CalculationInputRequired(TypedDict):
 
 class CalculationInput(_CalculationInputRequired, total=False):
     state_file: Path  # only for programs that write states to a separate file
+    mcscf_file: Path  # MCSCF file of a correlated run (Molcas CASPT2: its RASSCF HDF5 file)
     homo: int  # Initial only; 1-based MO indices, given together with lumo
     lumo: int
     max_state: int  # Initial only; highest initial state used for shake-downs
-    mcscf_file: Path  # Initial only; MCSCF file of a correlated run (Molcas CASPT2: RASSCF HDF5)
 
 
 class _RunInputRequired(TypedDict):
@@ -117,11 +117,6 @@ def load_input(source: str | Path) -> RunInput:
 
     # Rules JSON Schema cannot express (comparing two values, filesystem checks)
     # or would report without naming the key.
-    if "mcscf_file" in data["Initial"] and data["Initial"]["type"] == "rasscf":
-        problems.append(
-            "Initial.mcscf_file: only used for type 'caspt2'; a rasscf wf_file already "
-            "contains the orbital energies and populations"
-        )
     blocks = ["Initial"]
     if data["Calculator"]["method"] == "overlaps":
         blocks.append("Final")
@@ -129,6 +124,13 @@ def load_input(source: str | Path) -> RunInput:
             problems.append(
                 f"Final.type: {data['Final']['type']!r} must match "
                 f"Initial.type {data['Initial']['type']!r}"
+            )
+
+    for block in blocks:
+        if "mcscf_file" in data[block] and data[block]["type"] == "rasscf":
+            problems.append(
+                f"{block}.mcscf_file: only used for type 'caspt2'; a rasscf wf_file already "
+                "contains the orbital energies and populations"
             )
 
     for block in blocks:

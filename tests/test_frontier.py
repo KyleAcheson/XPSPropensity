@@ -28,8 +28,15 @@ def initial():
 
 
 @pytest.fixture(scope="module")
-def mapping(initial):
-    final = get_calculation("molcas", "caspt2", DATA / "core_caspt2.caspt2.h5", DATA / "core_caspt2.log")
+def final():
+    return get_calculation(
+        "molcas", "caspt2", DATA / "core_caspt2.caspt2.h5", DATA / "core_caspt2.log",
+        mcscf_file=DATA / "core.rasscf.h5",
+    )
+
+
+@pytest.fixture(scope="module")
+def mapping(initial, final):
     return map_active_orbitals(initial, final)
 
 
@@ -107,26 +114,37 @@ def test_order_needs_orbital_populations():
         orbital_order(no_populations, reference_state(no_populations))
 
 
-def test_order_report_lists_labels_populations_energies_and_final_orbitals(initial, mapping):
-    populations = orbital_order_report(orbital_order(initial, reference_state(initial)), initial, mapping)
+def test_order_report_lists_initial_and_final_populations_and_energies(initial, final, mapping):
+    order = orbital_order(initial, reference_state(initial))
+    populations = orbital_order_report(order, initial, final, mapping)
     overridden = orbital_order_report(
-        orbital_order(initial, reference_state(initial), FrontierOrbitals("mo:38", "mo:40")), initial, mapping
+        orbital_order(initial, reference_state(initial), FrontierOrbitals("mo:38", "mo:40")), initial, final, mapping
     )
 
     assert "HOMO/LUMO from the populations (not given in the input)." in populations
-    assert "LUMO      mo:40         0.5547      0.0556  mo:40" in populations
-    assert "HOMO      mo:34         1.5967     -0.2721  mo:39" in populations
+    # Final columns: the final orbital the initial one maps onto (mo:34 -> mo:39).
+    assert "LUMO      mo:40         0.5547      0.0556  mo:40         0.5970     -0.1705" in populations
+    assert "HOMO      mo:34         1.5967     -0.2721  mo:39         1.4850     -0.4661" in populations
     assert not any(line.endswith("*") for line in populations)  # energy order agrees here
+    # One S 2p hole, state-averaged over the final roots: about 1.5 in mo:31 and mo:33.
     assert populations[-3:] == [
-        "core      mo:31         2.0000     -6.7656  mo:31",
-        "core      mo:32         2.0000     -7.5674  mo:32",
-        "core      mo:33         2.0000     -6.6816  mo:33",
+        "core      mo:31         2.0000     -6.7656  mo:31         1.4998     -7.4863",
+        "core      mo:32         2.0000     -7.5674  mo:32         2.0000     -8.8514",
+        "core      mo:33         2.0000     -6.6816  mo:33         1.5002     -7.4873",
     ]
     assert "HOMO mo:38 set by the input (populations give mo:34)." in overridden
     assert "LUMO mo:40 set by the input (agrees with the populations)." in overridden
-    # mo:38 above mo:34 contradicts their energies, so both rows are flagged.
-    assert "HOMO      mo:38         1.7416     -0.3299  mo:34  *" in overridden
-    assert "HOMO-1    mo:34         1.5967     -0.2721  mo:39  *" in overridden
+    # mo:38 above mo:34 contradicts their initial energies, so both rows are flagged.
+    assert "HOMO      mo:38         1.7416     -0.3299  mo:34         1.7324     -0.5828  *" in overridden
+    assert "HOMO-1    mo:34         1.5967     -0.2721  mo:39         1.4850     -0.4661  *" in overridden
+
+
+def test_order_report_marks_missing_final_populations(initial, mapping):
+    no_populations = get_calculation("molcas", "caspt2", DATA / "core_caspt2.caspt2.h5", DATA / "core_caspt2.log")
+
+    lines = orbital_order_report(orbital_order(initial, reference_state(initial)), initial, no_populations, mapping)
+
+    assert "HOMO      mo:34         1.5967     -0.2721  mo:39              -           -" in lines
 
 
 def test_occupations_are_not_checked(initial):

@@ -34,3 +34,4 @@ Final:
   type: 'caspt2' # or rasscf
   wf_file: '../data/molcas/brthph/s2p/mb/core_caspt2.caspt2.h5'
   state_file: '../data/molcas/brthph/s2p/mb/core_caspt2.log'
+  mcscf_file: '../data/molcas/brthph/s2p/mb/core.rasscf.h5'

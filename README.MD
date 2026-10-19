@@ -47,7 +47,7 @@ Initial:
   type: caspt2           # or rasscf; must match Final
   wf_file: ../data/molcas/brthph/s2p/mb/valence_caspt2.caspt2.h5   # orbitals, basis, energies
   state_file: ../data/molcas/brthph/s2p/mb/valence_caspt2.log      # CI configurations (Molcas only)
-  mcscf_file: ../data/molcas/brthph/s2p/mb/valence.rasscf.h5       # caspt2 only: its RASSCF file (Initial only)
+  mcscf_file: ../data/molcas/brthph/s2p/mb/valence.rasscf.h5       # caspt2 only: its RASSCF file
   homo: 34               # optional override of the population-based HOMO/LUMO: 1-based MO indices, given together
   lumo: 40
   max_state: 4           # optional: shake-downs only among initial states 1..max_state
@@ -56,6 +56,7 @@ Final:
   type: caspt2
   wf_file: ../data/molcas/brthph/s2p/mb/core_caspt2.caspt2.h5
   state_file: ../data/molcas/brthph/s2p/mb/core_caspt2.log
+  mcscf_file: ../data/molcas/brthph/s2p/mb/core.rasscf.h5
 ```
 
 Relative paths are resolved from the input file's directory. Choice values are
@@ -84,7 +85,8 @@ from xpsoverlaps.overlap import mo_overlap
 
 initial = get_calculation("molcas", "caspt2", wf_file="valence.caspt2.h5", state_file="valence.log",
                           mcscf_file="valence.rasscf.h5")
-final = get_calculation("molcas", "caspt2", wf_file="core.caspt2.h5", state_file="core.log")
+final = get_calculation("molcas", "caspt2", wf_file="core.caspt2.h5", state_file="core.log",
+                        mcscf_file="core.rasscf.h5")
 
 S_MO = mo_overlap(initial, final)   # rows: initial MOs, columns: final MOs
 ```

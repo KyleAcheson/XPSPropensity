@@ -40,7 +40,7 @@ def propensity_overlaps(
     logger.info("")
     logger.info(_DASHES)
     logger.info("")
-    order = _log_orbital_order(initial, mapping, frontier, max_state)
+    order = _log_orbital_order(initial, final, mapping, frontier, max_state)
     logger.info("")
     logger.info(_DASHES)
     logger.info("")
@@ -55,14 +55,18 @@ def propensity_overlaps(
 
 
 def _log_orbital_order(
-    initial: Calculation, mapping: OrbitalMapping, frontier: Optional[FrontierOrbitals], max_state: Optional[int]
+    initial: Calculation,
+    final: Calculation,
+    mapping: OrbitalMapping,
+    frontier: Optional[FrontierOrbitals],
+    max_state: Optional[int],
 ) -> Optional[OrbitalOrder]:
     try:
         order = orbital_order(initial, reference_state(initial, max_state), frontier)
     except (OrbitalOrderError, ShakeDownError) as error:
         logger.warning("Orbital order not determined: %s", error)
         return None
-    for line in orbital_order_report(order, initial, mapping):
+    for line in orbital_order_report(order, initial, final, mapping):
         logger.info(line)
     return order
 

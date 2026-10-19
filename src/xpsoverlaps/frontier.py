@@ -169,20 +169,23 @@ def _energy_order_differs(order: OrbitalOrder, energy: Dict[str, float]) -> List
     return [o for o, e in zip(order.occupied + order.virtual, by_energy) if o != e]
 
 
-def orbital_order_report(order: OrbitalOrder, calculation: Calculation, mapping: OrbitalMapping) -> List[str]:
-    """The active orbitals from the highest virtual down, with population, energy and final match."""
-    orbitals = calculation.orbitals
-    population = dict(zip(orbitals.orbital_ids, orbitals.occupations or []))
-    energy = dict(zip(orbitals.orbital_ids, orbitals.energies)) if orbitals.energies is not None else {}
-    flagged = set(_energy_order_differs(order, energy)) if energy else set()
+def orbital_order_report(
+    order: OrbitalOrder, initial: Calculation, final: Calculation, mapping: OrbitalMapping
+) -> List[str]:
+    """The active orbitals from the highest virtual down: population and energy of each
+    initial orbital and of the final orbital it maps onto ("-" where a calculation has none)."""
+    initial_population, initial_energy = _populations(initial)
+    final_population, final_energy = _populations(final)
+    flagged = set(_energy_order_differs(order, initial_energy)) if initial_energy else set()
 
     lines = [
-        "Orbital order (initial calculation)",
+        "Orbital order",
         "",
-        f"RAS2 occupied/virtual from the reference state {order.reference_state.split(':')[-1]}; ordered by "
-        "state-averaged population",
-        "(lowest occupied = HOMO, highest virtual = LUMO). RAS1 orbitals are core and not ranked.",
-        "Energies are the stored diagonal Fock elements.",
+        f"Initial RAS2 occupied/virtual from the reference state {order.reference_state.split(':')[-1]}; "
+        "ordered by state-averaged",
+        "population (lowest occupied = HOMO, highest virtual = LUMO). RAS1 orbitals are core and not ranked.",
+        "Final orbitals are those the initial ones map onto. Populations are state-averaged over each",
+        "calculation's roots; energies are the stored diagonal Fock elements.",
     ]
     if order.override is None:
         lines.append("HOMO/LUMO from the populations (not given in the input).")
@@ -194,15 +197,30 @@ def orbital_order_report(order: OrbitalOrder, calculation: Calculation, mapping:
     above = [o for o, label in order.unranked if label != "core"]  # RAS3
     core = [o for o, label in order.unranked if label == "core"]
     rows = above + list(reversed(order.virtual)) + list(order.occupied) + core
-    lines += ["", f"{'Label':<8}  {'Initial':<8}  {'Population':>10}  {'Energy':>10}  Final"]
-    lines += [_order_row(order, orbital_id, population, energy, mapping, flagged) for orbital_id in rows]
+    lines += [
+        "",
+        f"{'':<8}  {'Initial':<32}  Final",
+        f"{'Label':<8}  {'MO':<8}  {'Population':>10}  {'Energy':>10}  {'MO':<8}  {'Population':>10}  {'Energy':>10}",
+    ]
+    for orbital_id in rows:
+        final_id = mapping.final_id(orbital_id)
+        lines.append(
+            f"{order.label(orbital_id):<8}  {orbital_id:<8}  "
+            f"{_number(initial_population, orbital_id)}  {_number(initial_energy, orbital_id)}  {final_id:<8}  "
+            f"{_number(final_population, final_id)}  {_number(final_energy, final_id)}"
+            + ("  *" if orbital_id in flagged else "")
+        )
     if flagged:
-        lines += ["", "*: the energy order differs from the population order here."]
+        lines += ["", "*: the initial energy order differs from the population order here."]
     return lines
 
 
-def _order_row(order: OrbitalOrder, orbital_id: str, population: Dict[str, float], energy: Dict[str, float],
-               mapping: OrbitalMapping, flagged: set) -> str:
-    energy_text = f"{energy[orbital_id]:10.4f}" if orbital_id in energy else f"{'-':>10}"
-    return (f"{order.label(orbital_id):<8}  {orbital_id:<8}  {population[orbital_id]:10.4f}  {energy_text}  "
-            f"{mapping.final_id(orbital_id)}" + ("  *" if orbital_id in flagged else ""))
+def _populations(calculation: Calculation) -> Tuple[Dict[str, float], Dict[str, float]]:
+    """Orbital ID -> population and -> energy; empty where the calculation has none."""
+    orbitals = calculation.orbitals
+    return ({} if orbitals.occupations is None else dict(zip(orbitals.orbital_ids, orbitals.occupations)),
+            {} if orbitals.energies is None else dict(zip(orbitals.orbital_ids, orbitals.energies)))
+
+
+def _number(values: Dict[str, float], orbital_id: str) -> str:
+    return f"{values[orbital_id]:10.4f}" if orbital_id in values else f"{'-':>10}"
