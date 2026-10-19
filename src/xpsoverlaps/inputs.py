@@ -10,7 +10,7 @@ import yaml
 
 
 SCHEMA_PATH = Path(__file__).with_name("input_schema.yaml")
-_FILE_KEYS = ("wf_file", "state_file")
+_FILE_KEYS = ("wf_file", "state_file", "mcscf_file")
 
 
 # Shape of a validated input file (see input_schema.yaml). Choice values are
@@ -31,6 +31,7 @@ class CalculationInput(_CalculationInputRequired, total=False):
     homo: int  # Initial only; 1-based MO indices, given together with lumo
     lumo: int
     max_state: int  # Initial only; highest initial state used for shake-downs
+    mcscf_file: Path  # Initial only; MCSCF file of a correlated run (Molcas CASPT2: RASSCF HDF5)
 
 
 class _RunInputRequired(TypedDict):
@@ -93,9 +94,10 @@ def _lowercase_choices(data: Any, schema: Dict[str, Any], root: Dict[str, Any]) 
 def load_input(source: str | Path) -> RunInput:
     """Read and validate an input file.
 
-    Relative ``wf_file``/``state_file`` paths are resolved against the input
-    file's directory and returned as absolute ``Path`` objects. All problems
-    are reported together in a single ``InputError``.
+    Relative file paths (``wf_file``, ``state_file``, ``mcscf_file``) are
+    resolved against the input file's directory and returned as absolute
+    ``Path`` objects. All problems are reported together in a single
+    ``InputError``.
     """
     path = Path(source).resolve()
     with path.open(encoding="utf-8") as input_file:
@@ -113,7 +115,13 @@ def load_input(source: str | Path) -> RunInput:
     if problems:
         raise InputError(path, problems)
 
-    # Rules JSON Schema cannot express: comparing two values and filesystem checks.
+    # Rules JSON Schema cannot express (comparing two values, filesystem checks)
+    # or would report without naming the key.
+    if "mcscf_file" in data["Initial"] and data["Initial"]["type"] == "rasscf":
+        problems.append(
+            "Initial.mcscf_file: only used for type 'caspt2'; a rasscf wf_file already "
+            "contains the orbital energies and populations"
+        )
     blocks = ["Initial"]
     if data["Calculator"]["method"] == "overlaps":
         blocks.append("Final")

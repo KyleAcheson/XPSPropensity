@@ -100,8 +100,8 @@ def test_defining_a_loader_subclass_makes_get_calculation_support_it(isolated_re
         display_name = "SingleFile"
         calculation_types = {"CASSCF"}
 
-        def _load(self, kind, wf_file, state_file):
-            assert state_file is None
+        def _load(self, kind, wf_file, state_file, mcscf_file):
+            assert state_file is None and mcscf_file is None
             with MolcasHdf5(wf_file) as h5:
                 molecule = read_molecule(h5)
                 basis = read_basis(h5, molecule)
@@ -133,7 +133,7 @@ def test_duplicate_program_names_are_rejected(isolated_registry):
             display_name = "Impostor"
             calculation_types = {"RASSCF"}
 
-            def _load(self, kind, wf_file, state_file):
+            def _load(self, kind, wf_file, state_file, mcscf_file):
                 raise AssertionError
 
 

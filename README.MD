@@ -47,6 +47,7 @@ Initial:
   type: caspt2           # or rasscf; must match Final
   wf_file: ../data/molcas/brthph/s2p/mb/valence_caspt2.caspt2.h5   # orbitals, basis, energies
   state_file: ../data/molcas/brthph/s2p/mb/valence_caspt2.log      # CI configurations (Molcas only)
+  mcscf_file: ../data/molcas/brthph/s2p/mb/valence.rasscf.h5       # caspt2 only: its RASSCF file (Initial only)
   homo: 34               # optional, given together with lumo: 1-based MO indices (Initial only)
   lumo: 40
   max_state: 4           # optional: shake-downs only among initial states 1..max_state
@@ -77,15 +78,18 @@ placeholder.
 from xpsoverlaps.readers import get_calculation
 from xpsoverlaps.overlap import mo_overlap
 
-initial = get_calculation("molcas", "caspt2", wf_file="valence.caspt2.h5", state_file="valence.log")
+initial = get_calculation("molcas", "caspt2", wf_file="valence.caspt2.h5", state_file="valence.log",
+                          mcscf_file="valence.rasscf.h5")
 final = get_calculation("molcas", "caspt2", wf_file="core.caspt2.h5", state_file="core.log")
 
 S_MO = mo_overlap(initial, final)   # rows: initial MOs, columns: final MOs
 ```
 
 Supported: OpenMolcas (`molcas`/`openmolcas`) `RASSCF` and `CASPT2`, each read
-from an HDF5 file (`wf_file`) plus its log (`state_file`). Molecular symmetry
-is not supported yet.
+from an HDF5 file (`wf_file`) plus its log (`state_file`). CASPT2 HDF5 files
+lack orbital energies and populations, so a CASPT2 calculation reads them from
+the RASSCF HDF5 file it was built on (`mcscf_file`). Molecular symmetry is not
+supported yet.
 
 ### Package structure
 
@@ -157,7 +161,8 @@ Run the tests with `pytest`.
        display_name = "MyProgram"         # used in error messages
        calculation_types = {"CASSCF"}     # upper case
 
-       def _load(self, kind: str, wf_file: Path, state_file: Optional[Path]) -> Calculation:
+       def _load(self, kind: str, wf_file: Path, state_file: Optional[Path],
+                 mcscf_file: Optional[Path]) -> Calculation:
            molecule = read_molecule(wf_file)
            basis = read_basis(wf_file, molecule)
            orbitals = read_orbitals(wf_file, basis)
@@ -174,6 +179,9 @@ Run the tests with `pytest`.
 
    - If states are in a second file, read them from `state_file` and check
      they match the wavefunction file (`OpenMolcasLoader` compares energies).
+   - If orbital energies or populations are missing from the program's own
+     files, read them from `mcscf_file` and check it belongs to the same run;
+     otherwise leave them `None`.
    - If several readers parse the same file, open it once in an access object
      and pass that instead of the path (see `MolcasHdf5`).
    - Check the new readers with `Cᵀ S C = I` (orthonormal orbitals), as the

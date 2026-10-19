@@ -7,7 +7,7 @@ molecule -> basis -> orbitals -> active space.
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 
@@ -46,20 +46,35 @@ def read_basis(h5: MolcasHdf5, molecule: Molecule) -> GaussianBasis:
     )
 
 
-def read_orbitals(h5: MolcasHdf5, basis: GaussianBasis) -> OrbitalSet:
+def read_orbitals(h5: MolcasHdf5, basis: GaussianBasis, populations: bool = True) -> OrbitalSet:
+    """MO coefficients and labels; energies and populations only if ``populations``.
+
+    CASPT2 HDF5 files contain MO_ENERGIES and MO_OCCUPATIONS datasets but never
+    fill them (they are all zero), so CASPT2 orbitals are read with
+    ``populations=False`` and take them from the RASSCF file instead.
+    """
     coefficients = h5.mo_coefficients()
     if coefficients.shape[0] != basis.n_functions:
         raise ValueError(
             f"MO coefficient matrix has {coefficients.shape[0]} AO rows; "
             f"the basis has {basis.n_functions} functions."
         )
+    energies, occupations = read_orbital_populations(h5) if populations else (None, None)
     return OrbitalSet(
         basis_id=basis.basis_id,
         coefficients=coefficients,
         orbital_ids=[f"mo:{index + 1}" for index in range(coefficients.shape[1])],
-        energies=[float(value) for value in np.ravel(h5.dataset("MO_ENERGIES"))],
-        occupations=[float(value) for value in np.ravel(h5.dataset("MO_OCCUPATIONS"))],
+        energies=energies,
+        occupations=occupations,
         source_type_labels=h5.strings("MO_TYPEINDICES"),
+    )
+
+
+def read_orbital_populations(h5: MolcasHdf5) -> Tuple[List[float], List[float]]:
+    """Orbital energies and state-averaged populations (MO_ENERGIES, MO_OCCUPATIONS)."""
+    return (
+        [float(value) for value in np.ravel(h5.dataset("MO_ENERGIES"))],
+        [float(value) for value in np.ravel(h5.dataset("MO_OCCUPATIONS"))],
     )
 
 

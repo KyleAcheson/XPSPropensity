@@ -33,8 +33,9 @@ def _chp_input(tmp_path):
     run_input = yaml.safe_load(INPUT.read_text(encoding="utf-8"))
     run_input["Calculator"]["method"] = "chp"
     for block in ("Initial", "Final"):
-        for key in ("wf_file", "state_file"):
-            run_input[block][key] = str((INPUT.parent / run_input[block][key]).resolve())
+        for key in ("wf_file", "state_file", "mcscf_file"):
+            if key in run_input[block]:
+                run_input[block][key] = str((INPUT.parent / run_input[block][key]).resolve())
     input_file = tmp_path / "chp.yaml"
     input_file.write_text(yaml.safe_dump(run_input), encoding="utf-8")
     return input_file

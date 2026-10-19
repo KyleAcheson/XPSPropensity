@@ -47,6 +47,7 @@ class CalculationLoader(ABC):
         calculation_type: str,
         wf_file: str | Path,
         state_file: str | Path | None = None,
+        mcscf_file: str | Path | None = None,
     ) -> Calculation:
         kind = calculation_type.strip().upper()
         if kind not in self.calculation_types:
@@ -55,11 +56,17 @@ class CalculationLoader(ABC):
                 f"Unsupported {self.display_name} calculation type {calculation_type!r}; "
                 f"supported types are: {supported}."
             )
-        return self._load(kind, Path(wf_file), Path(state_file) if state_file is not None else None)
+        return self._load(kind, Path(wf_file), _optional_path(state_file), _optional_path(mcscf_file))
 
     @abstractmethod
-    def _load(self, kind: str, wf_file: Path, state_file: Optional[Path]) -> Calculation:
+    def _load(
+        self, kind: str, wf_file: Path, state_file: Optional[Path], mcscf_file: Optional[Path]
+    ) -> Calculation:
         """Read the files for an upper-case, supported ``kind`` of calculation."""
+
+
+def _optional_path(path: str | Path | None) -> Optional[Path]:
+    return Path(path) if path is not None else None
 
 
 def get_calculation(
@@ -67,12 +74,16 @@ def get_calculation(
     calculation_type: str,
     wf_file: str | Path,
     state_file: str | Path | None = None,
+    mcscf_file: str | Path | None = None,
 ) -> Calculation:
     """Read and assemble a calculation using the requested program and method.
 
     ``wf_file`` holds the wavefunction (geometry, basis, orbitals, energies and,
     for some programs, the CI vectors). ``state_file`` is only needed by
     programs that write state CI data to a separate file (e.g. OpenMolcas).
+    ``mcscf_file`` is the MCSCF wavefunction a correlated calculation was built
+    on, for orbital populations its own files lack (e.g. the RASSCF HDF5 file
+    of an OpenMolcas CASPT2 run).
     """
     loader = _LOADERS.get(program.strip().casefold())
     if loader is None:
@@ -81,5 +92,5 @@ def get_calculation(
             f"Calculation construction for program {program!r} is not implemented; "
             f"supported programs are: {supported}."
         )
-    return loader().load(calculation_type, wf_file, state_file)
+    return loader().load(calculation_type, wf_file, state_file, mcscf_file)
 

@@ -17,6 +17,7 @@ def _valid_input():
             "type": "caspt2",
             "wf_file": str(DATA / "valence_caspt2.caspt2.h5"),
             "state_file": str(DATA / "valence_caspt2.log"),
+            "mcscf_file": str(DATA / "valence.rasscf.h5"),
         },
         "Final": {
             "type": "caspt2",
@@ -37,6 +38,7 @@ def test_example_input_resolves_paths_relative_to_input_file():
 
     assert data["Initial"]["wf_file"] == DATA / "valence_caspt2.caspt2.h5"
     assert data["Final"]["state_file"] == DATA / "core_caspt2.log"
+    assert data["Initial"]["mcscf_file"] == DATA / "valence.rasscf.h5"
 
 
 def test_chp_method_does_not_require_final_block(tmp_path):
@@ -66,6 +68,7 @@ def _mutate_missing_final(data):
 
 def _mutate_type_mismatch(data):
     data["Final"]["type"] = "rasscf"
+    data["Final"]["wf_file"] = str(DATA / "core.rasscf.h5")
 
 
 def _mutate_unknown_type(data):
@@ -83,6 +86,16 @@ def test_homo_and_lumo_are_optional_but_accepted_together(tmp_path):
     data["Initial"].update(homo=34, lumo=40)
     loaded = load_input(_write(tmp_path, data))["Initial"]
     assert (loaded["homo"], loaded["lumo"]) == (34, 40)
+
+
+def test_rasscf_input_needs_no_mcscf_file(tmp_path):
+    data = _valid_input()
+    del data["Initial"]["mcscf_file"]
+    for block, prefix in (("Initial", "valence"), ("Final", "core")):
+        data[block].update(type="rasscf", wf_file=str(DATA / f"{prefix}.rasscf.h5"),
+                           state_file=str(DATA / f"{prefix}-tz.log"))
+
+    assert "mcscf_file" not in load_input(_write(tmp_path, data))["Initial"]
 
 
 def _mutate_homo_without_lumo(data):
@@ -125,6 +138,24 @@ def _mutate_missing_file(data):
     data["Final"]["wf_file"] = "does_not_exist.h5"
 
 
+def _mutate_missing_mcscf_file_for_caspt2(data):
+    del data["Initial"]["mcscf_file"]
+
+
+def _mutate_mcscf_file_for_rasscf(data):
+    for block, prefix in (("Initial", "valence"), ("Final", "core")):
+        data[block].update(type="rasscf", wf_file=str(DATA / f"{prefix}.rasscf.h5"),
+                           state_file=str(DATA / f"{prefix}-tz.log"))
+
+
+def _mutate_mcscf_file_in_final(data):
+    data["Final"]["mcscf_file"] = str(DATA / "core.rasscf.h5")
+
+
+def _mutate_missing_mcscf_file(data):
+    data["Initial"]["mcscf_file"] = "does_not_exist.h5"
+
+
 @pytest.mark.parametrize(
     "mutate,message",
     [
@@ -142,6 +173,10 @@ def _mutate_missing_file(data):
         (_mutate_missing_wf_file, "Final: 'wf_file' is a required property"),
         (_mutate_missing_molcas_state_file, "Initial: 'state_file' is a required property"),
         (_mutate_missing_file, "Final.wf_file: file not found"),
+        (_mutate_missing_mcscf_file_for_caspt2, "Initial: 'mcscf_file' is a required property"),
+        (_mutate_mcscf_file_for_rasscf, "Initial.mcscf_file: only used for type 'caspt2'"),
+        (_mutate_mcscf_file_in_final, "Final: Unevaluated properties are not allowed ('mcscf_file' was unexpected)"),
+        (_mutate_missing_mcscf_file, "Initial.mcscf_file: file not found"),
     ],
 )
 def test_invalid_inputs_are_rejected(tmp_path, mutate, message):

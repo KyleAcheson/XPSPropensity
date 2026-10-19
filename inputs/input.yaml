@@ -25,6 +25,7 @@ Initial:
   type: 'caspt2' # or rasscf
   wf_file: '../data/molcas/brthph/s2p/mb/valence_caspt2.caspt2.h5' # path to inital state h5 file
   state_file: '../data/molcas/brthph/s2p/mb/valence_caspt2.log' # path to initial state log that contains ci vectors
+  mcscf_file: '../data/molcas/brthph/s2p/mb/valence.rasscf.h5' # caspt2 only: rasscf h5 the caspt2 run was built on (orbital energies/populations)
   homo: 34 # optional: 1-based MO index of the HOMO; must be given together with lumo
   lumo: 40 # final-state HOMO/LUMO are taken from the orbital mapping
   max_state: 4 # optional: only shake-downs among initial states 1..max_state

@@ -12,7 +12,8 @@ Structure::
     ├── basis         AOBasis          one entry per AO (= row of the MO coefficients)
     │                 ├── GaussianBasis    explicit contracted shells (GaussianShell)
     │                 └── EngineBasis      integrals from a program's own engine
-    ├── orbitals      OrbitalSet       AO x MO coefficients, one ID per MO
+    ├── orbitals      OrbitalSet       AO x MO coefficients, one ID per MO; energies and
+    │                                  populations when the files provide them
     ├── active_space  ActiveSpace      active orbital IDs, in CI-string order
     └── states        [ElectronicState]
                       └── dominant_configuration   Configuration (0/u/d/2 per active orbital)
@@ -139,13 +140,17 @@ class EngineBasis(AOBasis):
 
 @dataclass(frozen=True, eq=False)
 class OrbitalSet:
-    """Molecular orbitals: AO rows x MO columns, one ID per MO (e.g. ``"mo:34"``)."""
+    """Molecular orbitals: AO rows x MO columns, one ID per MO (e.g. ``"mo:34"``).
+
+    ``energies`` and ``occupations`` are the orbitals' (state-averaged) energies
+    and populations, or None when the calculation's files do not provide them.
+    """
 
     basis_id: str
     coefficients: np.ndarray
     orbital_ids: List[str]
-    energies: List[float]
-    occupations: List[float]
+    energies: Optional[List[float]]
+    occupations: Optional[List[float]]
     source_type_labels: List[str]  # the program's orbital type per MO (e.g. Molcas "I", "1", "S")
 
     def __post_init__(self) -> None:
@@ -154,10 +159,12 @@ class OrbitalSet:
         n_ao, n_mo = self.coefficients.shape
         if n_ao == 0 or n_mo == 0:
             raise ValueError("An orbital set must contain at least one AO and one MO.")
-        if not len(self.orbital_ids) == len(self.energies) == len(self.occupations) == len(
-            self.source_type_labels
-        ) == n_mo:
-            raise ValueError("Orbital IDs, energies, occupations and type labels must match the MO count.")
+        if not len(self.orbital_ids) == len(self.source_type_labels) == n_mo:
+            raise ValueError("Orbital IDs and type labels must match the MO count.")
+        for name in ("energies", "occupations"):
+            values = getattr(self, name)
+            if values is not None and len(values) != n_mo:
+                raise ValueError(f"Orbital {name} must match the MO count ({len(values)} for {n_mo} MOs).")
 
 
 @dataclass(frozen=True, eq=False)

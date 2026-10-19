@@ -25,7 +25,9 @@ logger = logging.getLogger("xpsoverlaps")
 
 
 def _load_block(program: str, block: CalculationInput) -> Calculation:
-    return get_calculation(program, block["type"], block["wf_file"], block.get("state_file"))
+    return get_calculation(
+        program, block["type"], block["wf_file"], block.get("state_file"), block.get("mcscf_file")
+    )
 
 
 _WIDTH = 80
