@@ -151,7 +151,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         args.output or args.input_file.with_suffix(".out"), mode="w", encoding="utf-8"
     )
     handler.setFormatter(logging.Formatter("%(message)s"))
+    # Warnings (e.g. an ambiguous reference determinant) also go to the terminal;
+    # errors are printed there by _run or raised.
+    console = logging.StreamHandler(sys.stderr)
+    console.setFormatter(logging.Formatter("%(message)s"))
+    console.addFilter(lambda record: record.levelno == logging.WARNING)
     logger.addHandler(handler)
+    logger.addHandler(console)
     logger.setLevel(logging.INFO)
     try:
         return _run(args.input_file)
@@ -160,8 +166,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         logger.exception("XPSoverlaps terminated with an error.")
         raise
     finally:
-        logger.removeHandler(handler)
-        handler.close()
+        for attached in (handler, console):
+            logger.removeHandler(attached)
+            attached.close()
 
 
 if __name__ == "__main__":

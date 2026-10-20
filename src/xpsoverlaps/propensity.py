@@ -5,11 +5,18 @@ from __future__ import annotations
 import logging
 from typing import List, Optional
 
-from xpsoverlaps.frontier import FrontierOrbitals, OrbitalOrder, OrbitalOrderError, orbital_order, orbital_order_report
+from xpsoverlaps.frontier import (
+    FrontierOrbitals,
+    OrbitalOrder,
+    OrbitalOrderError,
+    orbital_order,
+    orbital_order_report,
+    reference_warning,
+)
 from xpsoverlaps.mapping import OrbitalMapping, map_active_orbitals, mapped_ci_report, mapping_report
 from xpsoverlaps.model import Calculation
 from xpsoverlaps.rules import compute_propensity, propensity_report
-from xpsoverlaps.shakedown import ShakeDown, ShakeDownError, find_shake_downs, reference_state, shake_down_report
+from xpsoverlaps.shakedown import ShakeDown, ShakeDownError, find_shake_downs, reference_determinant, shake_down_report
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +69,16 @@ def _log_orbital_order(
     max_state: Optional[int],
 ) -> Optional[OrbitalOrder]:
     try:
-        order = orbital_order(initial, reference_state(initial, max_state), frontier)
+        reference = reference_determinant(initial, max_state, frontier)
+        order = orbital_order(initial, reference, frontier)
     except (OrbitalOrderError, ShakeDownError) as error:
         logger.warning("Orbital order not determined: %s", error)
         return None
+    warning = reference_warning(reference, initial)
+    for line in warning:
+        logger.warning(line)
+    if warning:
+        logger.info("")
     for line in orbital_order_report(order, initial, final, mapping):
         logger.info(line)
     return order

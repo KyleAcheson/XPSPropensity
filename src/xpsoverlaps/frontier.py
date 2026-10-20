@@ -3,7 +3,11 @@
 Only RAS2 orbitals get valence labels; RAS1 orbitals (the core orbitals of a
 core-hole calculation) are labelled "core", and any RAS3 orbitals "RAS3",
 without a rank. Which RAS2 orbitals are occupied and which are virtual comes
-from the closed-shell reference state's configuration (2 or 0). Each set is ordered by
+from a closed-shell reference determinant (2 or 0 per active orbital): the
+lowest initial state's configuration when that is closed-shell, otherwise
+(e.g. a file of triplet excited states without the ground state) one built
+from populations, "aufbau" style: the active electrons doubly occupy the
+orbitals with the highest populations. Each set is ordered by
 the orbitals' state-averaged populations: the occupied orbital with the lowest
 population is the HOMO, the virtual with the highest is the LUMO. Molcas
 active (pseudo)natural orbitals have no well-defined orbital energies, so
@@ -12,8 +16,10 @@ elements) only break ties and are reported for comparison.
 
 The HOMO and LUMO can be given in the input (1-based MO indices) as an
 override: they are moved to the top of their set and the remaining orbitals
-keep the population order. The final-state HOMO/LUMO follow from the
-active-orbital mapping.
+keep the population order. In a population-built reference they are also
+forced to be occupied (HOMO) and virtual (LUMO), which settles a reference
+whose last occupied and first virtual populations are too close to tell
+apart. The final-state HOMO/LUMO follow from the active-orbital mapping.
 """
 
 from __future__ import annotations
@@ -21,11 +27,20 @@ from __future__ import annotations
 from typing import Dict, List, NamedTuple, Optional, Tuple
 
 from xpsoverlaps.mapping import OrbitalMapping
-from xpsoverlaps.model import Calculation, ElectronicState
+from xpsoverlaps.model import Calculation
 
 # ActiveSpace partition labels: RAS1 holds core orbitals, RAS2 the valence ones.
 _CORE_PARTITION = "1"
 _VALENCE_PARTITION = "2"
+
+# A population-built reference is flagged as ambiguous when the last occupied
+# and first virtual orbitals' populations differ by less than this.
+POPULATION_GAP_WARNING = 0.3
+
+_NO_POPULATIONS = (
+    "The initial calculation has no orbital populations {purpose} "
+    "(for an OpenMolcas CASPT2 calculation, give its RASSCF HDF5 file as mcscf_file)."
+)
 
 
 class FrontierOrbitalError(ValueError):
@@ -41,12 +56,33 @@ class FrontierOrbitals(NamedTuple):
     lumo: str
 
 
+class ReferenceDeterminant(NamedTuple):
+    """Closed-shell configuration the initial states are read as excitations from."""
+
+    occupations: Tuple[str, ...]  # "2" or "0" per active orbital, in active-space order
+    state_id: Optional[str] = None  # the closed-shell state it is; None when built from populations
+    boundary: Optional[Tuple[str, str]] = None  # population-built: last occupied, first virtual by population
+    gap: Optional[float] = None  # population-built: their population difference
+    pinned: Optional[FrontierOrbitals] = None  # input HOMO/LUMO that fixed a population-built occupancy
+
+    @property
+    def description(self) -> str:
+        if self.state_id is not None:
+            return f"the reference state {self.state_id}"
+        return "the population-built reference determinant"
+
+    @property
+    def ambiguous(self) -> bool:
+        """Population-built with a gap too small to separate occupied from virtual."""
+        return self.gap is not None and self.gap < POPULATION_GAP_WARNING
+
+
 class OrbitalOrder(NamedTuple):
     """RAS2 orbitals of the reference, each set ordered from the frontier outwards."""
 
     occupied: Tuple[str, ...]  # HOMO, HOMO-1, HOMO-2, ...
     virtual: Tuple[str, ...]  # LUMO, LUMO+1, LUMO+2, ...
-    reference_state: str  # state whose configuration splits occupied and virtual
+    reference: ReferenceDeterminant  # splits occupied and virtual
     override: Optional[FrontierOrbitals] = None  # HOMO/LUMO given in the input
     by_population: Optional[FrontierOrbitals] = None  # HOMO/LUMO the populations alone give
     unranked: Tuple[Tuple[str, str], ...] = ()  # (orbital ID, label) of RAS1 ("core") and RAS3 orbitals
@@ -110,8 +146,69 @@ def frontier_from_indices(calculation: Calculation, homo: int, lumo: int) -> Fro
     return FrontierOrbitals(orbital_ids[homo - 1], orbital_ids[lumo - 1])
 
 
+def population_reference(
+    calculation: Calculation, electron_count: int, override: Optional[FrontierOrbitals] = None
+) -> ReferenceDeterminant:
+    """Closed-shell reference built from populations: the ``electron_count``
+    active electrons doubly occupy the orbitals with the highest populations.
+
+    ``override`` (the input HOMO/LUMO) forces the HOMO to be occupied and the
+    LUMO virtual; the other occupied orbitals are still chosen by population.
+    """
+    orbitals = calculation.orbitals
+    if orbitals.occupations is None:
+        raise OrbitalOrderError(_NO_POPULATIONS.format(purpose="to build a reference determinant from"))
+    if electron_count % 2:
+        raise OrbitalOrderError(
+            f"{electron_count} active electrons cannot form a closed-shell reference determinant."
+        )
+    active_ids = calculation.active_space.orbital_ids
+    n_occupied = electron_count // 2
+    if not 0 < n_occupied < len(active_ids):
+        raise OrbitalOrderError(
+            f"{electron_count} active electrons in {len(active_ids)} orbitals leave no occupied or no "
+            "virtual orbital for a reference determinant."
+        )
+    population = dict(zip(orbitals.orbital_ids, orbitals.occupations))
+    energy = dict(zip(orbitals.orbital_ids, orbitals.energies or [0.0] * len(orbitals.orbital_ids)))
+    ranked = sorted(active_ids, key=lambda o: (-population[o], energy[o]))  # highest population first
+    boundary = (ranked[n_occupied - 1], ranked[n_occupied])
+    gap = population[boundary[0]] - population[boundary[1]]
+
+    occupied = set(ranked[:n_occupied])
+    if override is not None:
+        others = [o for o in ranked if o not in override]
+        occupied = {override.homo} | set(others[: n_occupied - 1])
+    occupations = tuple("2" if o in occupied else "0" for o in active_ids)
+    return ReferenceDeterminant(occupations, None, boundary, gap, override)
+
+
+def reference_warning(reference: ReferenceDeterminant, calculation: Calculation) -> List[str]:
+    """A boxed warning when a population-built reference is ambiguous and not pinned by the input."""
+    if not reference.ambiguous or reference.pinned is not None:
+        return []
+    population = dict(zip(calculation.orbitals.orbital_ids, calculation.orbitals.occupations or []))
+    last, first = reference.boundary
+    stars = "*" * 80
+    return [
+        stars,
+        "* WARNING: AMBIGUOUS REFERENCE DETERMINANT",
+        "*",
+        "* No closed-shell state among the initial states, so the reference determinant",
+        "* was built from orbital populations. The last occupied and the first virtual",
+        f"* orbital have close populations: {last} {population[last]:.4f} (occupied) and",
+        f"* {first} {population[first]:.4f} (virtual), gap {reference.gap:.4f} < {POPULATION_GAP_WARNING}.",
+        "* Occupied and virtual orbitals may be swapped, which would make every",
+        "* shake-down classification below wrong.",
+        "*",
+        "* Check the populations in the orbital order table and give homo and lumo",
+        "* (1-based MO indices) in the Initial input block to fix the reference.",
+        stars,
+    ]
+
+
 def orbital_order(
-    calculation: Calculation, reference: ElectronicState, override: Optional[FrontierOrbitals] = None
+    calculation: Calculation, reference: ReferenceDeterminant, override: Optional[FrontierOrbitals] = None
 ) -> OrbitalOrder:
     """Order the RAS2 orbitals by population, split by the reference configuration.
 
@@ -122,14 +219,11 @@ def orbital_order(
     """
     orbitals = calculation.orbitals
     if orbitals.occupations is None:
-        raise OrbitalOrderError(
-            "The initial calculation has no orbital populations to order the active orbitals by "
-            "(for an OpenMolcas CASPT2 calculation, give its RASSCF HDF5 file as mcscf_file)."
-        )
+        raise OrbitalOrderError(_NO_POPULATIONS.format(purpose="to order the active orbitals by"))
     population = dict(zip(orbitals.orbital_ids, orbitals.occupations))
     energy = dict(zip(orbitals.orbital_ids, orbitals.energies or [0.0] * len(orbitals.orbital_ids)))
     active = list(zip(calculation.active_space.orbital_ids, calculation.active_space.partitions,
-                      reference.dominant_configuration.occupations))
+                      reference.occupations))
     valence = [(o, n) for o, partition, n in active if partition == _VALENCE_PARTITION]
     occupied = sorted((o for o, n in valence if n == "2"), key=lambda o: (population[o], -energy[o]))
     virtual = sorted((o for o, n in valence if n == "0"), key=lambda o: (-population[o], energy[o]))
@@ -137,7 +231,7 @@ def orbital_order(
                      for o, partition, _ in active if partition != _VALENCE_PARTITION)
     if not occupied or not virtual:
         raise OrbitalOrderError(
-            f"The reference state {reference.state_id} needs occupied and virtual RAS2 orbitals."
+            f"There must be occupied and virtual RAS2 orbitals in {reference.description}."
         )
     by_population = FrontierOrbitals(occupied[0], virtual[0])
 
@@ -147,7 +241,7 @@ def orbital_order(
                                                 ("LUMO", override.lumo, virtual, "virtual")):
             if orbital_id not in members:
                 problems.append(
-                    f"{name} {orbital_id} is not a {kind} RAS2 orbital in the reference state {reference.state_id}."
+                    f"{name} {orbital_id} is not a {kind} RAS2 orbital in {reference.description}."
                 )
             else:
                 members.remove(orbital_id)
@@ -155,7 +249,7 @@ def orbital_order(
         if problems:
             raise OrbitalOrderError("Input HOMO/LUMO cannot override the population order: " + " ".join(problems))
 
-    return OrbitalOrder(tuple(occupied), tuple(virtual), reference.state_id, override, by_population, unranked)
+    return OrbitalOrder(tuple(occupied), tuple(virtual), reference, override, by_population, unranked)
 
 
 def map_frontier(frontier: FrontierOrbitals, mapping: OrbitalMapping) -> FrontierOrbitals:
@@ -178,11 +272,23 @@ def orbital_order_report(
     final_population, final_energy = _populations(final)
     flagged = set(_energy_order_differs(order, initial_energy)) if initial_energy else set()
 
+    reference = order.reference
+    if reference.state_id is not None:
+        source = [f"Initial RAS2 occupied/virtual from the reference state {reference.state_id.split(':')[-1]}; "
+                  "ordered by state-averaged"]
+    else:
+        last, first = reference.boundary
+        source = [
+            "No closed-shell state among the initial states: reference determinant "
+            f"{''.join(reference.occupations)} built from populations",
+            f"(highest populations doubly occupied; last occupied {last} and first virtual {first} differ by "
+            f"{reference.gap:.4f}" + (", HOMO/LUMO occupancy fixed by the input)." if reference.pinned else ")."),
+            "Initial RAS2 occupied/virtual from this determinant; ordered by state-averaged",
+        ]
     lines = [
         "Orbital order",
         "",
-        f"Initial RAS2 occupied/virtual from the reference state {order.reference_state.split(':')[-1]}; "
-        "ordered by state-averaged",
+        *source,
         "population (lowest occupied = HOMO, highest virtual = LUMO). RAS1 orbitals are core and not ranked.",
         "Final orbitals are those the initial ones map onto. Populations are state-averaged over each",
         "calculation's roots; energies are the stored diagonal Fock elements.",

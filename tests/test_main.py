@@ -144,6 +144,25 @@ def test_propensity_module_logs_to_output_file(monkeypatch, tmp_path):
     )
 
 
+def test_warnings_go_to_the_terminal_as_well_as_the_output_file(monkeypatch, tmp_path, capsys):
+    def warning_overlaps(initial, final, frontier=None, max_state=None):
+        propensity.logger.info("info only in the file")
+        propensity.logger.warning("* WARNING: AMBIGUOUS REFERENCE DETERMINANT")
+
+    monkeypatch.setattr(propensity, "propensity_overlaps", warning_overlaps)
+    output = tmp_path / "run.out"
+
+    main_module.main(["-i", str(INPUT), "-o", str(output)])
+
+    stderr = capsys.readouterr().err
+    assert "* WARNING: AMBIGUOUS REFERENCE DETERMINANT" in stderr
+    assert "info only in the file" not in stderr
+    assert "* WARNING: AMBIGUOUS REFERENCE DETERMINANT" in output.read_text(encoding="utf-8")
+    assert logging.getLogger("xpsoverlaps").handlers == [] or all(
+        isinstance(h, logging.NullHandler) for h in logging.getLogger("xpsoverlaps").handlers
+    )
+
+
 def test_main_reports_invalid_input(tmp_path):
     input_file = tmp_path / "input.yaml"
     input_file.write_text("Calculator: {program: molcas, method: overlaps}\n", encoding="utf-8")

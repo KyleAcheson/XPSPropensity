@@ -8,7 +8,7 @@ from xpsoverlaps.frontier import orbital_order
 from xpsoverlaps.mapping import map_active_orbitals
 from xpsoverlaps.readers import get_calculation
 from xpsoverlaps.rules import RULES, RoleOverlaps, compute_propensity, propensity_report
-from xpsoverlaps.shakedown import find_shake_downs, reference_state
+from xpsoverlaps.shakedown import find_shake_downs, reference_determinant
 
 
 DATA = Path(__file__).parents[1] / "data" / "molcas" / "brthph" / "s2p" / "mb"
@@ -24,7 +24,7 @@ def setup():
     mapping = map_active_orbitals(initial, final)
     shake_downs = {
         (sd.initial_state.split(":")[1], sd.lower_state.split(":")[1]): sd
-        for sd in find_shake_downs(initial, orbital_order(initial, reference_state(initial)), max_state=4)
+        for sd in find_shake_downs(initial, orbital_order(initial, reference_determinant(initial)), max_state=4)
     }
     return initial, final, mapping, shake_downs
 

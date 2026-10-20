@@ -1,8 +1,9 @@
+import dataclasses
 from pathlib import Path
 
 import pytest
 
-from xpsoverlaps.frontier import FrontierOrbitals, orbital_order
+from xpsoverlaps.frontier import FrontierOrbitals, OrbitalOrderError, orbital_order
 from xpsoverlaps.readers import get_calculation
 from xpsoverlaps import shakedown
 from xpsoverlaps.shakedown import (
@@ -11,7 +12,7 @@ from xpsoverlaps.shakedown import (
     check_max_state,
     excitation,
     find_shake_downs,
-    reference_state,
+    reference_determinant,
     shake_down_report,
 )
 
@@ -58,7 +59,7 @@ def initial():
 
 @pytest.fixture(scope="module")
 def order(initial):
-    return orbital_order(initial, reference_state(initial))
+    return orbital_order(initial, reference_determinant(initial))
 
 
 def test_excitation_counts_holes_and_particles_per_electron():
@@ -69,14 +70,35 @@ def test_excitation_counts_holes_and_particles_per_electron():
 
 
 def test_reference_is_the_lowest_closed_shell_state(initial):
-    assert reference_state(initial).state_id == "caspt2:1"
+    assert reference_determinant(initial).state_id == "caspt2:1"
 
 
-def test_open_shell_reference_is_rejected():
-    final = get_calculation("molcas", "caspt2", DATA / "core_caspt2.caspt2.h5", DATA / "core_caspt2.log")
+def test_open_shell_lowest_state_needs_populations_for_a_reference():
+    # The core-hole states are all open-shell: the reference must come from populations.
+    no_populations = get_calculation("molcas", "caspt2", DATA / "core_caspt2.caspt2.h5", DATA / "core_caspt2.log")
+    with pytest.raises(OrbitalOrderError, match="no orbital populations to build a reference determinant"):
+        reference_determinant(no_populations)
 
-    with pytest.raises(ShakeDownError, match="lowest state caspt2:1 .* is not closed-shell"):
-        reference_state(final)
+    final = get_calculation("molcas", "caspt2", DATA / "core_caspt2.caspt2.h5", DATA / "core_caspt2.log",
+                            mcscf_file=DATA / "core.rasscf.h5")
+    with pytest.raises(OrbitalOrderError, match="17 active electrons cannot form a closed-shell"):
+        reference_determinant(final)
+
+
+def test_without_the_ground_state_the_reference_comes_from_populations(initial):
+    # As for a file of triplet excited states: no closed-shell state to take the reference from.
+    excited_only = dataclasses.replace(initial, states=initial.states[1:])
+    reference = reference_determinant(excited_only)
+    order = orbital_order(excited_only, reference)
+
+    assert reference.state_id is None and "".join(reference.occupations) == "222222222000"
+    # max_state counts the states in the file: 3 here means states 2, 3 and 4. No GS shake-downs.
+    shake_downs = find_shake_downs(excited_only, order, max_state=3)
+    assert [(sd.initial_state, sd.lower_state, sd.case) for sd in shake_downs] == [
+        ("caspt2:3", "caspt2:2", "5e ES"), ("caspt2:4", "caspt2:2", "3e ES"),
+    ]
+    lines = shake_down_report(excited_only, order, shake_downs, max_state=3)
+    assert "Reference determinant: 222222222000 (from populations);  states considered: 2..4 (max_state = 3)" in lines
 
 
 def test_shake_down_transitions_on_valence_states(initial, order):
@@ -134,7 +156,7 @@ def test_max_state_outside_the_states_is_rejected(initial, max_state):
 
 def test_input_override_changes_which_pairs_move_down(initial):
     # Overriding HOMO = mo:38 puts mo:34 below it: 3 -> 2 (mo:34 -> mo:38) now moves up.
-    order = orbital_order(initial, reference_state(initial), FrontierOrbitals("mo:38", "mo:40"))
+    order = orbital_order(initial, reference_determinant(initial), FrontierOrbitals("mo:38", "mo:40"))
     by_pair = {(sd.initial_state, sd.lower_state): sd for sd in find_shake_downs(initial, order, max_state=4)}
 
     assert by_pair[("caspt2:3", "caspt2:2")].reason == "electron would move up: i (HOMO) lies above j (HOMO-1)"

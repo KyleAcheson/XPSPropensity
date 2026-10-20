@@ -1,7 +1,9 @@
 """Shake-down transitions between initial states, and the orbital roles i, j, k.
 
 A shake-down goes from an initial state a, a single excitation i -> k from the
-closed-shell reference, to a lower-energy initial state b reached by moving one
+closed-shell reference determinant (the lowest state if it is closed-shell,
+otherwise built from populations, see ``frontier``), to a lower-energy
+initial state b reached by moving one
 electron. The source of that electron decides the case
 (see the propensity-rule notes):
 
@@ -25,7 +27,7 @@ from __future__ import annotations
 
 from typing import List, NamedTuple, Optional, Sequence, Tuple
 
-from xpsoverlaps.frontier import OrbitalOrder
+from xpsoverlaps.frontier import FrontierOrbitals, OrbitalOrder, ReferenceDeterminant, population_reference
 from xpsoverlaps.model import Calculation, ElectronicState
 
 _ELECTRONS = {"0": 0, "u": 1, "d": 1, "2": 2}
@@ -83,19 +85,22 @@ def considered_states(calculation: Calculation, max_state: Optional[int] = None)
     return [s for s in calculation.states[:max_state] if s.energy is not None and s.dominant_configuration]
 
 
-def reference_state(calculation: Calculation, max_state: Optional[int] = None) -> ElectronicState:
-    """The lowest-energy considered state, which must have a closed-shell dominant configuration."""
+def reference_determinant(
+    calculation: Calculation, max_state: Optional[int] = None, override: Optional[FrontierOrbitals] = None
+) -> ReferenceDeterminant:
+    """The closed-shell configuration of the lowest considered state, or, when
+    that state is open-shell (e.g. only triplet excited states were computed),
+    a reference built from orbital populations; ``override`` (the input
+    HOMO/LUMO) only affects the latter.
+    """
     states = considered_states(calculation, max_state)
     if not states:
         raise ShakeDownError("No states with an energy and a dominant configuration.")
-    reference = min(states, key=lambda state: state.energy)
-    occupations = "".join(reference.dominant_configuration.occupations)
-    if any(occupation in "ud" for occupation in occupations):
-        raise ShakeDownError(
-            f"The lowest state {reference.state_id} ({occupations}) is not closed-shell; "
-            "shake-down transitions are defined relative to a closed-shell reference."
-        )
-    return reference
+    lowest = min(states, key=lambda state: state.energy)
+    occupations = lowest.dominant_configuration.occupations
+    if all(occupation in "20" for occupation in occupations):
+        return ReferenceDeterminant(tuple(occupations), lowest.state_id)
+    return population_reference(calculation, sum(_ELECTRONS[o] for o in occupations), override)
 
 
 def find_shake_downs(
@@ -107,8 +112,7 @@ def find_shake_downs(
     shake-downs and are not listed.
     """
     orbital_ids = calculation.active_space.orbital_ids
-    reference = reference_state(calculation, max_state)
-    ref = reference.dominant_configuration.occupations
+    ref = order.reference.occupations
     states = considered_states(calculation, max_state)
     excitations = {s.state_id: excitation(s.dominant_configuration.occupations, ref, orbital_ids) for s in states}
 
@@ -123,7 +127,7 @@ def find_shake_downs(
             moved = (move.holes[0], move.particles[0])
             shake_downs.append(
                 _classify(a.state_id, b.state_id, moved, excitations[a.state_id], excitations[b.state_id],
-                          b is reference, order)
+                          not excitations[b.state_id].holes, order)
             )
     return shake_downs
 
@@ -175,9 +179,9 @@ def shake_down_report(calculation: Calculation, order: OrbitalOrder,
                       shake_downs: Sequence[ShakeDown], max_state: Optional[int] = None) -> List[str]:
     """Initial-state classification and the table of shake-down transitions."""
     orbital_ids = calculation.active_space.orbital_ids
-    reference = reference_state(calculation, max_state)
+    reference = order.reference
     states = considered_states(calculation, max_state)
-    ref = reference.dominant_configuration.occupations
+    ref = reference.occupations
     by_id = {state.state_id: state for state in calculation.states}
 
     def number(state_id: str) -> str:
@@ -192,7 +196,9 @@ def shake_down_report(calculation: Calculation, order: OrbitalOrder,
         "Shake-down transitions between initial states",
         "",
         f"Active orbitals: {orbital_ids[0]} ... {orbital_ids[-1]};  HOMO = {order.homo}, LUMO = {order.lumo}",
-        f"Reference (ground) state: {number(reference.state_id)};  states considered: "
+        (f"Reference (ground) state: {number(reference.state_id)}" if reference.state_id is not None
+         else f"Reference determinant: {''.join(ref)} (from populations)")
+        + ";  states considered: "
         f"{number(states[0].state_id)}..{number(states[-1].state_id)}"
         + (f" (max_state = {max_state})" if max_state is not None else ""),
         "",
