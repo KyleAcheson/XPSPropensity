@@ -122,5 +122,5 @@ dmypy.json
 .idea
 
 # my dirs to ignore
-data
+#data
 ARCHITECTURE.md
