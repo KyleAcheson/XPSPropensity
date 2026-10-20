@@ -17,11 +17,13 @@ def _valid_input():
             "type": "caspt2",
             "wf_file": str(DATA / "valence_caspt2.caspt2.h5"),
             "state_file": str(DATA / "valence_caspt2.log"),
+            "mcscf_file": str(DATA / "valence.rasscf.h5"),
         },
         "Final": {
             "type": "caspt2",
             "wf_file": str(DATA / "core_caspt2.caspt2.h5"),
             "state_file": str(DATA / "core_caspt2.log"),
+            "mcscf_file": str(DATA / "core.rasscf.h5"),
         },
     }
 
@@ -37,6 +39,8 @@ def test_example_input_resolves_paths_relative_to_input_file():
 
     assert data["Initial"]["wf_file"] == DATA / "valence_caspt2.caspt2.h5"
     assert data["Final"]["state_file"] == DATA / "core_caspt2.log"
+    assert data["Initial"]["mcscf_file"] == DATA / "valence.rasscf.h5"
+    assert data["Final"]["mcscf_file"] == DATA / "core.rasscf.h5"
 
 
 def test_chp_method_does_not_require_final_block(tmp_path):
@@ -66,6 +70,8 @@ def _mutate_missing_final(data):
 
 def _mutate_type_mismatch(data):
     data["Final"]["type"] = "rasscf"
+    data["Final"]["wf_file"] = str(DATA / "core.rasscf.h5")
+    del data["Final"]["mcscf_file"]
 
 
 def _mutate_unknown_type(data):
@@ -85,6 +91,17 @@ def test_homo_and_lumo_are_optional_but_accepted_together(tmp_path):
     assert (loaded["homo"], loaded["lumo"]) == (34, 40)
 
 
+def test_rasscf_input_needs_no_mcscf_file(tmp_path):
+    data = _valid_input()
+    for block, prefix in (("Initial", "valence"), ("Final", "core")):
+        del data[block]["mcscf_file"]
+        data[block].update(type="rasscf", wf_file=str(DATA / f"{prefix}.rasscf.h5"),
+                           state_file=str(DATA / f"{prefix}-tz.log"))
+
+    loaded = load_input(_write(tmp_path, data))
+    assert "mcscf_file" not in loaded["Initial"] and "mcscf_file" not in loaded["Final"]
+
+
 def _mutate_homo_without_lumo(data):
     data["Initial"]["homo"] = 34
 
@@ -99,6 +116,14 @@ def _mutate_homo_not_integer(data):
 
 def _mutate_homo_zero(data):
     data["Initial"].update(homo=0, lumo=40)
+
+
+def _mutate_max_state_zero(data):
+    data["Initial"]["max_state"] = 0
+
+
+def _mutate_max_state_in_final(data):
+    data["Final"]["max_state"] = 4
 
 
 def _mutate_unknown_key(data):
@@ -117,6 +142,24 @@ def _mutate_missing_file(data):
     data["Final"]["wf_file"] = "does_not_exist.h5"
 
 
+def _mutate_missing_mcscf_file_for_caspt2(data):
+    del data["Initial"]["mcscf_file"]
+
+
+def _mutate_mcscf_file_for_rasscf(data):
+    for block, prefix in (("Initial", "valence"), ("Final", "core")):
+        data[block].update(type="rasscf", wf_file=str(DATA / f"{prefix}.rasscf.h5"),
+                           state_file=str(DATA / f"{prefix}-tz.log"))
+
+
+def _mutate_missing_final_mcscf_file_for_caspt2(data):
+    del data["Final"]["mcscf_file"]
+
+
+def _mutate_missing_mcscf_file(data):
+    data["Initial"]["mcscf_file"] = "does_not_exist.h5"
+
+
 @pytest.mark.parametrize(
     "mutate,message",
     [
@@ -129,9 +172,16 @@ def _mutate_missing_file(data):
         (_mutate_homo_in_final, "Final: Unevaluated properties are not allowed ('homo', 'lumo' were unexpected)"),
         (_mutate_homo_not_integer, "Initial.homo: '34' is not of type 'integer'"),
         (_mutate_homo_zero, "Initial.homo: 0 is less than the minimum of 1"),
+        (_mutate_max_state_zero, "Initial.max_state: 0 is less than the minimum of 1"),
+        (_mutate_max_state_in_final, "Final: Unevaluated properties are not allowed ('max_state' was unexpected)"),
         (_mutate_missing_wf_file, "Final: 'wf_file' is a required property"),
         (_mutate_missing_molcas_state_file, "Initial: 'state_file' is a required property"),
         (_mutate_missing_file, "Final.wf_file: file not found"),
+        (_mutate_missing_mcscf_file_for_caspt2, "Initial: 'mcscf_file' is a required property"),
+        (_mutate_mcscf_file_for_rasscf, "Initial.mcscf_file: only used for type 'caspt2'"),
+        (_mutate_mcscf_file_for_rasscf, "Final.mcscf_file: only used for type 'caspt2'"),
+        (_mutate_missing_final_mcscf_file_for_caspt2, "Final: 'mcscf_file' is a required property"),
+        (_mutate_missing_mcscf_file, "Initial.mcscf_file: file not found"),
     ],
 )
 def test_invalid_inputs_are_rejected(tmp_path, mutate, message):

@@ -181,6 +181,45 @@ def test_loader_combines_hdf5_records_and_log_states(kind, hdf5_name, log_name, 
     assert all(len(state.dominant_configuration.occupations) == 12 for state in calculation.states)
 
 
+def test_orbital_populations_are_normalised_across_calculation_types():
+    rasscf = get_calculation("molcas", "RASSCF", DATA / "valence.rasscf.h5", DATA / "valence-tz.log")
+    caspt2 = get_calculation(
+        "molcas", "CASPT2", DATA / "valence_caspt2.caspt2.h5", DATA / "valence_caspt2.log",
+        mcscf_file=DATA / "valence.rasscf.h5",
+    )
+    with h5py.File(DATA / "valence.rasscf.h5", "r") as h5_file:
+        occupations, energies = h5_file["MO_OCCUPATIONS"][:], h5_file["MO_ENERGIES"][:]
+
+    for calculation in (rasscf, caspt2):
+        assert calculation.orbitals.occupations == pytest.approx(occupations)
+        assert calculation.orbitals.energies == pytest.approx(energies)
+    assert caspt2.orbitals.occupations[33] == pytest.approx(1.597, abs=1e-3)  # mo:34, the HOMO
+    assert caspt2.provenance.source_files[-1] == str((DATA / "valence.rasscf.h5").resolve())
+
+
+def test_caspt2_without_mcscf_file_has_no_orbital_populations():
+    # The CASPT2 HDF5 MO_ENERGIES / MO_OCCUPATIONS are all zero: not populations.
+    caspt2 = get_calculation("molcas", "CASPT2", DATA / "core_caspt2.caspt2.h5", DATA / "core_caspt2.log")
+
+    assert caspt2.orbitals.energies is None and caspt2.orbitals.occupations is None
+
+
+def test_mcscf_file_must_match_the_caspt2_reference_energies():
+    with pytest.raises(ValueError, match="matches no root energy in the mcscf_file"):
+        get_calculation(
+            "molcas", "CASPT2", DATA / "valence_caspt2.caspt2.h5", DATA / "valence_caspt2.log",
+            mcscf_file=DATA / "core.rasscf.h5",
+        )
+
+
+def test_mcscf_file_is_rejected_for_rasscf():
+    with pytest.raises(ValueError, match="only used for CASPT2"):
+        get_calculation(
+            "molcas", "RASSCF", DATA / "valence.rasscf.h5", DATA / "valence-tz.log",
+            mcscf_file=DATA / "valence.rasscf.h5",
+        )
+
+
 def test_loader_rejects_log_with_different_state_count():
     with pytest.raises(ValueError, match="HDF5 file contains 10 states but the log contains 40"):
         get_calculation("molcas", "CASPT2", DATA / "valence_caspt2.caspt2.h5", DATA / "core_caspt2.log")

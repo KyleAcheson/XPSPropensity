@@ -6,6 +6,7 @@ from xpsoverlaps.readers.openmolcas.hdf5_reader import (
     read_active_space,
     read_basis,
     read_molecule,
+    read_orbital_populations,
     read_orbitals,
     read_state_energies,
 )
@@ -19,6 +20,7 @@ __all__ = [
     "read_basis",
     "read_caspt2_states",
     "read_molecule",
+    "read_orbital_populations",
     "read_orbitals",
     "read_rasscf_states",
     "read_state_energies",

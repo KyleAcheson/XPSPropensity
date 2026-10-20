@@ -1,7 +1,8 @@
 # JSON Schema (draft 2020-12), written in YAML, for XPSoverlaps input files.
 #
 # Structure and conditional requirements live here. Rules JSON Schema cannot
-# express (Initial/Final type equality, file existence) are checked in
+# express (Initial/Final type equality, file existence) or reports unclearly
+# (mcscf_file given for a rasscf calculation) are checked in
 # xpsoverlaps/inputs.py.
 #
 # Properties restricted to a string `enum` are case-insensitive: input values
@@ -35,13 +36,20 @@ properties:
     properties:
       homo:
         description: >-
-          1-based MO index of the HOMO in this calculation. Optional, but must be
-          given together with lumo; the final-state HOMO/LUMO follow from the
-          orbital mapping.
+          Optional override of the HOMO, as a 1-based MO index; must be given
+          together with lumo. By default the HOMO/LUMO and the order of the
+          active orbitals come from the orbital populations; the final-state
+          HOMO/LUMO follow from the orbital mapping.
         type: integer
         minimum: 1
       lumo:
         description: 1-based MO index of the LUMO; see homo.
+        type: integer
+        minimum: 1
+      max_state:
+        description: >-
+          Optional. Only initial states 1..max_state (numbered as in the
+          output, 1 = lowest) are considered for shake-down transitions.
         type: integer
         minimum: 1
     dependentRequired:
@@ -75,6 +83,14 @@ $defs:
           (e.g. Molcas log). Which programs require it is set in allOf below.
         type: string
         minLength: 1
+      mcscf_file:
+        description: >-
+          MCSCF wavefunction file the correlated calculation was built on, for
+          orbital energies and populations its own files lack. Molcas: the
+          RASSCF HDF5 file of a CASPT2 run, required for caspt2 (allOf below);
+          rejected for rasscf, whose wf_file already holds them.
+        type: string
+        minLength: 1
 
 allOf:
   # The overlaps method needs a final-state calculation; chp does not.
@@ -101,6 +117,37 @@ allOf:
       properties:
         Initial: {required: [state_file]}
         Final: {required: [state_file]}
+
+  # Molcas CASPT2 HDF5 files keep the RASSCF orbitals but not their energies
+  # and populations: each calculation reads them from its RASSCF file.
+  - if:
+      required: [Calculator, Initial]
+      properties:
+        Calculator:
+          required: [program]
+          properties:
+            program: {enum: [molcas]}
+        Initial:
+          required: [type]
+          properties:
+            type: {const: caspt2}
+    then:
+      properties:
+        Initial: {required: [mcscf_file]}
+  - if:
+      required: [Calculator, Final]
+      properties:
+        Calculator:
+          required: [program]
+          properties:
+            program: {enum: [molcas]}
+        Final:
+          required: [type]
+          properties:
+            type: {const: caspt2}
+    then:
+      properties:
+        Final: {required: [mcscf_file]}
 
   # Programs that write everything to wf_file reject state_file, so it is not
   # silently ignored. Add such a program to this enum (and to

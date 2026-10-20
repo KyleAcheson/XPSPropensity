@@ -47,19 +47,26 @@ Initial:
   type: caspt2           # or rasscf; must match Final
   wf_file: ../data/molcas/brthph/s2p/mb/valence_caspt2.caspt2.h5   # orbitals, basis, energies
   state_file: ../data/molcas/brthph/s2p/mb/valence_caspt2.log      # CI configurations (Molcas only)
-  homo: 34               # optional, given together with lumo: 1-based MO indices (Initial only)
+  mcscf_file: ../data/molcas/brthph/s2p/mb/valence.rasscf.h5       # caspt2 only: its RASSCF file
+  homo: 34               # optional override of the population-based HOMO/LUMO: 1-based MO indices, given together
   lumo: 40
+  max_state: 4           # optional: shake-downs only among initial states 1..max_state
 
 Final:
   type: caspt2
   wf_file: ../data/molcas/brthph/s2p/mb/core_caspt2.caspt2.h5
   state_file: ../data/molcas/brthph/s2p/mb/core_caspt2.log
+  mcscf_file: ../data/molcas/brthph/s2p/mb/core.rasscf.h5
 ```
 
 Relative paths are resolved from the input file's directory. Choice values are
-case-insensitive. `homo`/`lumo` must be two different active orbitals; choosing
-the right ones is up to the user. The final-state HOMO/LUMO are the orbitals
-they map onto. Run with:
+case-insensitive. The initial RAS2 orbitals are split into occupied and
+virtual by the ground state's configuration and ordered by their populations
+(lowest occupied = HOMO, highest virtual = LUMO); RAS1 orbitals are labelled
+core and not ranked. `homo`/`lumo` override that
+HOMO and LUMO; they must be two different active orbitals, and choosing the
+right ones is up to the user. The final-state HOMO/LUMO are the orbitals they
+map onto. Run with:
 
 ```bash
 python src/xpsoverlaps/main.py -i inputs/input.yaml -o output.log
@@ -76,15 +83,19 @@ placeholder.
 from xpsoverlaps.readers import get_calculation
 from xpsoverlaps.overlap import mo_overlap
 
-initial = get_calculation("molcas", "caspt2", wf_file="valence.caspt2.h5", state_file="valence.log")
-final = get_calculation("molcas", "caspt2", wf_file="core.caspt2.h5", state_file="core.log")
+initial = get_calculation("molcas", "caspt2", wf_file="valence.caspt2.h5", state_file="valence.log",
+                          mcscf_file="valence.rasscf.h5")
+final = get_calculation("molcas", "caspt2", wf_file="core.caspt2.h5", state_file="core.log",
+                        mcscf_file="core.rasscf.h5")
 
 S_MO = mo_overlap(initial, final)   # rows: initial MOs, columns: final MOs
 ```
 
 Supported: OpenMolcas (`molcas`/`openmolcas`) `RASSCF` and `CASPT2`, each read
-from an HDF5 file (`wf_file`) plus its log (`state_file`). Molecular symmetry
-is not supported yet.
+from an HDF5 file (`wf_file`) plus its log (`state_file`). CASPT2 HDF5 files
+lack orbital energies and populations, so a CASPT2 calculation reads them from
+the RASSCF HDF5 file it was built on (`mcscf_file`). Molecular symmetry is not
+supported yet.
 
 ### Package structure
 
@@ -97,6 +108,8 @@ src/xpsoverlaps/
 ├── composition.py       # AO composition of MOs (Mulliken partition)
 ├── mapping.py           # initial -> final active-orbital mapping
 ├── frontier.py          # HOMO/LUMO from the input, carried to the final state by the mapping
+├── shakedown.py         # shake-down transitions between initial states and their i, j, k roles
+├── rules.py             # propensity rules (3e GS, 3e ES, 5e ES) and their spin channels
 ├── propensity.py        # propensity workflows (overlaps, chp)
 ├── overlap/             # AO overlap providers and MO overlaps
 │   ├── base.py          #   AOOverlapProvider interface
@@ -154,7 +167,8 @@ Run the tests with `pytest`.
        display_name = "MyProgram"         # used in error messages
        calculation_types = {"CASSCF"}     # upper case
 
-       def _load(self, kind: str, wf_file: Path, state_file: Optional[Path]) -> Calculation:
+       def _load(self, kind: str, wf_file: Path, state_file: Optional[Path],
+                 mcscf_file: Optional[Path]) -> Calculation:
            molecule = read_molecule(wf_file)
            basis = read_basis(wf_file, molecule)
            orbitals = read_orbitals(wf_file, basis)
@@ -171,6 +185,9 @@ Run the tests with `pytest`.
 
    - If states are in a second file, read them from `state_file` and check
      they match the wavefunction file (`OpenMolcasLoader` compares energies).
+   - If orbital energies or populations are missing from the program's own
+     files, read them from `mcscf_file` and check it belongs to the same run;
+     otherwise leave them `None`.
    - If several readers parse the same file, open it once in an access object
      and pass that instead of the path (see `MolcasHdf5`).
    - Check the new readers with `Cᵀ S C = I` (orthonormal orbitals), as the

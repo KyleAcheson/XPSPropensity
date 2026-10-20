@@ -19,7 +19,9 @@ def _record_calls(monkeypatch):
     monkeypatch.setattr(
         propensity,
         "propensity_overlaps",
-        lambda initial, final, frontier=None: calls.update(overlaps=(initial, final, frontier)),
+        lambda initial, final, frontier=None, max_state=None: calls.update(
+            overlaps=(initial, final, frontier)
+        ),
     )
     monkeypatch.setattr(
         propensity, "propensity_chp", lambda initial, frontier=None: calls.update(chp=(initial, frontier))
@@ -31,8 +33,9 @@ def _chp_input(tmp_path):
     run_input = yaml.safe_load(INPUT.read_text(encoding="utf-8"))
     run_input["Calculator"]["method"] = "chp"
     for block in ("Initial", "Final"):
-        for key in ("wf_file", "state_file"):
-            run_input[block][key] = str((INPUT.parent / run_input[block][key]).resolve())
+        for key in ("wf_file", "state_file", "mcscf_file"):
+            if key in run_input[block]:
+                run_input[block][key] = str((INPUT.parent / run_input[block][key]).resolve())
     input_file = tmp_path / "chp.yaml"
     input_file.write_text(yaml.safe_dump(run_input), encoding="utf-8")
     return input_file
@@ -92,12 +95,17 @@ def test_output_file_dumps_input_and_summarizes_states(tmp_path):
     assert "caspt2:" not in text
     assert "Dominant CI vectors on the initial active-orbital order" in text
     assert "22u22222du00     22ud22222u00" in text
-    assert "HOMO  initial mo:34    -> final mo:39" in text
-    assert "LUMO  initial mo:40    -> final mo:40" in text
+    assert "HOMO      mo:34         1.5967     -0.2721  mo:39" in text
+    assert "HOMO mo:34 set by the input (agrees with the populations)." in text
+    assert "Shake-down transitions between initial states" in text
+    assert "states considered: 1..4 (max_state = 4)" in text
+    assert "5 transitions: 5 computable, 0 not computable." in text
+    assert "Propensity rules" in text
+    assert "  3 -> 2  5e ES   D1                       0.015099" in text
 
 
 def test_uncaught_exception_is_logged_with_traceback(monkeypatch, tmp_path):
-    def failing_overlaps(initial, final, frontier=None):
+    def failing_overlaps(initial, final, frontier=None, max_state=None):
         raise RuntimeError("orbital mapping failed")
 
     monkeypatch.setattr(propensity, "propensity_overlaps", failing_overlaps)
@@ -121,7 +129,7 @@ def test_output_defaults_to_input_name_with_out_suffix(monkeypatch, tmp_path):
 
 
 def test_propensity_module_logs_to_output_file(monkeypatch, tmp_path):
-    def fake_overlaps(initial, final, frontier=None):
+    def fake_overlaps(initial, final, frontier=None, max_state=None):
         propensity.logger.info("message from propensity module")
 
     monkeypatch.setattr(propensity, "propensity_overlaps", fake_overlaps)
@@ -133,6 +141,25 @@ def test_propensity_module_logs_to_output_file(monkeypatch, tmp_path):
     assert not any(
         isinstance(handler, logging.FileHandler)
         for handler in logging.getLogger("xpsoverlaps").handlers
+    )
+
+
+def test_warnings_go_to_the_terminal_as_well_as_the_output_file(monkeypatch, tmp_path, capsys):
+    def warning_overlaps(initial, final, frontier=None, max_state=None):
+        propensity.logger.info("info only in the file")
+        propensity.logger.warning("* WARNING: AMBIGUOUS REFERENCE DETERMINANT")
+
+    monkeypatch.setattr(propensity, "propensity_overlaps", warning_overlaps)
+    output = tmp_path / "run.out"
+
+    main_module.main(["-i", str(INPUT), "-o", str(output)])
+
+    stderr = capsys.readouterr().err
+    assert "* WARNING: AMBIGUOUS REFERENCE DETERMINANT" in stderr
+    assert "info only in the file" not in stderr
+    assert "* WARNING: AMBIGUOUS REFERENCE DETERMINANT" in output.read_text(encoding="utf-8")
+    assert logging.getLogger("xpsoverlaps").handlers == [] or all(
+        isinstance(h, logging.NullHandler) for h in logging.getLogger("xpsoverlaps").handlers
     )
 
 
@@ -159,6 +186,24 @@ def test_main_requires_input_option(capsys):
     assert "the following arguments are required: -i/--input" in capsys.readouterr().err
 
 
+def test_main_orders_orbitals_by_population_without_homo_lumo(tmp_path):
+    run_input = yaml.safe_load(INPUT.read_text(encoding="utf-8"))
+    for key in ("homo", "lumo"):
+        del run_input["Initial"][key]
+    for block in ("Initial", "Final"):
+        for key in ("wf_file", "state_file", "mcscf_file"):
+            if key in run_input[block]:
+                run_input[block][key] = str((INPUT.parent / run_input[block][key]).resolve())
+    input_file = tmp_path / "no_frontier.yaml"
+    input_file.write_text(yaml.safe_dump(run_input), encoding="utf-8")
+
+    assert main_module.main(["-i", str(input_file), "-o", str(tmp_path / "run.out")]) == 0
+
+    text = (tmp_path / "run.out").read_text(encoding="utf-8")
+    assert "HOMO/LUMO from the populations (not given in the input)." in text
+    assert "  3 -> 2  5e ES   D1                       0.015099" in text
+
+
 def test_main_rejects_invalid_homo_lumo_before_running(monkeypatch, tmp_path):
     calls = _record_calls(monkeypatch)
     input_file = _chp_input(tmp_path)
@@ -170,3 +215,16 @@ def test_main_rejects_invalid_homo_lumo_before_running(monkeypatch, tmp_path):
 
     assert calls == {}
     assert "LUMO mo:20 is not an active orbital" in (tmp_path / "chp.out").read_text(encoding="utf-8")
+
+
+def test_main_rejects_max_state_beyond_the_initial_states(monkeypatch, tmp_path):
+    calls = _record_calls(monkeypatch)
+    input_file = _chp_input(tmp_path)
+    run_input = yaml.safe_load(input_file.read_text(encoding="utf-8"))
+    run_input["Initial"]["max_state"] = 11  # the initial calculation has 10 states
+    input_file.write_text(yaml.safe_dump(run_input), encoding="utf-8")
+
+    assert main_module.main(["-i", str(input_file)]) == 1
+
+    assert calls == {}
+    assert "max_state 11 is outside 1..10" in (tmp_path / "chp.out").read_text(encoding="utf-8")

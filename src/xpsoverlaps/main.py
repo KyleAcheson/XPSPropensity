@@ -15,6 +15,7 @@ if __package__ in {None, ""}:
 
 from xpsoverlaps import propensity
 from xpsoverlaps.frontier import FrontierOrbitalError, frontier_from_indices
+from xpsoverlaps.shakedown import ShakeDownError, check_max_state
 from xpsoverlaps.inputs import CalculationInput, InputError, RunInput, load_input
 from xpsoverlaps.model import Calculation
 from xpsoverlaps.readers import get_calculation
@@ -24,7 +25,9 @@ logger = logging.getLogger("xpsoverlaps")
 
 
 def _load_block(program: str, block: CalculationInput) -> Calculation:
-    return get_calculation(program, block["type"], block["wf_file"], block.get("state_file"))
+    return get_calculation(
+        program, block["type"], block["wf_file"], block.get("state_file"), block.get("mcscf_file")
+    )
 
 
 _WIDTH = 80
@@ -109,20 +112,22 @@ def _run(input_file: Path) -> int:
     _log_states("Initial", initial)
 
     frontier = None
-    if "homo" in run_input["Initial"]:  # the schema guarantees lumo is given too
-        try:
+    max_state = run_input["Initial"].get("max_state")
+    try:
+        if "homo" in run_input["Initial"]:  # the schema guarantees lumo is given too
             frontier = frontier_from_indices(
                 initial, run_input["Initial"]["homo"], run_input["Initial"]["lumo"]
             )
-        except FrontierOrbitalError as error:
-            logger.error("%s", error)
-            print(error, file=sys.stderr)
-            return 1
+        check_max_state(initial, max_state)
+    except (FrontierOrbitalError, ShakeDownError) as error:
+        logger.error("%s", error)
+        print(error, file=sys.stderr)
+        return 1
 
     if run_input["Calculator"]["method"] == "overlaps":
         final = _load_block(program, run_input["Final"])
         _log_states("Final", final)
-        propensity.propensity_overlaps(initial, final, frontier)
+        propensity.propensity_overlaps(initial, final, frontier, max_state)
     else:
         propensity.propensity_chp(initial, frontier)
     return 0
@@ -146,7 +151,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         args.output or args.input_file.with_suffix(".out"), mode="w", encoding="utf-8"
     )
     handler.setFormatter(logging.Formatter("%(message)s"))
+    # Warnings (e.g. an ambiguous reference determinant) also go to the terminal;
+    # errors are printed there by _run or raised.
+    console = logging.StreamHandler(sys.stderr)
+    console.setFormatter(logging.Formatter("%(message)s"))
+    console.addFilter(lambda record: record.levelno == logging.WARNING)
     logger.addHandler(handler)
+    logger.addHandler(console)
     logger.setLevel(logging.INFO)
     try:
         return _run(args.input_file)
@@ -155,8 +166,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         logger.exception("XPSoverlaps terminated with an error.")
         raise
     finally:
-        logger.removeHandler(handler)
-        handler.close()
+        for attached in (handler, console):
+            logger.removeHandler(attached)
+            attached.close()
 
 
 if __name__ == "__main__":
