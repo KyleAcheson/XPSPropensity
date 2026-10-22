@@ -1,4 +1,5 @@
 import dataclasses
+from fractions import Fraction
 from pathlib import Path
 
 import numpy as np
@@ -7,7 +8,14 @@ import pytest
 from xpsoverlaps.frontier import orbital_order
 from xpsoverlaps.mapping import MappedFinal, map_active_orbitals
 from xpsoverlaps.readers import get_calculation
-from xpsoverlaps.rules import RULES, RoleOverlaps, compute_propensity, evaluate_final, propensity_report
+from xpsoverlaps.rules import (
+    CHANNELS,
+    Channel,
+    RoleOverlaps,
+    compute_propensity,
+    evaluate_final,
+    propensity_report,
+)
 from xpsoverlaps.shakedown import find_shake_downs, reference_determinant
 
 
@@ -40,7 +48,7 @@ def _overlap_function(values):
 def test_three_electron_rule_matches_notes():
     S = _overlap_function({"jk": 0.30, "ik": 0.20, "ji": 0.10})
 
-    amplitudes = RULES["3e ES"].evaluate(S)
+    amplitudes = CHANNELS[("3e ES", 0)][0].evaluate(S).values
 
     assert amplitudes["Pi"] == pytest.approx(0.30)
     assert amplitudes["Omega"] == pytest.approx(0.20 * 0.10)
@@ -52,7 +60,7 @@ def test_five_electron_rule_matches_notes():
     values = {"ij": 0.31, "ji": 0.17, "ik": 0.23, "ki": 0.11, "jk": 0.29, "kj": 0.13}
     S = _overlap_function(values)
 
-    amplitudes = RULES["5e ES"].evaluate(S)
+    amplitudes = CHANNELS[("5e ES", 0)][0].evaluate(S).values
 
     v3 = np.array([[S(a + b) for b in "ijk"] for a in "ijk"])
     m3, m4 = amplitudes["M3"], amplitudes["M4"]
@@ -66,7 +74,7 @@ def test_m_minors_keep_the_diagonals_explicitly():
     values = {"ii": 0.9, "jj": 0.8, "kk": 0.7, "ij": 0.31, "ji": 0.17, "ik": 0.23, "ki": 0.11, "jk": 0.29, "kj": 0.13}
     v3 = np.array([[values[a + b] for b in "ijk"] for a in "ijk"])
 
-    amplitudes = RULES["5e ES"].evaluate(lambda pair: values[pair])
+    amplitudes = CHANNELS[("5e ES", 1)][1].evaluate(lambda pair: values[pair]).values  # Q
 
     minor = lambda rows, cols: np.linalg.det(v3[np.ix_(["ijk".index(r) for r in rows], ["ijk".index(c) for c in cols])])
     assert amplitudes["M1"] == pytest.approx(minor("ij", "ij"))
@@ -81,10 +89,38 @@ def test_ground_state_rules_are_closed_shell_products():
     S = _overlap_function(values)
     m1, m3 = 1 - 0.31 * 0.17, 0.31 * 0.29 - 0.23
 
-    assert RULES["5e GS"].evaluate(S) == {"M1": pytest.approx(m1), "M3": pytest.approx(m3)}
-    assert RULES["5e GS"].overlaps == ["ii", "jj", "ij", "ji", "jk", "ik"]
-    assert RULES["3e GS"].overlaps == ["ii", "ik"]
-    assert RULES["5e GS"].channels[1.0] == () and RULES["3e GS"].channels[1.0] == ()
+    (gs5,), (gs3,) = CHANNELS[("5e GS", 0)], CHANNELS[("3e GS", 0)]
+    result = gs5.evaluate(S)
+
+    assert result.values == {"M1": pytest.approx(m1), "M3": pytest.approx(m3), "A": pytest.approx(m1 * m3)}
+    assert result.intensity == pytest.approx(2 * (m1 * m3) ** 2)
+    assert gs3.evaluate(S).intensity == pytest.approx(2 * 0.23 ** 2)
+    assert gs5.overlaps == ["ii", "jj", "ij", "ji", "jk", "ik"]
+    assert gs3.overlaps == ["ii", "ik"]
+    assert CHANNELS[("5e GS", 1)] == () and CHANNELS[("3e GS", 1)] == ()
+
+
+def test_channel_spin_weights_follow_the_notes():
+    weights = {(case, spin): [(c.name, c.final_spin, c.weight) for c in channels]
+               for (case, spin), channels in CHANNELS.items() if case.endswith("ES")}
+
+    for case in ("3e ES", "5e ES"):
+        assert weights[(case, 0)] == [("D1", 0.5, 1)]
+        assert weights[(case, 1)] == [("D2", 0.5, Fraction(1, 3)), ("Q", 1.5, Fraction(2, 3))]
+
+
+@pytest.mark.parametrize(
+    "equations,amplitude,message",
+    [
+        (("Pi = S_ii S_jk",), "Pi + Omega", "amplitude = Pi \\+ Omega uses Omega, not defined"),
+        (("Pi = M1 M2", "M1 = S_ii S_jj"), "Pi", "Pi = M1 M2 uses M1, M2, not defined"),
+        (("Pi = S_il S_jk",), "Pi", "'S_il' in 'S_il S_jk' is not an overlap S_ab of roles i, j, k"),
+        (("S_ii S_jk",), "Pi", "'S_ii S_jk' is not an equation 'name = formula'"),
+    ],
+)
+def test_channel_checks_its_formulas_when_built(equations, amplitude, message):
+    with pytest.raises(ValueError, match=f"Channel X: .*{message}"):
+        Channel("X", 0.5, Fraction(1), equations, amplitude)
 
 
 # --- Overlaps: first index final, second initial ----------------------------
@@ -117,9 +153,9 @@ def test_singlet_shake_downs_use_the_right_rule_and_channel(setup):
     assert gs3.channels[0].intensity == pytest.approx(2 * gs3.overlaps["ik"] ** 2)
     # HOMO-1 pump: j = HOMO, 2 |M1 M3|^2 rather than 2 |S_ik|^2
     assert gs5.roles == {"i": "mo:38", "j": "mo:34", "k": "mo:40"}
-    assert gs5.channels[0].intensity == pytest.approx(2 * (gs5.amplitudes["M1"] * gs5.amplitudes["M3"]) ** 2)
+    assert gs5.channels[0].intensity == pytest.approx(2 * (gs5.values["M1"] * gs5.values["M3"]) ** 2)
     assert gs5.channels[0].intensity == pytest.approx(0.006179, abs=1e-6)
-    assert set(es5.amplitudes) == {"M1", "M2", "M3", "M4", "Pi", "Omega"}
+    assert set(es5.values) == {"M1", "M2", "M3", "M4", "Pi", "Omega"}
     assert [c.name for c in es5.channels] == ["D1"]
     assert es5.channels[0].intensity == pytest.approx(0.015099, abs=1e-6)
     assert set(es3.overlaps) == {"ii", "jk", "ik", "ji"}
@@ -135,7 +171,7 @@ def test_triplet_initial_state_gives_d2_and_quartet_and_dark_gs(setup):
     es = compute_propensity(shake_downs[("3", "2")], triplet, mapping)
     gs = compute_propensity(shake_downs[("3", "1")], triplet, mapping)  # 5e GS
 
-    minus = (es.amplitudes["Pi"] - es.amplitudes["Omega"]) ** 2
+    minus = (es.values["Pi"] - es.values["Omega"]) ** 2
     assert [(c.name, c.intensity) for c in es.channels] == [
         ("D2", pytest.approx(minus / 3)),
         ("Q", pytest.approx(2 * minus / 3)),
@@ -177,10 +213,12 @@ def test_report_writes_each_rule_out_in_full(setup):
 
     lines = _report(initial, [MappedFinal("Final", final, mapping, 0.5)], selected)
 
-    assert "  closed-shell doublet: 2 |S_ii S_ik|^2 = 2 |(1)(0.0059)|^2 = 0.000070" in lines
+    assert "  A = S_ii S_ik = (1)(0.0059) = +0.00592" in lines
+    assert "  closed-shell doublet: 2 |A|^2 = 2 |S_ii S_ik|^2 = 2 |(+0.00592)|^2 = 0.000070" in lines
     assert "  M1 = S_ii S_jj - S_ij S_ji = (1)(1) - (0.1263)(0.1267) = +0.98399" in lines
     assert "  M3 = S_ij S_jk - S_ik S_jj = (0.1263)(0.0059) - (0.0572)(1) = -0.05649" in lines
-    assert "  closed-shell doublet: 2 |M1 M3|^2 = 2 |(+0.98399)(-0.05649)|^2 = 0.006179" in lines
+    assert "  A = M1 M3 = (+0.98399)(-0.05649) = -0.05558" in lines
+    assert "  closed-shell doublet: 2 |A|^2 = 2 |M1 M3|^2 = 2 |(-0.05558)|^2 = 0.006179" in lines
     assert "  M2 = S_ij S_kk - S_ik S_kj = (0.1263)(1) - (0.0572)(0.0223) = +0.12505" in lines
     assert "  Pi = M1 M2 = (+0.98399)(+0.12505) = +0.12305" in lines
     assert ("  D1: |Pi + Omega|^2 = |M1 M2 + M3 M4|^2 = |(+0.12305) + (-0.00017)|^2 = 0.015099"

@@ -7,26 +7,20 @@ Diagonal overlaps S_ii, S_jj, S_kk are kept in the formulas but set to 1
 (weak relaxation); their actual values are reported and flagged below
 ``DIAGONAL_WARNING``.
 
-Each rule is written once as text, in the notation of the notes, and that
-text is both evaluated and printed:
+Every bright channel is one ``Channel`` in the ``CHANNELS`` table, keyed by
+shake-down case and initial spin. A channel holds everything needed for its
+intensity, weight * |amplitude|^2: the equations defining its quantities
+(M1..M4, Pi, Omega), written as in the notes and evaluated in order, and the
+amplitude in terms of them. The same text is evaluated and printed, so the
+printed rule and the number cannot disagree.
 
-    M1 = S_ii S_jj - S_ij S_ji        M2 = S_ij S_kk - S_ik S_kj
-    M3 = S_ij S_jk - S_ik S_jj        M4 = S_ii S_kj - S_ij S_ki
-
-    3e ES:  Pi = S_ii S_jk,  Omega = S_ik S_ji
-    5e ES:  Pi = M1 M2,      Omega = M3 M4
-    3e GS:  closed-shell doublet 2 |S_ii S_ik|^2   (i = HOMO)
-    5e GS:  closed-shell doublet 2 |M1 M3|^2       (i = HOMO-n, j = HOMO)
-
-Which channels are non-zero depends only on the initial spin (averaged over
-initial M_S, summed over final M_S): a singlet reaches the closed-shell
-doublet (GS) or D1 |Pi + Omega|^2 (ES); a triplet reaches D2 1/3 |Pi - Omega|^2
-and Q 2/3 |Pi - Omega|^2 (ES) and nothing in ground-state shake-down.
-
-Each channel is evaluated with the overlaps of the final calculation whose
-states have the channel's spin (doublet channels: S = 1/2, Q: S = 3/2), so a
-triplet's D2 and Q come from different final orbitals when the doublet and
-quartet states are separate calculations.
+Which channels exist depends only on the initial spin (averaged over initial
+M_S, summed over final M_S): a singlet reaches the closed-shell doublet (GS) or
+D1 |Pi + Omega|^2 (ES); a triplet reaches D2 1/3 |Pi - Omega|^2 and Q
+2/3 |Pi - Omega|^2 (ES) and nothing in ground-state shake-down. Each channel is
+evaluated with the overlaps of the final calculation whose states have the
+channel's final spin, so a triplet's D2 and Q come from different final
+orbitals when the doublet and quartet states are separate calculations.
 """
 
 from __future__ import annotations
@@ -41,139 +35,291 @@ from xpsoverlaps.shakedown import ShakeDown
 
 DIAGONAL_WARNING = 0.9
 
-# Final-state spin of each channel: the final calculation it is evaluated with.
-CHANNEL_SPIN = {"closed-shell doublet": 0.5, "D1": 0.5, "D2": 0.5, "Q": 1.5}
-
 Overlap = Callable[[str], float]  # role pair such as "ik" -> S_ik
+Term = Tuple[int, Tuple[str, ...]]  # sign, factors ("S_ij" or a quantity name such as "M1")
 
-# --- Formulas: sums of signed products of factors S_ab or named quantities ---
-
-Term = Tuple[int, List[str]]  # sign, factors
+_ROLES = "ijk"
 
 
-def _terms(formula: str) -> List[Term]:
-    """'S_ii S_jj - S_ij S_ji' -> [(1, ['S_ii', 'S_jj']), (-1, ['S_ij', 'S_ji'])]."""
-    terms: List[Term] = []
-    sign, factors = 1, None
-    for token in formula.split():
-        if token in ("+", "-"):
-            sign, factors = (1 if token == "+" else -1), None
-        else:
+class ChannelResult(NamedTuple):
+    channel: "Channel"
+    values: Dict[str, float]  # the channel's quantities: M1.., Pi, Omega
+    amplitude: float
+    intensity: float  # weight * amplitude^2
+
+    @property
+    def name(self) -> str:
+        return self.channel.name
+
+
+class Channel:
+    """One bright shake-down channel and everything needed to compute its intensity.
+
+    The intensity is ``weight * |amplitude|^2``, where the amplitude is written
+    in terms of quantities (M1, Pi, Omega, A, ...) defined by ``equations``.
+    Formulas are sums of signed products of factors, each factor an overlap
+    ``S_ab`` (a, b one of the roles i, j, k; first index final, second initial)
+    or a quantity defined by an earlier equation. They are parsed and checked
+    once, when the channel is created.
+
+    Parameters
+    ----------
+    name : str
+        Channel label: "D1", "D2", "Q" or "closed-shell doublet".
+    final_spin : float
+        Spin S of the final states the channel reaches (0.5 or 1.5). The
+        channel is evaluated with the overlaps of the final calculation of
+        this spin.
+    weight : Fraction
+        Spin weight multiplying ``|amplitude|^2``: 1 (D1), 1/3 (D2), 2/3 (Q),
+        or 2 for the closed-shell doublet.
+    equations : sequence of str
+        Equations ``"name = formula"`` defining the quantities, in evaluation
+        order, e.g. ``("M1 = S_ii S_jj - S_ij S_ji", ..., "Pi = M1 M2")``.
+        Each formula may use overlaps and the quantities defined before it.
+        Empty if the amplitude uses overlaps only.
+    amplitude : str
+        Formula inside ``|...|^2``, in terms of overlaps and the quantities,
+        e.g. ``"Pi - Omega"``.
+
+    Attributes
+    ----------
+    name, final_spin : as given.
+    weight : Fraction
+        The weight as a ``Fraction``.
+    equations : list of (str, str, list of Term)
+        Quantity name, formula text and parsed terms of each equation.
+    amplitude_text : str
+        The amplitude formula as given, for printing.
+    amplitude : list of Term
+        The parsed amplitude.
+
+    Raises
+    ------
+    ValueError
+        If an equation is not ``"name = formula"``, a factor is neither an
+        overlap ``S_ab`` of the roles i, j, k nor a quantity name, a formula
+        is empty, or a formula uses a quantity not defined by an earlier
+        equation. The message names the channel.
+
+    Examples
+    --------
+    >>> d1 = Channel("D1", 1/2, Fraction(1), ("Pi = S_ii S_jk", "Omega = S_ik S_ji"), "Pi + Omega")
+    >>> S = {"jk": 0.3, "ik": 0.2, "ji": 0.1}
+    >>> d1.evaluate(lambda pair: 1.0 if pair[0] == pair[1] else S[pair]).intensity  # (0.3 + 0.02)^2
+    0.1024
+    """
+
+    def __init__(self, name: str, final_spin: float, weight: Fraction,
+                 equations: Sequence[str], amplitude: str) -> None:
+        self.name = name  # "D1", "D2", "Q" or "closed-shell doublet"
+        self.final_spin = final_spin  # spin of the final states it reaches
+        self.weight = Fraction(weight)  # 1, 1/3, 2/3, or 2 for the closed shell
+        # (quantity name, formula text, parsed terms), in evaluation order
+        self.equations = [self._parse_equation(text) for text in equations]
+        self.amplitude_text = amplitude
+        self.amplitude = self._parse(amplitude)
+        self._check_names()
+
+    def __repr__(self) -> str:
+        return f"Channel({self.name!r}, final S = {self.final_spin:g}: {self.formula})"
+
+    @property
+    def formula(self) -> str:
+        """The intensity formula as text, e.g. ``"1/3 |Pi - Omega|^2"``."""
+        return self._weighted(self.amplitude_text)
+
+    @property
+    def overlaps(self) -> List[str]:
+        """Role pairs (``"ii"``, ``"ij"``, ...) the channel uses, in order of first appearance."""
+        all_terms = [terms for _, _, terms in self.equations] + [self.amplitude]
+        return list(dict.fromkeys(
+            factor[2:] for terms in all_terms for _, factors in terms for factor in factors if factor.startswith("S_")
+        ))
+
+    def evaluate(self, S: Overlap) -> ChannelResult:
+        """Evaluate the equations in order, then the amplitude and the intensity.
+
+        Parameters
+        ----------
+        S : callable
+            Overlap of a role pair, ``S("ik")`` = S_ik, e.g. a ``RoleOverlaps``
+            for one shake-down and one final calculation.
+
+        Returns
+        -------
+        ChannelResult
+            This channel, the value of each quantity, the amplitude, and the
+            intensity ``weight * amplitude^2``.
+        """
+        values: Dict[str, float] = {}
+        for name, _, terms in self.equations:
+            values[name] = self._evaluate_terms(terms, S, values)
+        amplitude = self._evaluate_terms(self.amplitude, S, values)
+        return ChannelResult(self, values, amplitude, float(self.weight) * amplitude ** 2)
+
+    def equation_lines(self, S: Overlap, result: ChannelResult) -> List[str]:
+        """Each equation written out with its overlaps and quantities substituted.
+
+        Parameters
+        ----------
+        S : callable
+            The overlaps ``result`` was evaluated with.
+        result : ChannelResult
+            The result of ``evaluate(S)``.
+
+        Returns
+        -------
+        list of str
+            One line per equation, e.g.
+            ``"  M1 = S_ii S_jj - S_ij S_ji = (1)(1) - (0.1263)(0.1267) = +0.98399"``.
+        """
+        return [f"  {name} = {text} = {self._substitute(terms, S, result.values)} = {result.values[name]:+.5f}"
+                for name, text, terms in self.equations]
+
+    def intensity_line(self, S: Overlap, result: ChannelResult) -> str:
+        """The intensity formula, expanded where possible, with values and result.
+
+        Parameters
+        ----------
+        S : callable
+            The overlaps ``result`` was evaluated with.
+        result : ChannelResult
+            The result of ``evaluate(S)``.
+
+        Returns
+        -------
+        str
+            e.g. ``"  D1: |Pi + Omega|^2 = |M1 M2 + M3 M4|^2 = |(+0.12305) + (-0.00017)|^2 = 0.015099"``.
+        """
+        formula = self.formula
+        expanded = self._expand()
+        if expanded != self.amplitude_text:
+            formula += f" = {self._weighted(expanded)}"
+        numbers = self._weighted(self._substitute(self.amplitude, S, result.values))
+        return f"  {self.name}: {formula} = {numbers} = {result.intensity:.6f}"
+
+    # --- formulas --------------------------------------------------------------
+
+    def _weighted(self, amplitude: str) -> str:
+        return (f"{self.weight} " if self.weight != 1 else "") + f"|{amplitude}|^2"
+
+    def _parse_equation(self, text: str) -> Tuple[str, str, List[Term]]:
+        """"M1 = S_ii S_jj - S_ij S_ji" -> ("M1", "S_ii S_jj - S_ij S_ji", terms)."""
+        name, separator, formula = (part.strip() for part in text.partition("="))
+        if not separator or not name.isidentifier() or name.startswith("S_"):
+            raise ValueError(f"Channel {self.name}: {text!r} is not an equation 'name = formula'.")
+        return name, formula, self._parse(formula)
+
+    def _parse(self, formula: str) -> List[Term]:
+        """'S_ii S_jj - S_ij S_ji' -> [(1, ('S_ii', 'S_jj')), (-1, ('S_ij', 'S_ji'))]."""
+        terms: List[Tuple[int, List[str]]] = []
+        sign, factors = 1, None
+        for token in formula.split():
+            if token in ("+", "-"):
+                sign, factors = (1 if token == "+" else -1), None
+                continue
+            if token.startswith("S_") and not (len(token) == 4 and set(token[2:]) <= set(_ROLES)):
+                raise ValueError(f"Channel {self.name}: {token!r} in {formula!r} is not an overlap S_ab of roles i, j, k.")
+            if not token.startswith("S_") and not token.isidentifier():
+                raise ValueError(f"Channel {self.name}: {token!r} in {formula!r} is not an overlap or a quantity name.")
             if factors is None:
                 factors = []
                 terms.append((sign, factors))
             factors.append(token)
-    return terms
+        if not terms:
+            raise ValueError(f"Channel {self.name}: empty formula.")
+        return [(sign, tuple(factors)) for sign, factors in terms]
+
+    def _check_names(self) -> None:
+        """Every quantity a formula uses is defined by an earlier equation."""
+        defined: List[str] = []
+        for name, text, terms in self.equations + [("amplitude", self.amplitude_text, self.amplitude)]:
+            undefined = sorted({f for _, factors in terms for f in factors
+                                if not f.startswith("S_") and f not in defined})
+            if undefined:
+                raise ValueError(
+                    f"Channel {self.name}: {name} = {text} uses {', '.join(undefined)}, "
+                    "not defined by an earlier equation."
+                )
+            defined.append(name)
+
+    @staticmethod
+    def _evaluate_terms(terms: List[Term], S: Overlap, values: Dict[str, float]) -> float:
+        return sum(
+            sign * prod(S(f[2:]) if f.startswith("S_") else values[f] for f in factors) for sign, factors in terms
+        )
+
+    @staticmethod
+    def _substitute(terms: List[Term], S: Overlap, values: Dict[str, float]) -> str:
+        """The formula with every factor replaced by its value: '(1)(1) - (0.1263)(0.1267)'."""
+        def number(factor: str) -> str:
+            if factor.startswith("S_"):
+                pair = factor[2:]
+                return "1" if pair[0] == pair[1] else f"{S(pair):.4f}"
+            return f"{values[factor]:+.5f}"
+
+        text = ""
+        for n, (sign, factors) in enumerate(terms):
+            if n or sign < 0:
+                text += (" + " if sign > 0 else " - ") if n else "-"
+            text += "".join(f"({number(f)})" for f in factors)
+        return text
+
+    def _expand(self) -> str:
+        """The amplitude with each quantity defined by a single product (Pi = M1 M2)
+        replaced by that product: "Pi + Omega" -> "M1 M2 + M3 M4"."""
+        products = {name: text for name, text, terms in self.equations if len(terms) == 1 and terms[0][0] == 1}
+        return " ".join(products.get(token, token) for token in self.amplitude_text.split())
 
 
-def _pairs(formula: str) -> List[str]:
-    """Role pairs of the S_ab factors in a formula."""
-    return [factor[2:] for _, factors in _terms(formula) for factor in factors if factor.startswith("S_")]
+# --- The channels ------------------------------------------------------------
 
+# The equations of each case, passed to its channels below. The 2x2 minors of the
+# valence block (notes eq. 20) are shared by the 5e cases.
+M1 = "M1 = S_ii S_jj - S_ij S_ji"
+M2 = "M2 = S_ij S_kk - S_ik S_kj"
+M3 = "M3 = S_ij S_jk - S_ik S_jj"
+M4 = "M4 = S_ii S_kj - S_ij S_ki"
+# Excited-state shake-down: direct (Pi) and exchange (Omega) pathway amplitudes.
+ES_3E = ("Pi = S_ii S_jk", "Omega = S_ik S_ji")  # notes eq. 30
+ES_5E = (M1, M2, M3, M4, "Pi = M1 M2", "Omega = M3 M4")  # notes eq. 21
+# Ground-state shake-down: the closed-shell amplitude A.
+GS_3E = ("A = S_ii S_ik",)  # i = HOMO; notes eq. 37
+GS_5E = (M1, M3, "A = M1 M3")  # i = HOMO-n, j = HOMO; notes eq. 34
 
-def _value(factor: str, S: Overlap, values: Dict[str, float]) -> float:
-    return S(factor[2:]) if factor.startswith("S_") else values[factor]
-
-
-def _evaluate(formula: str, S: Overlap, values: Dict[str, float]) -> float:
-    return sum(sign * prod(_value(f, S, values) for f in factors) for sign, factors in _terms(formula))
-
-
-def _substitute(formula: str, S: Overlap, values: Dict[str, float]) -> str:
-    """The formula with every factor replaced by its value: '(1)(1) - (0.1263)(0.1267)'."""
-    def number(factor: str) -> str:
-        if factor.startswith("S_"):
-            pair = factor[2:]
-            return "1" if pair[0] == pair[1] else f"{S(pair):.4f}"
-        return f"{values[factor]:+.5f}"
-
-    text = ""
-    for n, (sign, factors) in enumerate(_terms(formula)):
-        if n or sign < 0:
-            text += (" + " if sign > 0 else " - ") if n else "-"
-        text += "".join(f"({number(f)})" for f in factors)
-    return text
-
-
-def _expand(formula: str, definitions: Dict[str, str]) -> str:
-    """Replace names defined by a single product (Pi = M1 M2) by that product."""
-    return " ".join(
-        definitions[token] if token in definitions and len(_terms(definitions[token])) == 1 else token
-        for token in formula.split()
-    )
-
-
-# --- Rules -------------------------------------------------------------------
-
-
-class ChannelRule(NamedTuple):
-    name: str  # "closed-shell doublet", "D1", "D2" or "Q"
-    weight: str  # "", "2", "1/3", "2/3"
-    amplitude: str  # formula inside |...|^2
-
-    def formula(self, amplitude: Optional[str] = None) -> str:
-        return (f"{self.weight} " if self.weight else "") + f"|{amplitude or self.amplitude}|^2"
-
-
-class Rule(NamedTuple):
-    """Named quantities, evaluated in order, and the bright channels per initial spin."""
-
-    case: str
-    definitions: Tuple[Tuple[str, str], ...]  # (name, formula)
-    channels: Dict[float, Tuple[ChannelRule, ...]]  # initial spin -> channels (empty: dark)
-
-    @property
-    def overlaps(self) -> List[str]:
-        """Role pairs used, in order of first appearance (diagonals included)."""
-        formulas = [formula for _, formula in self.definitions]
-        formulas += [c.amplitude for channels in self.channels.values() for c in channels]
-        return list(dict.fromkeys(pair for formula in formulas for pair in _pairs(formula)))
-
-    def evaluate(self, S: Overlap) -> Dict[str, float]:
-        values: Dict[str, float] = {}
-        for name, formula in self.definitions:
-            values[name] = _evaluate(formula, S, values)
-        return values
-
-
-_M = {
-    "M1": "S_ii S_jj - S_ij S_ji",
-    "M2": "S_ij S_kk - S_ik S_kj",
-    "M3": "S_ij S_jk - S_ik S_jj",
-    "M4": "S_ii S_kj - S_ij S_ki",
-}
-_ES_CHANNELS = {
-    0.0: (ChannelRule("D1", "", "Pi + Omega"),),
-    1.0: (ChannelRule("D2", "1/3", "Pi - Omega"), ChannelRule("Q", "2/3", "Pi - Omega")),
-}
-
-RULES: Dict[str, Rule] = {
-    "3e GS": Rule("3e GS", (), {0.0: (ChannelRule("closed-shell doublet", "2", "S_ii S_ik"),), 1.0: ()}),
-    "5e GS": Rule("5e GS", (("M1", _M["M1"]), ("M3", _M["M3"])),
-                  {0.0: (ChannelRule("closed-shell doublet", "2", "M1 M3"),), 1.0: ()}),
-    "3e ES": Rule("3e ES", (("Pi", "S_ii S_jk"), ("Omega", "S_ik S_ji")), _ES_CHANNELS),
-    "5e ES": Rule("5e ES", tuple(_M.items()) + (("Pi", "M1 M2"), ("Omega", "M3 M4")), _ES_CHANNELS),
+# Bright channels by (shake-down case, initial spin); an empty tuple means dark
+# (notes Secs. 5-7). Channel(name, final spin, weight, equations, amplitude).
+CHANNELS: Dict[Tuple[str, float], Tuple[Channel, ...]] = {
+    ("3e ES", 0): (Channel("D1", 1/2, Fraction(1), ES_3E, "Pi + Omega"),),
+    ("3e ES", 1): (Channel("D2", 1/2, Fraction(1, 3), ES_3E, "Pi - Omega"),
+                   Channel("Q", 3/2, Fraction(2, 3), ES_3E, "Pi - Omega")),
+    ("5e ES", 0): (Channel("D1", 1/2, Fraction(1), ES_5E, "Pi + Omega"),),
+    ("5e ES", 1): (Channel("D2", 1/2, Fraction(1, 3), ES_5E, "Pi - Omega"),
+                   Channel("Q", 3/2, Fraction(2, 3), ES_5E, "Pi - Omega")),
+    ("3e GS", 0): (Channel("closed-shell doublet", 1/2, Fraction(2), GS_3E, "A"),),
+    ("3e GS", 1): (),
+    ("5e GS", 0): (Channel("closed-shell doublet", 1/2, Fraction(2), GS_5E, "A"),),
+    ("5e GS", 1): (),
 }
 
 
 # --- Evaluation on a shake-down ---------------------------------------------
 
 
-class Channel(NamedTuple):
-    name: str  # "closed-shell doublet", "D1", "D2" or "Q"
-    formula: str  # e.g. "|Pi + Omega|^2"
-    intensity: float
-
-
 class PropensityResult(NamedTuple):
     shake_down: ShakeDown
     initial_spin: Optional[float]
     roles: Dict[str, str]  # role -> initial orbital ID
-    overlaps: Dict[str, float]  # role pair -> S used (diagonals = 1)
+    overlaps: Dict[str, float]  # role pair -> S used by the evaluated channels (diagonals = 1)
     diagonals: Dict[str, float]  # role pair ("ii", ...) -> actual |S|
-    amplitudes: Dict[str, float]  # named quantities of the rule: M1.., Pi, Omega
-    channels: List[Channel]  # non-zero channels for this initial spin
+    channels: List[ChannelResult]  # evaluated channels
     note: Optional[str] = None  # why no channel is bright
+
+    @property
+    def values(self) -> Dict[str, float]:
+        """The quantities (M1.., Pi, Omega) of the evaluated channels."""
+        return {name: value for result in self.channels for name, value in result.values.items()}
 
 
 class RoleOverlaps:
@@ -205,42 +351,39 @@ def _initial_spin(shake_down: ShakeDown, initial: Calculation) -> Optional[float
     return next(s.spin for s in initial.states if s.state_id == shake_down.initial_state)
 
 
-def channel_rules(shake_down: ShakeDown, initial: Calculation) -> Tuple[Tuple[ChannelRule, ...], Optional[str]]:
-    """The bright channels of a computable shake-down for its initial spin, or a note why there are none."""
-    rule = RULES[shake_down.case]
+def bright_channels(shake_down: ShakeDown, initial: Calculation) -> Tuple[Tuple[Channel, ...], Optional[str]]:
+    """The channels of a computable shake-down for its initial spin, or a note why there are none."""
     spin = _initial_spin(shake_down, initial)
-    if spin not in rule.channels:
+    key = (shake_down.case, spin)
+    if key not in CHANNELS:
         return (), f"no rule for initial spin S = {spin}"
-    if not rule.channels[spin]:
+    if not CHANNELS[key]:
         return (), "dark: a triplet has no ground-state shake-down channel"
-    return rule.channels[spin], None
+    return CHANNELS[key], None
 
 
 def compute_propensity(
     shake_down: ShakeDown, initial: Calculation, mapping: OrbitalMapping, final_spin: Optional[float] = None
 ) -> PropensityResult:
-    """Evaluate the rule of a computable shake-down and its non-zero channels.
+    """Evaluate the bright channels of a computable shake-down.
 
     With ``final_spin`` only the channels to final states of that spin are
     evaluated: ``mapping`` then belongs to the final calculation of that spin.
     """
-    rule = RULES[shake_down.case]
     roles = _roles(shake_down)
     S = RoleOverlaps(roles, mapping)
-    spin = _initial_spin(shake_down, initial)
-    diagonals = {role * 2: S.actual(role * 2) for role in roles}
-    overlaps = {pair: S(pair) for pair in rule.overlaps}
-    values = rule.evaluate(S)
-
-    channels: List[Channel] = []
-    bright, note = channel_rules(shake_down, initial)
-    for channel in bright:
-        if final_spin is not None and CHANNEL_SPIN[channel.name] != final_spin:
-            continue
-        weight = Fraction(channel.weight) if channel.weight else 1
-        amplitude = _evaluate(channel.amplitude, S, values)
-        channels.append(Channel(channel.name, channel.formula(), float(weight) * amplitude ** 2))
-    return PropensityResult(shake_down, spin, roles, overlaps, diagonals, values, channels, note)
+    channels, note = bright_channels(shake_down, initial)
+    selected = [c for c in channels if final_spin is None or c.final_spin == final_spin]
+    pairs = dict.fromkeys(pair for channel in selected for pair in channel.overlaps)
+    return PropensityResult(
+        shake_down,
+        _initial_spin(shake_down, initial),
+        roles,
+        {pair: S(pair) for pair in pairs},
+        {role * 2: S.actual(role * 2) for role in roles},
+        [channel.evaluate(S) for channel in selected],
+        note,
+    )
 
 
 def evaluate_final(
@@ -250,27 +393,11 @@ def evaluate_final(
     return [
         compute_propensity(sd, initial, final.mapping, final.spin)
         for sd in shake_downs
-        if sd.computable and any(CHANNEL_SPIN[c.name] == final.spin for c in channel_rules(sd, initial)[0])
+        if sd.computable and any(c.final_spin == final.spin for c in bright_channels(sd, initial)[0])
     ]
 
 
-def rule_lines(result: PropensityResult, mapping: OrbitalMapping) -> List[str]:
-    """The rule of one shake-down written out in full, with the overlaps substituted."""
-    rule = RULES[result.shake_down.case]
-    S = RoleOverlaps(result.roles, mapping)
-    definitions = dict(rule.definitions)
-    lines = [f"  {name} = {formula} = {_substitute(formula, S, result.amplitudes)} = {result.amplitudes[name]:+.5f}"
-             for name, formula in rule.definitions]
-    by_name = {channel_rule.name: channel_rule for channel_rule in rule.channels.get(result.initial_spin, ())}
-    for channel in result.channels:
-        channel_rule = by_name[channel.name]
-        expanded = _expand(channel_rule.amplitude, definitions)
-        formula = channel_rule.formula()
-        if expanded != channel_rule.amplitude:
-            formula += f" = {channel_rule.formula(expanded)}"
-        numbers = channel_rule.formula(_substitute(channel_rule.amplitude, S, result.amplitudes))
-        lines.append(f"  {channel.name}: {formula} = {numbers} = {channel.intensity:.6f}")
-    return lines
+# --- Report ------------------------------------------------------------------
 
 
 def _number(state_id: str) -> str:
@@ -278,7 +405,7 @@ def _number(state_id: str) -> str:
 
 
 def _result_lines(result: PropensityResult, mapping: OrbitalMapping) -> List[str]:
-    """One shake-down: roles, overlaps by orbital, diagonal checks, the rule in full."""
+    """One shake-down: roles, overlaps by orbital, diagonal checks, each channel's rule in full."""
     sd = result.shake_down
     S = RoleOverlaps(result.roles, mapping)
     roles = "   ".join(
@@ -295,7 +422,11 @@ def _result_lines(result: PropensityResult, mapping: OrbitalMapping) -> List[str
     for pair, value in result.diagonals.items():
         flag = f"   below {DIAGONAL_WARNING}: weak-relaxation approximation poor" if value < DIAGONAL_WARNING else ""
         lines.append(f"  S_{pair} = |{S.describe(pair)}| = {value:.4f} (set to 1){flag}")
-    return lines + rule_lines(result, mapping)
+    # Channels evaluated together share their equations: print each quantity once.
+    for channel_result in result.channels:
+        lines += [line for line in channel_result.channel.equation_lines(S, channel_result) if line not in lines]
+    lines += [r.channel.intensity_line(S, r) for r in result.channels]
+    return lines
 
 
 def propensity_report(
@@ -331,16 +462,15 @@ def propensity_report(
         if not sd.computable:
             continue
         pair = f"{_number(sd.initial_state)} -> {_number(sd.lower_state)}"
-        bright, note = channel_rules(sd, initial)
-        if not bright:
+        channels, note = bright_channels(sd, initial)
+        if not channels:
             lines.append(f"{pair:>8}  {sd.case:<6}  {'-':<8}  {'-':<21}  {'-':>10}   {note}")
-        for channel_rule in bright:
-            spin = CHANNEL_SPIN[channel_rule.name]
-            final = finals_by_spin.get(spin)
+        for channel in channels:
+            final = finals_by_spin.get(channel.final_spin)
             if final is None:
-                lines.append(f"{pair:>8}  {sd.case:<6}  {'-':<8}  {channel_rule.name:<21}  {'-':>10}"
-                             f"   no S = {spin:g} final calculation")
+                lines.append(f"{pair:>8}  {sd.case:<6}  {'-':<8}  {channel.name:<21}  {'-':>10}"
+                             f"   no S = {channel.final_spin:g} final calculation")
                 continue
-            channel = next(c for c in results_by_final[final.label][sd].channels if c.name == channel_rule.name)
-            lines.append(f"{pair:>8}  {sd.case:<6}  {final.label:<8}  {channel.name:<21}  {channel.intensity:10.6f}")
+            result = next(r for r in results_by_final[final.label][sd].channels if r.channel is channel)
+            lines.append(f"{pair:>8}  {sd.case:<6}  {final.label:<8}  {channel.name:<21}  {result.intensity:10.6f}")
     return lines
