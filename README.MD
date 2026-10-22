@@ -66,7 +66,14 @@ virtual by the ground state's configuration and ordered by their populations
 core and not ranked. `homo`/`lumo` override that
 HOMO and LUMO; they must be two different active orbitals, and choosing the
 right ones is up to the user. The final-state HOMO/LUMO are the orbitals they
-map onto. Run with:
+map onto.
+
+`Final` can also be a list of blocks, one per final-state spin, e.g. the
+doublet and the quartet core-hole states of triplet initial states (see
+`inputs/input_triplet.yaml`). Each propensity channel is evaluated with the
+final calculation of its spin (D1, D2 and the closed-shell doublet with
+S = 1/2, Q with S = 3/2), and one summary combines them. Every final
+calculation must share the initial active space. Run with:
 
 ```bash
 python src/xpsoverlaps/main.py -i inputs/input.yaml -o output.log
@@ -108,9 +115,9 @@ src/xpsoverlaps/
 ├── composition.py       # AO composition of MOs (Mulliken partition)
 ├── mapping.py           # initial -> final active-orbital mapping
 ├── frontier.py          # HOMO/LUMO from the input, carried to the final state by the mapping
-├── shakedown.py         # shake-down transitions between initial states and their i, j, k roles
-├── rules.py             # propensity rules (3e GS, 3e ES, 5e ES) and their spin channels
-├── propensity.py        # propensity workflows (overlaps, chp)
+├── shakedown_transitions.py  # shake-down transitions between initial states and their i, j, k roles
+├── propensity_rules.py  # propensity rules: the Channel table (3e/5e, GS/ES) and its evaluation
+├── methods.py           # the propensity methods of the input (overlaps, chp): run all steps
 ├── overlap/             # AO overlap providers and MO overlaps
 │   ├── base.py          #   AOOverlapProvider interface
 │   ├── gaussian.py      #   integrals for GaussianBasis

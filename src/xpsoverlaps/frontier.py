@@ -24,9 +24,9 @@ apart. The final-state HOMO/LUMO follow from the active-orbital mapping.
 
 from __future__ import annotations
 
-from typing import Dict, List, NamedTuple, Optional, Tuple
+from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple
 
-from xpsoverlaps.mapping import OrbitalMapping
+from xpsoverlaps.mapping import MappedFinal, OrbitalMapping
 from xpsoverlaps.model import Calculation
 
 # ActiveSpace partition labels: RAS1 holds core orbitals, RAS2 the valence ones.
@@ -263,13 +263,11 @@ def _energy_order_differs(order: OrbitalOrder, energy: Dict[str, float]) -> List
     return [o for o, e in zip(order.occupied + order.virtual, by_energy) if o != e]
 
 
-def orbital_order_report(
-    order: OrbitalOrder, initial: Calculation, final: Calculation, mapping: OrbitalMapping
-) -> List[str]:
+def orbital_order_report(order: OrbitalOrder, initial: Calculation, finals: Sequence[MappedFinal]) -> List[str]:
     """The active orbitals from the highest virtual down: population and energy of each
-    initial orbital and of the final orbital it maps onto ("-" where a calculation has none)."""
+    initial orbital, then for each final calculation the orbital it maps onto ("-"
+    where a calculation has no populations)."""
     initial_population, initial_energy = _populations(initial)
-    final_population, final_energy = _populations(final)
     flagged = set(_energy_order_differs(order, initial_energy)) if initial_energy else set()
 
     reference = order.reference
@@ -290,8 +288,8 @@ def orbital_order_report(
         "",
         *source,
         "population (lowest occupied = HOMO, highest virtual = LUMO). RAS1 orbitals are core and not ranked.",
-        "Final orbitals are those the initial ones map onto. Populations are state-averaged over each",
-        "calculation's roots; energies are the stored diagonal Fock elements.",
+        "Final orbitals are those the initial ones map onto, in each final calculation. Populations are",
+        "state-averaged over each calculation's roots; energies are the stored diagonal Fock elements.",
     ]
     if order.override is None:
         lines.append("HOMO/LUMO from the populations (not given in the input).")
@@ -303,21 +301,25 @@ def orbital_order_report(
     above = [o for o, label in order.unranked if label != "core"]  # RAS3
     core = [o for o, label in order.unranked if label == "core"]
     rows = above + list(reversed(order.virtual)) + list(order.occupied) + core
-    lines += [
-        "",
-        f"{'':<8}  {'Initial':<32}  Final",
-        f"{'Label':<8}  {'MO':<8}  {'Population':>10}  {'Energy':>10}  {'MO':<8}  {'Population':>10}  {'Energy':>10}",
-    ]
+    lines += ["", "Initial", f"{'Label':<8}  {'MO':<8}  {'Population':>10}  {'Energy':>10}"]
     for orbital_id in rows:
-        final_id = mapping.final_id(orbital_id)
         lines.append(
             f"{order.label(orbital_id):<8}  {orbital_id:<8}  "
-            f"{_number(initial_population, orbital_id)}  {_number(initial_energy, orbital_id)}  {final_id:<8}  "
-            f"{_number(final_population, final_id)}  {_number(final_energy, final_id)}"
+            f"{_number(initial_population, orbital_id)}  {_number(initial_energy, orbital_id)}"
             + ("  *" if orbital_id in flagged else "")
         )
     if flagged:
         lines += ["", "*: the initial energy order differs from the population order here."]
+
+    for final in finals:
+        final_population, final_energy = _populations(final.calculation)
+        lines += ["", final.title, f"{'Label':<8}  {'Initial':<8}  {'Final':<8}  {'Population':>10}  {'Energy':>10}"]
+        for orbital_id in rows:
+            final_id = final.mapping.final_id(orbital_id)
+            lines.append(
+                f"{order.label(orbital_id):<8}  {orbital_id:<8}  {final_id:<8}  "
+                f"{_number(final_population, final_id)}  {_number(final_energy, final_id)}"
+            )
     return lines
 
 

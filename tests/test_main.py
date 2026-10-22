@@ -7,7 +7,7 @@ import pytest
 import yaml
 
 from xpsoverlaps import main as main_module
-from xpsoverlaps import propensity
+from xpsoverlaps import methods
 
 ROOT = Path(__file__).parents[1]
 PACKAGE_DIR = ROOT / "src" / "xpsoverlaps"
@@ -17,14 +17,14 @@ INPUT = ROOT / "inputs" / "input.yaml"
 def _record_calls(monkeypatch):
     calls = {}
     monkeypatch.setattr(
-        propensity,
+        methods,
         "propensity_overlaps",
-        lambda initial, final, frontier=None, max_state=None: calls.update(
-            overlaps=(initial, final, frontier)
+        lambda initial, finals, frontier=None, max_state=None: calls.update(
+            overlaps=(initial, finals, frontier)
         ),
     )
     monkeypatch.setattr(
-        propensity, "propensity_chp", lambda initial, frontier=None: calls.update(chp=(initial, frontier))
+        methods, "propensity_chp", lambda initial, frontier=None: calls.update(chp=(initial, frontier))
     )
     return calls
 
@@ -60,9 +60,9 @@ def test_main_overlaps_loads_initial_and_final_calculations(monkeypatch, tmp_pat
     assert main_module.main(["-i", str(INPUT), "-o", str(tmp_path / "run.out")]) == 0
 
     assert set(calls) == {"overlaps"}
-    initial, final, frontier = calls["overlaps"]
+    initial, finals, frontier = calls["overlaps"]
     assert len(initial.states) == 10
-    assert len(final.states) == 40
+    assert [len(final.states) for final in finals] == [40]
     assert (frontier.homo, frontier.lumo) == ("mo:34", "mo:40")
 
 
@@ -95,20 +95,21 @@ def test_output_file_dumps_input_and_summarizes_states(tmp_path):
     assert "caspt2:" not in text
     assert "Dominant CI vectors on the initial active-orbital order" in text
     assert "22u22222du00     22ud22222u00" in text
-    assert "HOMO      mo:34         1.5967     -0.2721  mo:39" in text
+    assert "HOMO      mo:34         1.5967     -0.2721\n" in text
+    assert "HOMO      mo:34     mo:39         1.4850     -0.4661\n" in text
     assert "HOMO mo:34 set by the input (agrees with the populations)." in text
     assert "Shake-down transitions between initial states" in text
     assert "states considered: 1..4 (max_state = 4)" in text
     assert "5 transitions: 5 computable, 0 not computable." in text
     assert "Propensity rules" in text
-    assert "  3 -> 2  5e ES   D1                       0.015099" in text
+    assert "  3 -> 2  5e ES   Final     D1                       0.015099" in text
 
 
 def test_uncaught_exception_is_logged_with_traceback(monkeypatch, tmp_path):
     def failing_overlaps(initial, final, frontier=None, max_state=None):
         raise RuntimeError("orbital mapping failed")
 
-    monkeypatch.setattr(propensity, "propensity_overlaps", failing_overlaps)
+    monkeypatch.setattr(methods, "propensity_overlaps", failing_overlaps)
     output = tmp_path / "run.out"
 
     with pytest.raises(RuntimeError):
@@ -128,16 +129,16 @@ def test_output_defaults_to_input_name_with_out_suffix(monkeypatch, tmp_path):
     assert (tmp_path / "chp.out").is_file()
 
 
-def test_propensity_module_logs_to_output_file(monkeypatch, tmp_path):
+def test_methods_module_logs_to_output_file(monkeypatch, tmp_path):
     def fake_overlaps(initial, final, frontier=None, max_state=None):
-        propensity.logger.info("message from propensity module")
+        methods.logger.info("message from methods module")
 
-    monkeypatch.setattr(propensity, "propensity_overlaps", fake_overlaps)
+    monkeypatch.setattr(methods, "propensity_overlaps", fake_overlaps)
     output = tmp_path / "run.out"
 
     main_module.main(["-i", str(INPUT), "-o", str(output)])
 
-    assert "message from propensity module" in output.read_text(encoding="utf-8")
+    assert "message from methods module" in output.read_text(encoding="utf-8")
     assert not any(
         isinstance(handler, logging.FileHandler)
         for handler in logging.getLogger("xpsoverlaps").handlers
@@ -146,10 +147,10 @@ def test_propensity_module_logs_to_output_file(monkeypatch, tmp_path):
 
 def test_warnings_go_to_the_terminal_as_well_as_the_output_file(monkeypatch, tmp_path, capsys):
     def warning_overlaps(initial, final, frontier=None, max_state=None):
-        propensity.logger.info("info only in the file")
-        propensity.logger.warning("* WARNING: AMBIGUOUS REFERENCE DETERMINANT")
+        methods.logger.info("info only in the file")
+        methods.logger.warning("* WARNING: AMBIGUOUS REFERENCE DETERMINANT")
 
-    monkeypatch.setattr(propensity, "propensity_overlaps", warning_overlaps)
+    monkeypatch.setattr(methods, "propensity_overlaps", warning_overlaps)
     output = tmp_path / "run.out"
 
     main_module.main(["-i", str(INPUT), "-o", str(output)])
@@ -201,7 +202,7 @@ def test_main_orders_orbitals_by_population_without_homo_lumo(tmp_path):
 
     text = (tmp_path / "run.out").read_text(encoding="utf-8")
     assert "HOMO/LUMO from the populations (not given in the input)." in text
-    assert "  3 -> 2  5e ES   D1                       0.015099" in text
+    assert "  3 -> 2  5e ES   Final     D1                       0.015099" in text
 
 
 def test_main_rejects_invalid_homo_lumo_before_running(monkeypatch, tmp_path):

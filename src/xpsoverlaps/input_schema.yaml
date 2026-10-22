@@ -58,13 +58,23 @@ properties:
     unevaluatedProperties: false
 
   Final:
-    $ref: '#/$defs/calculation'
-    description: Final (N-1)-electron ionized calculation.
-    unevaluatedProperties: false
+    description: >-
+      Final (N-1)-electron ionized calculations: one block, or a list of
+      blocks whose states have different spins (e.g. the doublet and the
+      quartet core-hole states). Each propensity channel uses the final
+      calculation of its spin. A single block is wrapped in a list before
+      validation (xpsoverlaps/inputs.py).
+    type: array
+    minItems: 1
+    items: {$ref: '#/$defs/final_calculation'}
 
 $defs:
   # Shared keys of Initial and Final. Unknown keys are rejected by
   # unevaluatedProperties in each block, so Initial can add its own keys.
+  final_calculation:
+    $ref: '#/$defs/calculation'
+    unevaluatedProperties: false
+
   calculation:
     type: object
     required: [type, wf_file]
@@ -116,7 +126,7 @@ allOf:
     then:
       properties:
         Initial: {required: [state_file]}
-        Final: {required: [state_file]}
+        Final: {items: {required: [state_file]}}
 
   # Molcas CASPT2 HDF5 files keep the RASSCF orbitals but not their energies
   # and populations: each calculation reads them from its RASSCF file.
@@ -135,19 +145,22 @@ allOf:
       properties:
         Initial: {required: [mcscf_file]}
   - if:
-      required: [Calculator, Final]
+      required: [Calculator]
       properties:
         Calculator:
           required: [program]
           properties:
             program: {enum: [molcas]}
-        Final:
-          required: [type]
-          properties:
-            type: {const: caspt2}
     then:
       properties:
-        Final: {required: [mcscf_file]}
+        Final:
+          items:
+            if:
+              required: [type]
+              properties:
+                type: {const: caspt2}
+            then:
+              required: [mcscf_file]
 
   # Programs that write everything to wf_file reject state_file, so it is not
   # silently ignored. Add such a program to this enum (and to
@@ -162,4 +175,4 @@ allOf:
   #   then:
   #     properties:
   #       Initial: {not: {required: [state_file]}}
-  #       Final: {not: {required: [state_file]}}
+  #       Final: {items: {not: {required: [state_file]}}}

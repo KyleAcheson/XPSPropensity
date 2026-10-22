@@ -12,6 +12,7 @@ logging; ``mapping_report(mapping)`` turns the result into text lines.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List, Literal, Mapping, NamedTuple, Optional, Sequence
 
 import numpy as np
@@ -296,6 +297,20 @@ def map_active_orbitals(
         orbital_compositions(final, provider=provider),
         options,
     )
+
+
+class MappedFinal(NamedTuple):
+    """One final calculation, its spin, and the mapping of the initial active orbitals onto it."""
+
+    label: str  # "Final" for a single final calculation, else "Final 1", "Final 2", ...
+    calculation: Calculation
+    mapping: OrbitalMapping
+    spin: float  # the S shared by all its states
+
+    @property
+    def title(self) -> str:
+        """e.g. "Final 1: S = 0.5 (core-doub.caspt2.h5)"."""
+        return f"{self.label}: S = {self.spin:g} ({Path(self.calculation.provenance.source_files[0]).name})"
 
 
 def mapping_report(mapping: OrbitalMapping) -> List[str]:

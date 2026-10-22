@@ -1,0 +1,25 @@
+# Triplet initial states with separate doublet and quartet final calculations.
+# Final takes a list of blocks; each propensity channel uses the final
+# calculation of its spin (D2 from the doublets, Q from the quartets). The
+# triplet file has no closed-shell ground state, so the reference determinant
+# is built from the orbital populations (see input.yaml for the other keys).
+Calculator:
+  program: 'molcas'
+  method: 'overlaps'
+
+Initial:
+  type: 'caspt2'
+  wf_file: '../data/molcas/brthph/s2p/mb/triplet/valence-trip.caspt2.h5'
+  state_file: '../data/molcas/brthph/s2p/mb/triplet/valence-trip.log'
+  mcscf_file: '../data/molcas/brthph/s2p/mb/triplet/valence-trip-tz.rasscf.h5'
+  max_state: 4
+
+Final:
+  - type: 'caspt2' # core-ionised doublets (S = 1/2)
+    wf_file: '../data/molcas/brthph/s2p/mb/triplet/core-doub.caspt2.h5'
+    state_file: '../data/molcas/brthph/s2p/mb/triplet/core-doub.log'
+    mcscf_file: '../data/molcas/brthph/s2p/mb/triplet/core-doub-tz.rasscf.h5'
+  - type: 'caspt2' # core-ionised quartets (S = 3/2)
+    wf_file: '../data/molcas/brthph/s2p/mb/triplet/core-quart.caspt2.h5'
+    state_file: '../data/molcas/brthph/s2p/mb/triplet/core-quart.log'
+    mcscf_file: '../data/molcas/brthph/s2p/mb/triplet/core-qaurt-tz.rasscf.h5'
