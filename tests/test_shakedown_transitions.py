@@ -5,8 +5,8 @@ import pytest
 
 from xpsoverlaps.frontier import FrontierOrbitals, OrbitalOrderError, orbital_order
 from xpsoverlaps.readers import get_calculation
-from xpsoverlaps import shakedown
-from xpsoverlaps.shakedown import (
+from xpsoverlaps import shakedown_transitions
+from xpsoverlaps.shakedown_transitions import (
     Excitation,
     ShakeDownError,
     check_max_state,
@@ -165,7 +165,7 @@ def test_input_override_changes_which_pairs_move_down(initial):
 
 def test_shake_down_on_a_core_orbital_has_no_rule(order):
     # A pump from the RAS1 (core) orbital mo:31 into mo:40, falling back.
-    sd = shakedown._classify("a", "b", ("mo:40", "mo:31"), Excitation(("mo:31",), ("mo:40",)),
+    sd = shakedown_transitions._classify("a", "b", ("mo:40", "mo:31"), Excitation(("mo:31",), ("mo:40",)),
                              Excitation((), ()), True, order)
 
     assert sd.case is None and sd.reason == "i = mo:31 is a core orbital: no rule"

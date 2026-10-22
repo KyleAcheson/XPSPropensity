@@ -8,7 +8,7 @@ import pytest
 from xpsoverlaps.frontier import orbital_order
 from xpsoverlaps.mapping import MappedFinal, map_active_orbitals
 from xpsoverlaps.readers import get_calculation
-from xpsoverlaps.rules import (
+from xpsoverlaps.propensity_rules import (
     CHANNELS,
     Channel,
     RoleOverlaps,
@@ -16,7 +16,7 @@ from xpsoverlaps.rules import (
     evaluate_final,
     propensity_report,
 )
-from xpsoverlaps.shakedown import find_shake_downs, reference_determinant
+from xpsoverlaps.shakedown_transitions import find_shake_downs, reference_determinant
 
 
 DATA = Path(__file__).parents[1] / "data" / "molcas" / "brthph" / "s2p" / "mb"

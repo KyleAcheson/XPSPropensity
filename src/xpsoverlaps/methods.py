@@ -24,8 +24,14 @@ from xpsoverlaps.frontier import (
 )
 from xpsoverlaps.mapping import MappedFinal, map_active_orbitals, mapped_ci_report, mapping_report
 from xpsoverlaps.model import Calculation
-from xpsoverlaps.rules import evaluate_final, propensity_report
-from xpsoverlaps.shakedown import ShakeDown, ShakeDownError, find_shake_downs, reference_determinant, shake_down_report
+from xpsoverlaps.propensity_rules import evaluate_final, propensity_report
+from xpsoverlaps.shakedown_transitions import (
+    ShakeDown,
+    ShakeDownError,
+    find_shake_downs,
+    reference_determinant,
+    shake_down_report,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -16,7 +16,7 @@ from xpsoverlaps.frontier import (
 )
 from xpsoverlaps.mapping import MappedFinal, map_active_orbitals
 from xpsoverlaps.readers import get_calculation
-from xpsoverlaps.shakedown import reference_determinant
+from xpsoverlaps.shakedown_transitions import reference_determinant
 
 
 DATA = Path(__file__).parents[1] / "data" / "molcas" / "brthph" / "s2p" / "mb"
@@ -214,7 +214,7 @@ def test_input_homo_lumo_pin_an_ambiguous_population_reference(initial):
 
 
 def test_ambiguous_reference_warning_is_logged_before_the_order(initial, final, caplog):
-    from xpsoverlaps.propensity import propensity_overlaps
+    from xpsoverlaps.methods import propensity_overlaps
 
     with caplog.at_level(logging.INFO, logger="xpsoverlaps"):
         propensity_overlaps(_excited_only(initial, swap_frontier_populations=True), final, max_state=3)

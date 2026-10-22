@@ -5,7 +5,7 @@ import pytest
 import yaml
 
 from xpsoverlaps import main as main_module
-from xpsoverlaps.propensity import FinalCalculationError, final_spins, propensity_overlaps
+from xpsoverlaps.methods import FinalCalculationError, final_spins, propensity_overlaps
 from xpsoverlaps.readers import get_calculation
 
 

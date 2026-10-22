@@ -7,7 +7,7 @@ import pytest
 import yaml
 
 from xpsoverlaps import main as main_module
-from xpsoverlaps import propensity
+from xpsoverlaps import methods
 
 ROOT = Path(__file__).parents[1]
 PACKAGE_DIR = ROOT / "src" / "xpsoverlaps"
@@ -17,14 +17,14 @@ INPUT = ROOT / "inputs" / "input.yaml"
 def _record_calls(monkeypatch):
     calls = {}
     monkeypatch.setattr(
-        propensity,
+        methods,
         "propensity_overlaps",
         lambda initial, finals, frontier=None, max_state=None: calls.update(
             overlaps=(initial, finals, frontier)
         ),
     )
     monkeypatch.setattr(
-        propensity, "propensity_chp", lambda initial, frontier=None: calls.update(chp=(initial, frontier))
+        methods, "propensity_chp", lambda initial, frontier=None: calls.update(chp=(initial, frontier))
     )
     return calls
 
@@ -109,7 +109,7 @@ def test_uncaught_exception_is_logged_with_traceback(monkeypatch, tmp_path):
     def failing_overlaps(initial, final, frontier=None, max_state=None):
         raise RuntimeError("orbital mapping failed")
 
-    monkeypatch.setattr(propensity, "propensity_overlaps", failing_overlaps)
+    monkeypatch.setattr(methods, "propensity_overlaps", failing_overlaps)
     output = tmp_path / "run.out"
 
     with pytest.raises(RuntimeError):
@@ -129,16 +129,16 @@ def test_output_defaults_to_input_name_with_out_suffix(monkeypatch, tmp_path):
     assert (tmp_path / "chp.out").is_file()
 
 
-def test_propensity_module_logs_to_output_file(monkeypatch, tmp_path):
+def test_methods_module_logs_to_output_file(monkeypatch, tmp_path):
     def fake_overlaps(initial, final, frontier=None, max_state=None):
-        propensity.logger.info("message from propensity module")
+        methods.logger.info("message from methods module")
 
-    monkeypatch.setattr(propensity, "propensity_overlaps", fake_overlaps)
+    monkeypatch.setattr(methods, "propensity_overlaps", fake_overlaps)
     output = tmp_path / "run.out"
 
     main_module.main(["-i", str(INPUT), "-o", str(output)])
 
-    assert "message from propensity module" in output.read_text(encoding="utf-8")
+    assert "message from methods module" in output.read_text(encoding="utf-8")
     assert not any(
         isinstance(handler, logging.FileHandler)
         for handler in logging.getLogger("xpsoverlaps").handlers
@@ -147,10 +147,10 @@ def test_propensity_module_logs_to_output_file(monkeypatch, tmp_path):
 
 def test_warnings_go_to_the_terminal_as_well_as_the_output_file(monkeypatch, tmp_path, capsys):
     def warning_overlaps(initial, final, frontier=None, max_state=None):
-        propensity.logger.info("info only in the file")
-        propensity.logger.warning("* WARNING: AMBIGUOUS REFERENCE DETERMINANT")
+        methods.logger.info("info only in the file")
+        methods.logger.warning("* WARNING: AMBIGUOUS REFERENCE DETERMINANT")
 
-    monkeypatch.setattr(propensity, "propensity_overlaps", warning_overlaps)
+    monkeypatch.setattr(methods, "propensity_overlaps", warning_overlaps)
     output = tmp_path / "run.out"
 
     main_module.main(["-i", str(INPUT), "-o", str(output)])

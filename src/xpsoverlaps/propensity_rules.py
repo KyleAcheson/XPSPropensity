@@ -31,7 +31,7 @@ from typing import Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
 
 from xpsoverlaps.mapping import MappedFinal, OrbitalMapping
 from xpsoverlaps.model import Calculation
-from xpsoverlaps.shakedown import ShakeDown
+from xpsoverlaps.shakedown_transitions import ShakeDown
 
 DIAGONAL_WARNING = 0.9
 

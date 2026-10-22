@@ -13,9 +13,9 @@ import yaml
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from xpsoverlaps import propensity
+from xpsoverlaps import methods
 from xpsoverlaps.frontier import FrontierOrbitalError, frontier_from_indices
-from xpsoverlaps.shakedown import ShakeDownError, check_max_state
+from xpsoverlaps.shakedown_transitions import ShakeDownError, check_max_state
 from xpsoverlaps.inputs import CalculationInput, InputError, RunInput, load_input
 from xpsoverlaps.model import Calculation
 from xpsoverlaps.readers import get_calculation
@@ -133,14 +133,14 @@ def _run(input_file: Path) -> int:
         for n, final in enumerate(finals, start=1):
             _log_states("Final" if len(finals) == 1 else f"Final {n}", final)
         try:
-            propensity.final_spins(finals)
-        except propensity.FinalCalculationError as error:
+            methods.final_spins(finals)
+        except methods.FinalCalculationError as error:
             logger.error("%s", error)
             print(error, file=sys.stderr)
             return 1
-        propensity.propensity_overlaps(initial, finals, frontier, max_state)
+        methods.propensity_overlaps(initial, finals, frontier, max_state)
     else:
-        propensity.propensity_chp(initial, frontier)
+        methods.propensity_chp(initial, frontier)
     return 0
 
 
@@ -173,7 +173,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         return _run(args.input_file)
     except Exception:
-        # Record any uncaught error (readers, propensity, ...) with its traceback.
+        # Record any uncaught error (readers, methods, ...) with its traceback.
         logger.exception("XPSoverlaps terminated with an error.")
         raise
     finally:
