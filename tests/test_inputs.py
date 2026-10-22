@@ -38,9 +38,10 @@ def test_example_input_resolves_paths_relative_to_input_file():
     data = load_input(ROOT / "inputs" / "input.yaml")
 
     assert data["Initial"]["wf_file"] == DATA / "valence_caspt2.caspt2.h5"
-    assert data["Final"]["state_file"] == DATA / "core_caspt2.log"
     assert data["Initial"]["mcscf_file"] == DATA / "valence.rasscf.h5"
-    assert data["Final"]["mcscf_file"] == DATA / "core.rasscf.h5"
+    # A single Final block is returned as a one-element list.
+    assert [final["state_file"] for final in data["Final"]] == [DATA / "core_caspt2.log"]
+    assert data["Final"][0]["mcscf_file"] == DATA / "core.rasscf.h5"
 
 
 def test_chp_method_does_not_require_final_block(tmp_path):
@@ -60,7 +61,7 @@ def test_choice_values_are_case_insensitive_but_paths_are_not(tmp_path):
     loaded = load_input(_write(tmp_path, data))
 
     assert loaded["Calculator"] == {"program": "molcas", "method": "overlaps"}
-    assert loaded["Initial"]["type"] == loaded["Final"]["type"] == "caspt2"
+    assert loaded["Initial"]["type"] == loaded["Final"][0]["type"] == "caspt2"
     assert loaded["Initial"]["wf_file"] == DATA / "valence_caspt2.caspt2.h5"
 
 
@@ -99,7 +100,48 @@ def test_rasscf_input_needs_no_mcscf_file(tmp_path):
                            state_file=str(DATA / f"{prefix}-tz.log"))
 
     loaded = load_input(_write(tmp_path, data))
-    assert "mcscf_file" not in loaded["Initial"] and "mcscf_file" not in loaded["Final"]
+    assert "mcscf_file" not in loaded["Initial"] and "mcscf_file" not in loaded["Final"][0]
+
+
+TRIPLET = DATA / "triplet"
+
+
+def _two_finals():
+    data = _valid_input()
+    data["Final"] = [
+        {"type": "caspt2", "wf_file": str(TRIPLET / "core-doub.caspt2.h5"),
+         "state_file": str(TRIPLET / "core-doub.log"), "mcscf_file": str(TRIPLET / "core-doub-tz.rasscf.h5")},
+        {"type": "CASPT2", "wf_file": str(TRIPLET / "core-quart.caspt2.h5"),
+         "state_file": str(TRIPLET / "core-quart.log"), "mcscf_file": str(TRIPLET / "core-qaurt-tz.rasscf.h5")},
+    ]
+    return data
+
+
+def test_final_accepts_a_list_of_blocks(tmp_path):
+    loaded = load_input(_write(tmp_path, _two_finals()))
+
+    assert [final["wf_file"].name for final in loaded["Final"]] == ["core-doub.caspt2.h5", "core-quart.caspt2.h5"]
+    assert loaded["Final"][1]["type"] == "caspt2"  # choices are lowercased in list items too
+
+
+@pytest.mark.parametrize(
+    "mutate,message",
+    [
+        (lambda final: final[1].pop("mcscf_file"), "Final[2]: 'mcscf_file' is a required property"),
+        (lambda final: final[1].pop("state_file"), "Final[2]: 'state_file' is a required property"),
+        (lambda final: final[0].update(homo=34, lumo=40), "Final[1]: Unevaluated properties are not allowed"),
+        (lambda final: final[1].update(wf_file="missing.h5"), "Final[2].wf_file: file not found"),
+        (lambda final: final[1].update(type="rasscf"), "Final[2].type: 'rasscf' must match Initial.type 'caspt2'"),
+        (lambda final: final.clear(), "Final: [] should be non-empty"),
+    ],
+)
+def test_errors_in_a_list_of_final_blocks_name_the_block(tmp_path, mutate, message):
+    data = _two_finals()
+    mutate(data["Final"])
+
+    with pytest.raises(InputError) as excinfo:
+        load_input(_write(tmp_path, data))
+    assert message in str(excinfo.value)
 
 
 def _mutate_homo_without_lumo(data):

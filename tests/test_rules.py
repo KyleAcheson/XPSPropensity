@@ -5,9 +5,9 @@ import numpy as np
 import pytest
 
 from xpsoverlaps.frontier import orbital_order
-from xpsoverlaps.mapping import map_active_orbitals
+from xpsoverlaps.mapping import MappedFinal, map_active_orbitals
 from xpsoverlaps.readers import get_calculation
-from xpsoverlaps.rules import RULES, RoleOverlaps, compute_propensity, propensity_report
+from xpsoverlaps.rules import RULES, RoleOverlaps, compute_propensity, evaluate_final, propensity_report
 from xpsoverlaps.shakedown import find_shake_downs, reference_determinant
 
 
@@ -143,11 +143,39 @@ def test_triplet_initial_state_gives_d2_and_quartet_and_dark_gs(setup):
     assert gs.channels == [] and gs.note.startswith("dark")
 
 
+def _report(initial, finals, shake_downs):
+    return propensity_report(shake_downs, initial, [(f, evaluate_final(shake_downs, initial, f)) for f in finals])
+
+
+def test_channels_are_evaluated_only_with_the_final_calculation_of_their_spin(setup):
+    initial, _, mapping, shake_downs = setup
+    states = [dataclasses.replace(s, spin=1.0) if s.state_id == "caspt2:3" else s for s in initial.states]
+    triplet = dataclasses.replace(initial, states=states)
+
+    doublet = compute_propensity(shake_downs[("3", "2")], triplet, mapping, final_spin=0.5)
+    quartet = compute_propensity(shake_downs[("3", "2")], triplet, mapping, final_spin=1.5)
+
+    assert [c.name for c in doublet.channels] == ["D2"] and [c.name for c in quartet.channels] == ["Q"]
+    assert quartet.channels[0].intensity == pytest.approx(2 * doublet.channels[0].intensity)  # same mapping here
+
+
+def test_summary_notes_a_channel_without_a_final_calculation_of_its_spin(setup):
+    initial, final, mapping, shake_downs = setup
+    states = [dataclasses.replace(s, spin=1.0) if s.state_id == "caspt2:3" else s for s in initial.states]
+    triplet = dataclasses.replace(initial, states=states)
+
+    lines = _report(triplet, [MappedFinal("Final", final, mapping, 0.5)], [shake_downs[("3", "2")]])
+
+    summary = lines[lines.index("Summary") + 2:]
+    assert summary[0].split()[:6] == ["3", "->", "2", "5e", "ES", "Final"] and summary[0].split()[6] == "D2"
+    assert summary[1].endswith("Q                               -   no S = 1.5 final calculation")
+
+
 def test_report_writes_each_rule_out_in_full(setup):
     initial, final, mapping, shake_downs = setup
-    results = [compute_propensity(shake_downs[pair], initial, mapping) for pair in (("2", "1"), ("3", "1"), ("3", "2"))]
+    selected = [shake_downs[pair] for pair in (("2", "1"), ("3", "1"), ("3", "2"))]
 
-    lines = propensity_report(results, mapping, final)
+    lines = _report(initial, [MappedFinal("Final", final, mapping, 0.5)], selected)
 
     assert "  closed-shell doublet: 2 |S_ii S_ik|^2 = 2 |(1)(0.0059)|^2 = 0.000070" in lines
     assert "  M1 = S_ii S_jj - S_ij S_ji = (1)(1) - (0.1263)(0.1267) = +0.98399" in lines
@@ -161,11 +189,10 @@ def test_report_writes_each_rule_out_in_full(setup):
 
 def test_report_names_orbitals_flags_diagonals_and_summarises(setup):
     initial, final, mapping, shake_downs = setup
-    results = [compute_propensity(sd, initial, mapping) for sd in shake_downs.values() if sd.computable]
 
-    lines = propensity_report(results, mapping, final)
+    lines = _report(initial, [MappedFinal("Final", final, mapping, 0.5)], list(shake_downs.values()))
 
-    assert "Final calculation spin: S = 0.5." in lines
+    assert "Final: S = 0.5 (core_caspt2.caspt2.h5)" in lines
     assert "  S_ik = |<final mo:34 (i) | initial mo:40 (k)>| = 0.0572" in lines
     assert any("S_ii = |<final mo:34 (i) | initial mo:38 (i)>| = 0.7122 (set to 1)   below 0.9" in l for l in lines)
     summary = lines[lines.index("Summary") + 2:]

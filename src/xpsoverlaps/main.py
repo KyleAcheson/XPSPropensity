@@ -43,8 +43,11 @@ def _log_header() -> None:
 
 def _log_input(run_input: RunInput) -> None:
     """Dump the validated input, with file paths resolved."""
+    def printable_block(fields):
+        return {key: str(value) if isinstance(value, Path) else value for key, value in fields.items()}
+
     printable = {
-        block: {key: str(value) if isinstance(value, Path) else value for key, value in fields.items()}
+        block: [printable_block(item) for item in fields] if isinstance(fields, list) else printable_block(fields)
         for block, fields in run_input.items()
     }
     logger.info("Input:")
@@ -125,9 +128,17 @@ def _run(input_file: Path) -> int:
         return 1
 
     if run_input["Calculator"]["method"] == "overlaps":
-        final = _load_block(program, run_input["Final"])
-        _log_states("Final", final)
-        propensity.propensity_overlaps(initial, final, frontier, max_state)
+        blocks = run_input["Final"]
+        finals = [_load_block(program, block) for block in blocks]
+        for n, final in enumerate(finals, start=1):
+            _log_states("Final" if len(finals) == 1 else f"Final {n}", final)
+        try:
+            propensity.final_spins(finals)
+        except propensity.FinalCalculationError as error:
+            logger.error("%s", error)
+            print(error, file=sys.stderr)
+            return 1
+        propensity.propensity_overlaps(initial, finals, frontier, max_state)
     else:
         propensity.propensity_chp(initial, frontier)
     return 0

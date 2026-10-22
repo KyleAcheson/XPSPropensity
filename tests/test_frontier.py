@@ -14,7 +14,7 @@ from xpsoverlaps.frontier import (
     orbital_order_report,
     reference_warning,
 )
-from xpsoverlaps.mapping import map_active_orbitals
+from xpsoverlaps.mapping import MappedFinal, map_active_orbitals
 from xpsoverlaps.readers import get_calculation
 from xpsoverlaps.shakedown import reference_determinant
 
@@ -118,36 +118,45 @@ def test_order_needs_orbital_populations():
 
 
 def test_order_report_lists_initial_and_final_populations_and_energies(initial, final, mapping):
+    finals = [MappedFinal("Final", final, mapping, 0.5)]
     order = orbital_order(initial, reference_determinant(initial))
-    populations = orbital_order_report(order, initial, final, mapping)
+    populations = orbital_order_report(order, initial, finals)
     overridden = orbital_order_report(
-        orbital_order(initial, reference_determinant(initial), FrontierOrbitals("mo:38", "mo:40")), initial, final, mapping
+        orbital_order(initial, reference_determinant(initial), FrontierOrbitals("mo:38", "mo:40")), initial, finals
     )
 
     assert "HOMO/LUMO from the populations (not given in the input)." in populations
-    # Final columns: the final orbital the initial one maps onto (mo:34 -> mo:39).
-    assert "LUMO      mo:40         0.5547      0.0556  mo:40         0.5970     -0.1705" in populations
-    assert "HOMO      mo:34         1.5967     -0.2721  mo:39         1.4850     -0.4661" in populations
+    initial_rows = populations[populations.index("Initial") + 2:]
+    assert "LUMO      mo:40         0.5547      0.0556" in initial_rows
+    assert "HOMO      mo:34         1.5967     -0.2721" in initial_rows
     assert not any(line.endswith("*") for line in populations)  # energy order agrees here
+    # The final table: the final orbital each initial one maps onto (mo:34 -> mo:39).
+    final_rows = populations[populations.index("Final: S = 0.5 (core_caspt2.caspt2.h5)") + 2:]
+    assert "LUMO      mo:40     mo:40         0.5970     -0.1705" in final_rows
+    assert "HOMO      mo:34     mo:39         1.4850     -0.4661" in final_rows
     # One S 2p hole, state-averaged over the final roots: about 1.5 in mo:31 and mo:33.
-    assert populations[-3:] == [
-        "core      mo:31         2.0000     -6.7656  mo:31         1.4998     -7.4863",
-        "core      mo:32         2.0000     -7.5674  mo:32         2.0000     -8.8514",
-        "core      mo:33         2.0000     -6.6816  mo:33         1.5002     -7.4873",
+    assert final_rows[-3:] == [
+        "core      mo:31     mo:31         1.4998     -7.4863",
+        "core      mo:32     mo:32         2.0000     -8.8514",
+        "core      mo:33     mo:33         1.5002     -7.4873",
     ]
     assert "HOMO mo:38 set by the input (populations give mo:34)." in overridden
     assert "LUMO mo:40 set by the input (agrees with the populations)." in overridden
     # mo:38 above mo:34 contradicts their initial energies, so both rows are flagged.
-    assert "HOMO      mo:38         1.7416     -0.3299  mo:34         1.7324     -0.5828  *" in overridden
-    assert "HOMO-1    mo:34         1.5967     -0.2721  mo:39         1.4850     -0.4661  *" in overridden
+    assert "HOMO      mo:38         1.7416     -0.3299  *" in overridden
+    assert "HOMO-1    mo:34         1.5967     -0.2721  *" in overridden
 
 
-def test_order_report_marks_missing_final_populations(initial, mapping):
+def test_order_report_has_one_final_table_per_final_calculation(initial, final, mapping):
     no_populations = get_calculation("molcas", "caspt2", DATA / "core_caspt2.caspt2.h5", DATA / "core_caspt2.log")
+    finals = [MappedFinal("Final 1", final, mapping, 0.5), MappedFinal("Final 2", no_populations, mapping, 1.5)]
 
-    lines = orbital_order_report(orbital_order(initial, reference_determinant(initial)), initial, no_populations, mapping)
+    lines = orbital_order_report(orbital_order(initial, reference_determinant(initial)), initial, finals)
 
-    assert "HOMO      mo:34         1.5967     -0.2721  mo:39              -           -" in lines
+    first = lines.index("Final 1: S = 0.5 (core_caspt2.caspt2.h5)")
+    second = lines.index("Final 2: S = 1.5 (core_caspt2.caspt2.h5)")
+    assert "HOMO      mo:34     mo:39         1.4850     -0.4661" in lines[first:second]
+    assert "HOMO      mo:34     mo:39              -           -" in lines[second:]  # no populations
 
 
 def test_occupations_are_not_checked(initial):

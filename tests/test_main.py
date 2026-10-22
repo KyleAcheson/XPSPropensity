@@ -19,8 +19,8 @@ def _record_calls(monkeypatch):
     monkeypatch.setattr(
         propensity,
         "propensity_overlaps",
-        lambda initial, final, frontier=None, max_state=None: calls.update(
-            overlaps=(initial, final, frontier)
+        lambda initial, finals, frontier=None, max_state=None: calls.update(
+            overlaps=(initial, finals, frontier)
         ),
     )
     monkeypatch.setattr(
@@ -60,9 +60,9 @@ def test_main_overlaps_loads_initial_and_final_calculations(monkeypatch, tmp_pat
     assert main_module.main(["-i", str(INPUT), "-o", str(tmp_path / "run.out")]) == 0
 
     assert set(calls) == {"overlaps"}
-    initial, final, frontier = calls["overlaps"]
+    initial, finals, frontier = calls["overlaps"]
     assert len(initial.states) == 10
-    assert len(final.states) == 40
+    assert [len(final.states) for final in finals] == [40]
     assert (frontier.homo, frontier.lumo) == ("mo:34", "mo:40")
 
 
@@ -95,13 +95,14 @@ def test_output_file_dumps_input_and_summarizes_states(tmp_path):
     assert "caspt2:" not in text
     assert "Dominant CI vectors on the initial active-orbital order" in text
     assert "22u22222du00     22ud22222u00" in text
-    assert "HOMO      mo:34         1.5967     -0.2721  mo:39" in text
+    assert "HOMO      mo:34         1.5967     -0.2721\n" in text
+    assert "HOMO      mo:34     mo:39         1.4850     -0.4661\n" in text
     assert "HOMO mo:34 set by the input (agrees with the populations)." in text
     assert "Shake-down transitions between initial states" in text
     assert "states considered: 1..4 (max_state = 4)" in text
     assert "5 transitions: 5 computable, 0 not computable." in text
     assert "Propensity rules" in text
-    assert "  3 -> 2  5e ES   D1                       0.015099" in text
+    assert "  3 -> 2  5e ES   Final     D1                       0.015099" in text
 
 
 def test_uncaught_exception_is_logged_with_traceback(monkeypatch, tmp_path):
@@ -201,7 +202,7 @@ def test_main_orders_orbitals_by_population_without_homo_lumo(tmp_path):
 
     text = (tmp_path / "run.out").read_text(encoding="utf-8")
     assert "HOMO/LUMO from the populations (not given in the input)." in text
-    assert "  3 -> 2  5e ES   D1                       0.015099" in text
+    assert "  3 -> 2  5e ES   Final     D1                       0.015099" in text
 
 
 def test_main_rejects_invalid_homo_lumo_before_running(monkeypatch, tmp_path):

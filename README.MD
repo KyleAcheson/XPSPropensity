@@ -66,7 +66,14 @@ virtual by the ground state's configuration and ordered by their populations
 core and not ranked. `homo`/`lumo` override that
 HOMO and LUMO; they must be two different active orbitals, and choosing the
 right ones is up to the user. The final-state HOMO/LUMO are the orbitals they
-map onto. Run with:
+map onto.
+
+`Final` can also be a list of blocks, one per final-state spin, e.g. the
+doublet and the quartet core-hole states of triplet initial states (see
+`inputs/input_triplet.yaml`). Each propensity channel is evaluated with the
+final calculation of its spin (D1, D2 and the closed-shell doublet with
+S = 1/2, Q with S = 3/2), and one summary combines them. Every final
+calculation must share the initial active space. Run with:
 
 ```bash
 python src/xpsoverlaps/main.py -i inputs/input.yaml -o output.log
