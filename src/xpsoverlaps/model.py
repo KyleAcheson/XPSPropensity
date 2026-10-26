@@ -13,10 +13,11 @@ Structure::
     │                 ├── GaussianBasis    explicit contracted shells (GaussianShell)
     │                 └── EngineBasis      integrals from a program's own engine
     ├── orbitals      OrbitalSet       AO x MO coefficients, one ID per MO; energies and
-    │                                  populations when the files provide them
+    │                                  populations when the files provide them; irrep per MO
     ├── active_space  ActiveSpace      active orbital IDs, in CI-string order
-    └── states        [ElectronicState]
-                      └── dominant_configuration   Configuration (0/u/d/2 per active orbital)
+    ├── states        [ElectronicState]
+    │                 └── dominant_configuration   Configuration (0/u/d/2 per active orbital)
+    └── point_group   PointGroup       irreps of the calculation's (Abelian) point group
 
 How the parts refer to each other (checked when a ``Calculation`` is created):
 
@@ -27,6 +28,10 @@ How the parts refer to each other (checked when a ``Calculation`` is created):
   referred to by ID, not position.
 - Each configuration has one occupation per active orbital, in
   ``active_space.orbital_ids`` order.
+- ``orbitals.irreps`` and each state's ``symmetry`` are labels from
+  ``point_group.irreps``. MO coefficients are always over the AO basis, also
+  for calculations run with symmetry (whose program files store them over
+  symmetry-adapted functions).
 
 Units: lengths in bohr, energies in hartree, spin as S.
 
@@ -139,11 +144,44 @@ class EngineBasis(AOBasis):
 
 
 @dataclass(frozen=True, eq=False)
+class PointGroup:
+    """Irreducible representations of an Abelian point group (D2h or a subgroup).
+
+    The irreps are listed in the order in which irreps i and j (0-based)
+    multiply to irrep ``i XOR j``, as OpenMolcas numbers them, e.g. C2v as
+    (a1, b2, a2, b1) for one choice of axes. The first is totally symmetric.
+    """
+
+    irreps: List[str]
+
+    def __post_init__(self) -> None:
+        if len(self.irreps) not in (1, 2, 4, 8):
+            raise ValueError(f"An Abelian point group has 1, 2, 4 or 8 irreps; found {len(self.irreps)}.")
+        if len(set(self.irreps)) != len(self.irreps):
+            raise ValueError("Irrep labels must be distinct.")
+
+    @property
+    def totally_symmetric(self) -> str:
+        return self.irreps[0]
+
+    def product(self, *irreps: str) -> str:
+        """Direct product of irreps, e.g. ``product("b2", "b1") == "a2"`` in C2v."""
+        index = 0
+        for irrep in irreps:
+            if irrep not in self.irreps:
+                raise ValueError(f"{irrep!r} is not an irrep of the point group {self.irreps}.")
+            index ^= self.irreps.index(irrep)
+        return self.irreps[index]
+
+
+@dataclass(frozen=True, eq=False)
 class OrbitalSet:
     """Molecular orbitals: AO rows x MO columns, one ID per MO (e.g. ``"mo:34"``).
 
     ``energies`` and ``occupations`` are the orbitals' (state-averaged) energies
     and populations, or None when the calculation's files do not provide them.
+    ``irreps`` is the irrep label of each MO (all the same without symmetry),
+    or None when unknown.
     """
 
     basis_id: str
@@ -152,6 +190,7 @@ class OrbitalSet:
     energies: Optional[List[float]]
     occupations: Optional[List[float]]
     source_type_labels: List[str]  # the program's orbital type per MO (e.g. Molcas "I", "1", "S")
+    irreps: Optional[List[str]] = None
 
     def __post_init__(self) -> None:
         if self.coefficients.ndim != 2:
@@ -161,7 +200,7 @@ class OrbitalSet:
             raise ValueError("An orbital set must contain at least one AO and one MO.")
         if not len(self.orbital_ids) == len(self.source_type_labels) == n_mo:
             raise ValueError("Orbital IDs and type labels must match the MO count.")
-        for name in ("energies", "occupations"):
+        for name in ("energies", "occupations", "irreps"):
             values = getattr(self, name)
             if values is not None and len(values) != n_mo:
                 raise ValueError(f"Orbital {name} must match the MO count ({len(values)} for {n_mo} MOs).")
@@ -205,7 +244,7 @@ class ElectronicState:
     energy: Optional[float] = None
     energy_units: str = "hartree"
     spin: Optional[float] = None  # S, e.g. 0.5 for a doublet
-    symmetry: Optional[str] = None
+    symmetry: Optional[str] = None  # irrep label (point_group.irreps); log readers give the program's raw label
     dominant_configuration: Optional[Configuration] = None
 
 
@@ -227,6 +266,7 @@ class Calculation:
     orbitals: OrbitalSet
     active_space: ActiveSpace
     states: List[ElectronicState] = field(default_factory=list)
+    point_group: Optional[PointGroup] = None
 
     def __post_init__(self) -> None:
         if self.orbitals.basis_id != self.basis.basis_id:
@@ -246,3 +286,10 @@ class Calculation:
                     f"State {state.state_id} configuration has {len(configuration.occupations)} "
                     f"occupations; the active space has {n_active} orbitals."
                 )
+        if self.point_group is not None:
+            irreps = set(self.point_group.irreps)
+            if self.orbitals.irreps is not None and not set(self.orbitals.irreps) <= irreps:
+                raise ValueError("Orbital irreps must be irreps of the point group.")
+            unknown = [s.state_id for s in self.states if s.symmetry is not None and s.symmetry not in irreps]
+            if unknown:
+                raise ValueError(f"State symmetries must be irreps of the point group ({', '.join(unknown)}).")

@@ -101,8 +101,13 @@ S_MO = mo_overlap(initial, final)   # rows: initial MOs, columns: final MOs
 Supported: OpenMolcas (`molcas`/`openmolcas`) `RASSCF` and `CASPT2`, each read
 from an HDF5 file (`wf_file`) plus its log (`state_file`). CASPT2 HDF5 files
 lack orbital energies and populations, so a CASPT2 calculation reads them from
-the RASSCF HDF5 file it was built on (`mcscf_file`). Molecular symmetry is not
-supported yet.
+the RASSCF HDF5 file it was built on (`mcscf_file`). Calculations run with
+symmetry (D2h and its subgroups) are read too: the MO coefficients are
+transformed to the AO basis with Molcas's `DESYM_MATRIX`, each MO and state
+keeps its irrep, and the active orbitals follow the CI-string order (`L2ACT`).
+Every file's AO overlap is checked against Molcas's `AO_OVERLAP_MATRIX`.
+Routing shake-down channels to final calculations of different irreps is not
+implemented yet.
 
 ### Package structure
 
@@ -217,9 +222,10 @@ records are immutable (frozen dataclasses): to change one, derive a copy with
 | `Provenance` | program, method, source files |
 | `Molecule` | atom labels and coordinates (N × 3 array, **bohr**) |
 | `basis` | An `AOBasis` subclass with one entry per AO, **in the row order of the MO coefficients**: `function_labels` (display only), `function_centers` (index into `Molecule.atoms`), `function_angular_momenta` (l). Either a `GaussianBasis` (contracted Gaussian shells; normalization conventions in the `GaussianShell` docstring) or an `EngineBasis` (integrals from a registered engine backend) |
-| `OrbitalSet` | `coefficients` (n_AO × n_MO array, AOs as rows), one `orbital_ids` entry per MO (stable IDs such as `mo:34`), `energies`, `occupations`, and the program's orbital type labels. `basis_id` must equal the basis' `basis_id` |
-| `ActiveSpace` | active `orbital_ids` in the order used by the CI occupation strings (RAS1, then RAS2, then RAS3), a partition label per orbital, and the number of active electrons |
-| `ElectronicState` | `state_id`, `energy` (hartree), `spin` (S), `symmetry`, and `dominant_configuration` |
+| `OrbitalSet` | `coefficients` (n_AO × n_MO array, AOs as rows, also for calculations with symmetry), one `orbital_ids` entry per MO (stable IDs such as `mo:34`), `energies`, `occupations`, `irreps`, and the program's orbital type labels. `basis_id` must equal the basis' `basis_id` |
+| `ActiveSpace` | active `orbital_ids` in the order used by the CI occupation strings (RAS1, then RAS2, then RAS3; with symmetry irrep by irrep within each), a partition label per orbital, and the number of active electrons |
+| `ElectronicState` | `state_id`, `energy` (hartree), `spin` (S), `symmetry` (irrep label), and `dominant_configuration` |
+| `PointGroup` | the calculation's irreps, in the order whose 0-based indices multiply by XOR (Molcas order); `product(...)` gives direct products |
 | `Configuration` | `occupations` as a list of `0`, `u`, `d`, `2` per active orbital, `coefficient` and `weight`; position k refers to `active_space.orbital_ids[k]`. `u`/`d` are spin-coupling labels of a CSF (as printed by Molcas), not α/β electrons |
 
 Things to check in a new reader: orbitals must be orthonormal with the AO
