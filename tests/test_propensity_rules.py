@@ -7,16 +7,16 @@ import pytest
 
 from xpsoverlaps.frontier import orbital_order
 from xpsoverlaps.mapping import MappedFinal, map_active_orbitals
+from xpsoverlaps.overlap_sources import MappedOverlaps, OrbitalOverlaps
 from xpsoverlaps.readers import get_calculation
 from xpsoverlaps.propensity_rules import (
     CHANNELS,
     Channel,
-    RoleOverlaps,
     compute_propensity,
     evaluate_final,
     propensity_report,
 )
-from xpsoverlaps.shakedown_transitions import find_shake_downs, reference_determinant
+from xpsoverlaps.shakedown_transitions import ShakeDownOverlaps, find_shake_downs, reference_determinant
 
 
 DATA = Path(__file__).parents[1] / "data" / "molcas" / "brthph" / "s2p" / "mb"
@@ -37,16 +37,35 @@ def setup():
     return initial, final, mapping, shake_downs
 
 
-def _overlap_function(values):
-    """S as a function of role pairs, with diagonals 1, from a dict of off-diagonal values."""
-    return lambda pair: 1.0 if pair[0] == pair[1] else values[pair]
+class FixedOverlaps(OrbitalOverlaps):
+    """Overlaps from a dict keyed by orbital pairs; the orbitals are named after their roles."""
+
+    def __init__(self, values):
+        self.values = values
+
+    def overlap(self, a, b):
+        return self.values[a + b]
+
+    def describe(self, a, b):
+        return f"S({a}, {b})"
+
+
+class ExplicitDiagonals(ShakeDownOverlaps):
+    """S with the actual diagonals instead of 1."""
+
+    __call__ = ShakeDownOverlaps.actual
+
+
+def _overlaps(values, overlaps_class=ShakeDownOverlaps):
+    """S for the role pairs of a shake-down whose orbitals are i, j, k, from a dict of values."""
+    return overlaps_class({"i": "i", "j": "j", "k": "k"}, FixedOverlaps(values))
 
 
 # --- The rules reproduce the identities of the propensity notes -------------
 
 
 def test_three_electron_rule_matches_notes():
-    S = _overlap_function({"jk": 0.30, "ik": 0.20, "ji": 0.10})
+    S = _overlaps({"jk": 0.30, "ik": 0.20, "ji": 0.10})
 
     amplitudes = CHANNELS[("3e ES", 0)][0].evaluate(S).values
 
@@ -58,7 +77,7 @@ def test_three_electron_rule_matches_notes():
 
 def test_five_electron_rule_matches_notes():
     values = {"ij": 0.31, "ji": 0.17, "ik": 0.23, "ki": 0.11, "jk": 0.29, "kj": 0.13}
-    S = _overlap_function(values)
+    S = _overlaps(values)
 
     amplitudes = CHANNELS[("5e ES", 0)][0].evaluate(S).values
 
@@ -74,7 +93,7 @@ def test_m_minors_keep_the_diagonals_explicitly():
     values = {"ii": 0.9, "jj": 0.8, "kk": 0.7, "ij": 0.31, "ji": 0.17, "ik": 0.23, "ki": 0.11, "jk": 0.29, "kj": 0.13}
     v3 = np.array([[values[a + b] for b in "ijk"] for a in "ijk"])
 
-    amplitudes = CHANNELS[("5e ES", 1)][1].evaluate(lambda pair: values[pair]).values  # Q
+    amplitudes = CHANNELS[("5e ES", 1)][1].evaluate(_overlaps(values, ExplicitDiagonals)).values  # Q
 
     minor = lambda rows, cols: np.linalg.det(v3[np.ix_(["ijk".index(r) for r in rows], ["ijk".index(c) for c in cols])])
     assert amplitudes["M1"] == pytest.approx(minor("ij", "ij"))
@@ -86,7 +105,7 @@ def test_m_minors_keep_the_diagonals_explicitly():
 
 def test_ground_state_rules_are_closed_shell_products():
     values = {"ij": 0.31, "ji": 0.17, "ik": 0.23, "jk": 0.29}
-    S = _overlap_function(values)
+    S = _overlaps(values)
     m1, m3 = 1 - 0.31 * 0.17, 0.31 * 0.29 - 0.23
 
     (gs5,), (gs3,) = CHANNELS[("5e GS", 0)], CHANNELS[("3e GS", 0)]
@@ -126,14 +145,17 @@ def test_channel_checks_its_formulas_when_built(equations, amplitude, message):
 # --- Overlaps: first index final, second initial ----------------------------
 
 
-def test_role_overlap_first_index_is_the_final_orbital(setup):
-    initial, final, mapping, _ = setup
-    S = RoleOverlaps({"i": "mo:38", "j": "mo:34", "k": "mo:40"}, mapping)
+def test_mapped_overlap_first_index_is_the_final_orbital(setup):
+    initial, final, mapping, shake_downs = setup
+    S = shake_downs[("3", "1")].overlaps(MappedOverlaps(mapping))
 
+    assert S.orbital_roles == {"i": "mo:38", "j": "mo:34", "k": "mo:40"}
     # S_ij = |<phi_final(i)|psi_j>|, final(i) = final mo:34 (mapped from initial mo:38)
     assert S("ij") == pytest.approx(abs(mapping.overlap("mo:34", "mo:34")))
     assert S("ji") == pytest.approx(abs(mapping.overlap("mo:38", "mo:39")))
-    assert S.describe("ij") == "<final mo:34 (i) | initial mo:34 (j)>"
+    assert S.describe("ij") == "|<final mo:34 | initial mo:34>|"
+    assert S.describe_role("i") == "i = mo:38 -> final mo:34"
+    assert shake_downs[("2", "1")].orbital_roles.keys() == {"i", "k"}  # 3e GS has no j
     assert S("ii") == 1.0
     assert S.actual("ii") == pytest.approx(0.7122, abs=1e-4)
 
@@ -144,21 +166,21 @@ def test_role_overlap_first_index_is_the_final_orbital(setup):
 def test_singlet_shake_downs_use_the_right_rule_and_channel(setup):
     initial, _, mapping, shake_downs = setup
 
-    gs3 = compute_propensity(shake_downs[("2", "1")], initial, mapping)
-    gs5 = compute_propensity(shake_downs[("3", "1")], initial, mapping)
-    es5 = compute_propensity(shake_downs[("3", "2")], initial, mapping)
-    es3 = compute_propensity(shake_downs[("4", "2")], initial, mapping)
+    gs3 = compute_propensity(shake_downs[("2", "1")], initial, MappedOverlaps(mapping))
+    gs5 = compute_propensity(shake_downs[("3", "1")], initial, MappedOverlaps(mapping))
+    es5 = compute_propensity(shake_downs[("3", "2")], initial, MappedOverlaps(mapping))
+    es3 = compute_propensity(shake_downs[("4", "2")], initial, MappedOverlaps(mapping))
 
     assert [c.name for c in gs3.channels] == ["closed-shell doublet"]
-    assert gs3.channels[0].intensity == pytest.approx(2 * gs3.overlaps["ik"] ** 2)
+    assert gs3.channels[0].intensity == pytest.approx(2 * gs3.overlap_values["ik"] ** 2)
     # HOMO-1 pump: j = HOMO, 2 |M1 M3|^2 rather than 2 |S_ik|^2
-    assert gs5.roles == {"i": "mo:38", "j": "mo:34", "k": "mo:40"}
+    assert gs5.shake_down.orbital_roles == {"i": "mo:38", "j": "mo:34", "k": "mo:40"}
     assert gs5.channels[0].intensity == pytest.approx(2 * (gs5.values["M1"] * gs5.values["M3"]) ** 2)
     assert gs5.channels[0].intensity == pytest.approx(0.006179, abs=1e-6)
     assert set(es5.values) == {"M1", "M2", "M3", "M4", "Pi", "Omega"}
     assert [c.name for c in es5.channels] == ["D1"]
     assert es5.channels[0].intensity == pytest.approx(0.015099, abs=1e-6)
-    assert set(es3.overlaps) == {"ii", "jk", "ik", "ji"}
+    assert set(es3.overlap_values) == {"ii", "jk", "ik", "ji"}
     # mo:41 is in-plane (sigma), mo:34/40 out-of-plane (pi): zero by symmetry.
     assert es3.channels[0].intensity == pytest.approx(0.0, abs=1e-9)
 
@@ -168,8 +190,8 @@ def test_triplet_initial_state_gives_d2_and_quartet_and_dark_gs(setup):
     states = [dataclasses.replace(s, spin=1.0) if s.state_id == "caspt2:3" else s for s in initial.states]
     triplet = dataclasses.replace(initial, states=states)
 
-    es = compute_propensity(shake_downs[("3", "2")], triplet, mapping)
-    gs = compute_propensity(shake_downs[("3", "1")], triplet, mapping)  # 5e GS
+    es = compute_propensity(shake_downs[("3", "2")], triplet, MappedOverlaps(mapping))
+    gs = compute_propensity(shake_downs[("3", "1")], triplet, MappedOverlaps(mapping))  # 5e GS
 
     minus = (es.values["Pi"] - es.values["Omega"]) ** 2
     assert [(c.name, c.intensity) for c in es.channels] == [
@@ -188,8 +210,8 @@ def test_channels_are_evaluated_only_with_the_final_calculation_of_their_spin(se
     states = [dataclasses.replace(s, spin=1.0) if s.state_id == "caspt2:3" else s for s in initial.states]
     triplet = dataclasses.replace(initial, states=states)
 
-    doublet = compute_propensity(shake_downs[("3", "2")], triplet, mapping, final_spin=0.5)
-    quartet = compute_propensity(shake_downs[("3", "2")], triplet, mapping, final_spin=1.5)
+    doublet = compute_propensity(shake_downs[("3", "2")], triplet, MappedOverlaps(mapping), final_spin=0.5)
+    quartet = compute_propensity(shake_downs[("3", "2")], triplet, MappedOverlaps(mapping), final_spin=1.5)
 
     assert [c.name for c in doublet.channels] == ["D2"] and [c.name for c in quartet.channels] == ["Q"]
     assert quartet.channels[0].intensity == pytest.approx(2 * doublet.channels[0].intensity)  # same mapping here
@@ -231,8 +253,8 @@ def test_report_names_orbitals_flags_diagonals_and_summarises(setup):
     lines = _report(initial, [MappedFinal("Final", final, mapping, 0.5)], list(shake_downs.values()))
 
     assert "Final: S = 0.5 (core_caspt2.caspt2.h5)" in lines
-    assert "  S_ik = |<final mo:34 (i) | initial mo:40 (k)>| = 0.0572" in lines
-    assert any("S_ii = |<final mo:34 (i) | initial mo:38 (i)>| = 0.7122 (set to 1)   below 0.9" in l for l in lines)
+    assert "  S_ik = |<final mo:34 | initial mo:40>| = 0.0572" in lines
+    assert any("S_ii = |<final mo:34 | initial mo:38>| = 0.7122 (set to 1)   below 0.9" in l for l in lines)
     summary = lines[lines.index("Summary") + 2:]
     assert [line.split()[:4] for line in summary] == [
         ["2", "->", "1", "3e"], ["3", "->", "1", "5e"], ["3", "->", "2", "5e"],

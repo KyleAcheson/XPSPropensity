@@ -1,11 +1,13 @@
 """Propensity rules for shake-down transitions (csf_rules notes).
 
-Overlaps follow S_ab = |<phi_a|psi_b>|: the FIRST index is a final-state
-orbital, the final orbital the mapping matches to initial orbital a; the
-second is the initial-state orbital b. Absolute values are used throughout.
-Diagonal overlaps S_ii, S_jj, S_kk are kept in the formulas but set to 1
-(weak relaxation); their actual values are reported and flagged below
-``DIAGONAL_WARNING``.
+Overlaps follow S_ab = <phi_a|psi_b>: the FIRST index is initial orbital a
+relaxed in the final state, the second the initial-state orbital b. The
+numbers come from an overlap source (``overlap_sources``) chosen by the
+propensity method; ``ShakeDown.overlaps`` pairs it with a shake-down's orbital
+roles i, j, k as a ``ShakeDownOverlaps``. The overlaps method uses the final
+orbital the mapping matches to a, with absolute values. Diagonal overlaps
+S_ii, S_jj, S_kk are kept in the formulas but set to 1 (weak relaxation);
+their actual values are reported and flagged below ``DIAGONAL_WARNING``.
 
 Every bright channel is one ``Channel`` in the ``CHANNELS`` table, keyed by
 shake-down case and initial spin. A channel holds everything needed for its
@@ -27,18 +29,18 @@ from __future__ import annotations
 
 from fractions import Fraction
 from math import prod
-from typing import Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
+from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple
 
-from xpsoverlaps.mapping import MappedFinal, OrbitalMapping
+from xpsoverlaps.mapping import MappedFinal
 from xpsoverlaps.model import Calculation
-from xpsoverlaps.shakedown_transitions import ShakeDown
+from xpsoverlaps.overlap_sources import MappedOverlaps, OrbitalOverlaps
+from xpsoverlaps.shakedown_transitions import ShakeDown, ShakeDownOverlaps
 
 DIAGONAL_WARNING = 0.9
 
-Overlap = Callable[[str], float]  # role pair such as "ik" -> S_ik
 Term = Tuple[int, Tuple[str, ...]]  # sign, factors ("S_ij" or a quantity name such as "M1")
 
-_ROLES = "ijk"
+_ORBITAL_ROLES = "ijk"
 
 
 class ChannelResult(NamedTuple):
@@ -105,9 +107,8 @@ class Channel:
     Examples
     --------
     >>> d1 = Channel("D1", 1/2, Fraction(1), ("Pi = S_ii S_jk", "Omega = S_ik S_ji"), "Pi + Omega")
-    >>> S = {"jk": 0.3, "ik": 0.2, "ji": 0.1}
-    >>> d1.evaluate(lambda pair: 1.0 if pair[0] == pair[1] else S[pair]).intensity  # (0.3 + 0.02)^2
-    0.1024
+    >>> S = shake_down.overlaps(MappedOverlaps(mapping))  # S("jk") = S_jk of this shake-down
+    >>> d1.evaluate(S).intensity  # |S_jk + S_ik S_ji|^2
     """
 
     def __init__(self, name: str, final_spin: float, weight: Fraction,
@@ -137,14 +138,14 @@ class Channel:
             factor[2:] for terms in all_terms for _, factors in terms for factor in factors if factor.startswith("S_")
         ))
 
-    def evaluate(self, S: Overlap) -> ChannelResult:
+    def evaluate(self, S: ShakeDownOverlaps) -> ChannelResult:
         """Evaluate the equations in order, then the amplitude and the intensity.
 
         Parameters
         ----------
-        S : callable
-            Overlap of a role pair, ``S("ik")`` = S_ik, e.g. a ``RoleOverlaps``
-            for one shake-down and one final calculation.
+        S : ShakeDownOverlaps
+            Overlap of a role pair, ``S("ik")`` = S_ik, for one shake-down and
+            one overlap source (e.g. one final calculation).
 
         Returns
         -------
@@ -158,12 +159,12 @@ class Channel:
         amplitude = self._evaluate_terms(self.amplitude, S, values)
         return ChannelResult(self, values, amplitude, float(self.weight) * amplitude ** 2)
 
-    def equation_lines(self, S: Overlap, result: ChannelResult) -> List[str]:
+    def equation_lines(self, S: ShakeDownOverlaps, result: ChannelResult) -> List[str]:
         """Each equation written out with its overlaps and quantities substituted.
 
         Parameters
         ----------
-        S : callable
+        S : ShakeDownOverlaps
             The overlaps ``result`` was evaluated with.
         result : ChannelResult
             The result of ``evaluate(S)``.
@@ -177,12 +178,12 @@ class Channel:
         return [f"  {name} = {text} = {self._substitute(terms, S, result.values)} = {result.values[name]:+.5f}"
                 for name, text, terms in self.equations]
 
-    def intensity_line(self, S: Overlap, result: ChannelResult) -> str:
+    def intensity_line(self, S: ShakeDownOverlaps, result: ChannelResult) -> str:
         """The intensity formula, expanded where possible, with values and result.
 
         Parameters
         ----------
-        S : callable
+        S : ShakeDownOverlaps
             The overlaps ``result`` was evaluated with.
         result : ChannelResult
             The result of ``evaluate(S)``.
@@ -219,7 +220,7 @@ class Channel:
             if token in ("+", "-"):
                 sign, factors = (1 if token == "+" else -1), None
                 continue
-            if token.startswith("S_") and not (len(token) == 4 and set(token[2:]) <= set(_ROLES)):
+            if token.startswith("S_") and not (len(token) == 4 and set(token[2:]) <= set(_ORBITAL_ROLES)):
                 raise ValueError(f"Channel {self.name}: {token!r} in {formula!r} is not an overlap S_ab of roles i, j, k.")
             if not token.startswith("S_") and not token.isidentifier():
                 raise ValueError(f"Channel {self.name}: {token!r} in {formula!r} is not an overlap or a quantity name.")
@@ -245,13 +246,13 @@ class Channel:
             defined.append(name)
 
     @staticmethod
-    def _evaluate_terms(terms: List[Term], S: Overlap, values: Dict[str, float]) -> float:
+    def _evaluate_terms(terms: List[Term], S: ShakeDownOverlaps, values: Dict[str, float]) -> float:
         return sum(
             sign * prod(S(f[2:]) if f.startswith("S_") else values[f] for f in factors) for sign, factors in terms
         )
 
     @staticmethod
-    def _substitute(terms: List[Term], S: Overlap, values: Dict[str, float]) -> str:
+    def _substitute(terms: List[Term], S: ShakeDownOverlaps, values: Dict[str, float]) -> str:
         """The formula with every factor replaced by its value: '(1)(1) - (0.1263)(0.1267)'."""
         def number(factor: str) -> str:
             if factor.startswith("S_"):
@@ -310,9 +311,9 @@ CHANNELS: Dict[Tuple[str, float], Tuple[Channel, ...]] = {
 class PropensityResult(NamedTuple):
     shake_down: ShakeDown
     initial_spin: Optional[float]
-    roles: Dict[str, str]  # role -> initial orbital ID
-    overlaps: Dict[str, float]  # role pair -> S used by the evaluated channels (diagonals = 1)
-    diagonals: Dict[str, float]  # role pair ("ii", ...) -> actual |S|
+    overlaps: ShakeDownOverlaps  # S_ab of the shake-down's orbitals from one overlap source
+    overlap_values: Dict[str, float]  # role pair -> S used by the evaluated channels (diagonals = 1)
+    diagonals: Dict[str, float]  # role pair ("ii", ...) -> actual S
     channels: List[ChannelResult]  # evaluated channels
     note: Optional[str] = None  # why no channel is bright
 
@@ -320,31 +321,6 @@ class PropensityResult(NamedTuple):
     def values(self) -> Dict[str, float]:
         """The quantities (M1.., Pi, Omega) of the evaluated channels."""
         return {name: value for result in self.channels for name, value in result.values.items()}
-
-
-class RoleOverlaps:
-    """S_ab = |<phi_final(a)|psi_b>| for the orbital roles of one shake-down."""
-
-    def __init__(self, roles: Dict[str, str], mapping: OrbitalMapping) -> None:
-        self.roles = roles
-        self.mapping = mapping
-
-    def actual(self, pair: str) -> float:
-        a, b = pair
-        return abs(self.mapping.overlap(self.roles[b], self.mapping.final_id(self.roles[a])))
-
-    def __call__(self, pair: str) -> float:
-        return 1.0 if pair[0] == pair[1] else self.actual(pair)
-
-    def describe(self, pair: str) -> str:
-        a, b = pair
-        final = self.mapping.final_id(self.roles[a])
-        return f"<final {final} ({a}) | initial {self.roles[b]} ({b})>"
-
-
-def _roles(shake_down: ShakeDown) -> Dict[str, str]:
-    return {role: orbital for role, orbital in
-            (("i", shake_down.i), ("j", shake_down.j), ("k", shake_down.k)) if orbital is not None}
 
 
 def _initial_spin(shake_down: ShakeDown, initial: Calculation) -> Optional[float]:
@@ -363,24 +339,24 @@ def bright_channels(shake_down: ShakeDown, initial: Calculation) -> Tuple[Tuple[
 
 
 def compute_propensity(
-    shake_down: ShakeDown, initial: Calculation, mapping: OrbitalMapping, final_spin: Optional[float] = None
+    shake_down: ShakeDown, initial: Calculation, overlap_source: OrbitalOverlaps,
+    final_spin: Optional[float] = None,
 ) -> PropensityResult:
-    """Evaluate the bright channels of a computable shake-down.
+    """Evaluate the bright channels of a computable shake-down with the overlaps of ``overlap_source``.
 
     With ``final_spin`` only the channels to final states of that spin are
-    evaluated: ``mapping`` then belongs to the final calculation of that spin.
+    evaluated: ``overlap_source`` then belongs to the final calculation of that spin.
     """
-    roles = _roles(shake_down)
-    S = RoleOverlaps(roles, mapping)
+    S = shake_down.overlaps(overlap_source)
     channels, note = bright_channels(shake_down, initial)
     selected = [c for c in channels if final_spin is None or c.final_spin == final_spin]
     pairs = dict.fromkeys(pair for channel in selected for pair in channel.overlaps)
     return PropensityResult(
         shake_down,
         _initial_spin(shake_down, initial),
-        roles,
+        S,
         {pair: S(pair) for pair in pairs},
-        {role * 2: S.actual(role * 2) for role in roles},
+        {role * 2: S.actual(role * 2) for role in S.orbital_roles},
         [channel.evaluate(S) for channel in selected],
         note,
     )
@@ -390,8 +366,9 @@ def evaluate_final(
     shake_downs: Sequence[ShakeDown], initial: Calculation, final: MappedFinal
 ) -> List[PropensityResult]:
     """The computable shake-downs with a channel to ``final``'s spin, evaluated with its overlaps."""
+    overlap_source = MappedOverlaps(final.mapping)
     return [
-        compute_propensity(sd, initial, final.mapping, final.spin)
+        compute_propensity(sd, initial, overlap_source, final.spin)
         for sd in shake_downs
         if sd.computable and any(c.final_spin == final.spin for c in bright_channels(sd, initial)[0])
     ]
@@ -404,24 +381,21 @@ def _number(state_id: str) -> str:
     return state_id.split(":")[-1]
 
 
-def _result_lines(result: PropensityResult, mapping: OrbitalMapping) -> List[str]:
-    """One shake-down: roles, overlaps by orbital, diagonal checks, each channel's rule in full."""
+def _result_lines(result: PropensityResult) -> List[str]:
+    """One shake-down: orbital roles, overlaps by orbital, diagonal checks, each channel's rule in full."""
     sd = result.shake_down
-    S = RoleOverlaps(result.roles, mapping)
-    roles = "   ".join(
-        f"{role} = {orbital} -> final {mapping.final_id(orbital)}" for role, orbital in result.roles.items()
-    )
+    S = result.overlaps
     lines = [
         "",
         f"{_number(sd.initial_state)} -> {_number(sd.lower_state)}   {sd.case}   "
         f"initial S = {result.initial_spin:g}" + (f"   (d = {sd.d} omitted)" if sd.d else ""),
-        f"  {roles}",
+        "  " + "   ".join(S.describe_role(role) for role in S.orbital_roles),
     ]
-    lines += [f"  S_{pair} = |{S.describe(pair)}| = {value:.4f}" for pair, value in result.overlaps.items()
+    lines += [f"  S_{pair} = {S.describe(pair)} = {value:.4f}" for pair, value in result.overlap_values.items()
               if pair[0] != pair[1]]
     for pair, value in result.diagonals.items():
         flag = f"   below {DIAGONAL_WARNING}: weak-relaxation approximation poor" if value < DIAGONAL_WARNING else ""
-        lines.append(f"  S_{pair} = |{S.describe(pair)}| = {value:.4f} (set to 1){flag}")
+        lines.append(f"  S_{pair} = {S.describe(pair)} = {value:.4f} (set to 1){flag}")
     # Channels evaluated together share their equations: print each quantity once.
     for channel_result in result.channels:
         lines += [line for line in channel_result.channel.equation_lines(S, channel_result) if line not in lines]
@@ -451,7 +425,7 @@ def propensity_report(
         if not results:
             lines.append(f"No shake-down has a channel to S = {final.spin:g} final states.")
         for result in results:
-            lines += _result_lines(result, final.mapping)
+            lines += _result_lines(result)
 
     results_by_final = {
         final.label: {result.shake_down: result for result in results} for final, results in evaluations
