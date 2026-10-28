@@ -1,0 +1,14 @@
+# Core-hole potential (chp): only the initial calculation is needed. The final
+# orbitals are the initial ones relaxed to first order in the potential of a
+# hole in each core (RAS1) orbital, using the integrals (pq|cc) of fcidump_file.
+Calculator:
+  program: molcas
+  method: chp
+
+Initial:
+  type: caspt2
+  wf_file: ../../../data/molcas/brthph/s2p/mb/valence_caspt2.caspt2.h5
+  state_file: ../../../data/molcas/brthph/s2p/mb/valence_caspt2.log
+  mcscf_file: ../../../data/molcas/brthph/s2p/mb/valence.rasscf.h5
+  fcidump_file: ../../../data/molcas/brthph/s2p/mb/valence.FciDmp.h5   # written by the RASSCF run of mcscf_file
+  max_state: 4
