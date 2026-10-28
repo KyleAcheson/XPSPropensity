@@ -2,7 +2,7 @@
 # Caculator - program defines the electronic structure code used for the wf calculations,
 #   method - defines the using the 'overlaps' based propensity rules which requires both initial
 #   and final states to be input. If 'chp' the overlaps are approximated from only the inital state
-#   and thus the Final input block is not required.
+#   and thus the Final input block is not used; Initial then needs fcidump_file (see input_chp.yaml).
 #
 # Initial - type can be either 'caspt2' or 'rasscf'
 #   wf_file - path to h5 file that contains initials state orbitals etc,
@@ -13,7 +13,7 @@
 #
 #Final - Final (N-1) ionized calculations, same definitions as Initial.
 # However, the 'type' of both Initial and Final must be the same if both are required.
-# In the event Calculator has 'method: chp' then the Final block is not required at all
+# In the event Calculator has 'method: chp' then the Final block is not used at all
 # and all overlaps are approximated by the core-hole potential approach using only
 # the initial state orbitals - the chp approach models the effect of orbital
 # relaxation upon ionization using first-order perturbation theory.

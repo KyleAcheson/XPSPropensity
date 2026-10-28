@@ -44,12 +44,40 @@ def test_example_input_resolves_paths_relative_to_input_file():
     assert data["Final"][0]["mcscf_file"] == DATA / "core.rasscf.h5"
 
 
-def test_chp_method_does_not_require_final_block(tmp_path):
+def _chp_input():
     data = _valid_input()
     data["Calculator"]["method"] = "chp"
     del data["Final"]
+    data["Initial"]["fcidump_file"] = "valence.FciDmp.h5"
+    return data
 
-    assert "Final" not in load_input(_write(tmp_path, data))
+
+def test_chp_method_needs_an_fcidump_file_and_no_final_block(tmp_path):
+    (tmp_path / "valence.FciDmp.h5").write_bytes(b"")
+
+    loaded = load_input(_write(tmp_path, _chp_input()))
+
+    assert "Final" not in loaded
+    assert loaded["Initial"]["fcidump_file"] == tmp_path / "valence.FciDmp.h5"  # relative to the input file
+
+
+@pytest.mark.parametrize(
+    "mutate,message",
+    [
+        (lambda data: data["Initial"].pop("fcidump_file"), "Initial.fcidump_file: required for method 'chp'"),
+        (lambda data: data.update(Final=_valid_input()["Final"]), "Final: not used by method 'chp'"),
+        (lambda data: data.update(Calculator={"program": "molcas", "method": "overlaps"}, Final=_valid_input()["Final"]),
+         "Initial.fcidump_file: only used with method 'chp'"),
+        (lambda data: None, "Initial.fcidump_file: file not found"),
+    ],
+)
+def test_chp_inputs_are_checked(tmp_path, mutate, message):
+    data = _chp_input()
+    mutate(data)
+
+    with pytest.raises(InputError) as excinfo:
+        load_input(_write(tmp_path, data))
+    assert message in str(excinfo.value)
 
 
 def test_choice_values_are_case_insensitive_but_paths_are_not(tmp_path):

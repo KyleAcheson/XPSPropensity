@@ -81,8 +81,17 @@ python src/xpsoverlaps/main.py -i inputs/input.yaml -o output.log
 xpsoverlaps -i inputs/input.yaml -o output.log
 ```
 
-The propensity rules themselves are not implemented yet; `method: chp` is a
-placeholder.
+`method: chp` (core-hole potential) needs only the initial calculation (see
+`inputs/input_chp.yaml`). The final orbitals are the initial ones relaxed to
+first order in the potential −J_c of a hole in each core (RAS1) orbital c:
+S_ab = (ab|cc)/(e_b − e_a), signed, with e the initial orbital energies. The
+integrals (pq|cc) come from `fcidump_file` in the Initial block, required for
+chp: the FCIDUMP HDF5 file Molcas RASSCF writes for the initial orbitals (for
+CASPT2, the RASSCF run of `mcscf_file`). It is checked against the initial
+calculation's active space and orbital energies. The rules are evaluated for
+each core orbital, and the summary gives each core orbital's intensity and
+their mean. Overlaps with |S_ab| above 0.5 are flagged: first-order relaxation
+is unreliable for nearly degenerate orbitals.
 
 ### Using it from Python
 
@@ -116,8 +125,12 @@ src/xpsoverlaps/
 ├── mapping.py           # initial -> final active-orbital mapping
 ├── frontier.py          # HOMO/LUMO from the input, carried to the final state by the mapping
 ├── shakedown_transitions.py  # shake-down transitions between initial states and their i, j, k roles
+├── overlap_sources.py   # S_ab between initial orbitals: mapped final orbitals or core-hole potential
 ├── propensity_rules.py  # propensity rules: the Channel table (3e/5e, GS/ES) and its evaluation
 ├── methods.py           # the propensity methods of the input (overlaps, chp): run all steps
+├── integrals/           # core-hole Coulomb integrals (pq|cc)
+│   ├── base.py          #   CoreHoleIntegrals interface
+│   └── stored.py        #   from integrals a program wrote (FCIDUMP)
 ├── overlap/             # AO overlap providers and MO overlaps
 │   ├── base.py          #   AOOverlapProvider interface
 │   ├── gaussian.py      #   integrals for GaussianBasis
@@ -131,6 +144,7 @@ src/xpsoverlaps/
         ├── hdf5_reader.py   # one reader per record: molecule, basis, orbitals, active space
         ├── rasscf_log.py    # RASSCF states from the log
         ├── caspt2_log.py    # MS-CASPT2 states from the log
+        ├── fcidump.py       # active-space integrals from a RASSCF FCIDUMP HDF5 file
         ├── basis.py         # Molcas basis-set reconstruction
         └── loader.py        # OpenMolcasLoader: reads each record and builds the Calculation
 tests/                   # pytest suite (uses the data in data/molcas)

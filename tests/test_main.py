@@ -12,6 +12,7 @@ from xpsoverlaps import methods
 ROOT = Path(__file__).parents[1]
 PACKAGE_DIR = ROOT / "src" / "xpsoverlaps"
 INPUT = ROOT / "inputs" / "input.yaml"
+FCIDUMP = ROOT / "data" / "molcas" / "brthph" / "s2p" / "mb" / "valence.FciDmp.h5"
 
 
 def _record_calls(monkeypatch):
@@ -24,18 +25,20 @@ def _record_calls(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        methods, "propensity_chp", lambda initial, frontier=None: calls.update(chp=(initial, frontier))
+        methods,
+        "propensity_chp",
+        lambda initial, integrals, frontier=None, max_state=None: calls.update(chp=(initial, frontier, integrals)),
     )
     return calls
 
 
-def _chp_input(tmp_path):
+def _chp_input(tmp_path, fcidump=FCIDUMP):
     run_input = yaml.safe_load(INPUT.read_text(encoding="utf-8"))
     run_input["Calculator"]["method"] = "chp"
-    for block in ("Initial", "Final"):
-        for key in ("wf_file", "state_file", "mcscf_file"):
-            if key in run_input[block]:
-                run_input[block][key] = str((INPUT.parent / run_input[block][key]).resolve())
+    del run_input["Final"]
+    for key in ("wf_file", "state_file", "mcscf_file"):
+        run_input["Initial"][key] = str((INPUT.parent / run_input["Initial"][key]).resolve())
+    run_input["Initial"]["fcidump_file"] = str(fcidump)
     input_file = tmp_path / "chp.yaml"
     input_file.write_text(yaml.safe_dump(run_input), encoding="utf-8")
     return input_file
@@ -72,9 +75,27 @@ def test_main_chp_loads_only_initial_calculation(monkeypatch, tmp_path):
     assert main_module.main(["-i", str(_chp_input(tmp_path))]) == 0
 
     assert set(calls) == {"chp"}
-    initial, frontier = calls["chp"]
+    initial, frontier, integrals = calls["chp"]
     assert len(initial.states) == 10
     assert (frontier.homo, frontier.lumo) == ("mo:34", "mo:40")
+    assert integrals.integrals.orbital_ids == initial.active_space.orbital_ids
+
+
+def test_main_rejects_an_fcidump_file_of_another_calculation(monkeypatch, tmp_path, capsys):
+    calls = _record_calls(monkeypatch)
+    triplet = ROOT / "data" / "molcas" / "brthph" / "s2p" / "mb" / "triplet"
+    input_file = _chp_input(tmp_path)
+    run_input = yaml.safe_load(input_file.read_text(encoding="utf-8"))
+    run_input["Initial"].update(wf_file=str(triplet / "valence-trip.caspt2.h5"),
+                                state_file=str(triplet / "valence-trip.log"),
+                                mcscf_file=str(triplet / "valence-trip-tz.rasscf.h5"))
+    run_input["Initial"].pop("homo"), run_input["Initial"].pop("lumo")
+    input_file.write_text(yaml.safe_dump(run_input), encoding="utf-8")
+
+    assert main_module.main(["-i", str(input_file)]) == 1
+
+    assert calls == {}
+    assert "does not match the calculation: orbital energy of mo:31" in capsys.readouterr().err
 
 
 def test_output_file_dumps_input_and_summarizes_states(tmp_path):

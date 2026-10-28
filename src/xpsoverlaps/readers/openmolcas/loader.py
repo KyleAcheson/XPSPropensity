@@ -13,9 +13,10 @@ import dataclasses
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
-from xpsoverlaps.model import Calculation, ElectronicState, OrbitalSet, Provenance
+from xpsoverlaps.model import ActiveIntegrals, Calculation, ElectronicState, OrbitalSet, Provenance
 from xpsoverlaps.readers.loader import CalculationLoader
 from xpsoverlaps.readers.openmolcas.caspt2_log import read_caspt2_states
+from xpsoverlaps.readers.openmolcas.fcidump import read_fcidump
 from xpsoverlaps.readers.openmolcas.hdf5_file import MolcasHdf5
 from xpsoverlaps.readers.openmolcas.hdf5_reader import (
     read_active_space,
@@ -41,11 +42,15 @@ class OpenMolcasLoader(CalculationLoader):
     """Molecule, basis, orbitals and active space come from the HDF5 ``wf_file``;
     states (spin, symmetry, dominant configurations) from the log ``state_file``;
     for CASPT2, orbital energies and populations from the RASSCF ``mcscf_file``.
+    Integral files are RASSCF FCIDUMP HDF5 files.
     """
 
     programs = ("openmolcas", "molcas")
     display_name = "OpenMolcas"
     calculation_types = set(_STATE_SOURCES)
+
+    def load_integrals(self, integral_file: Path, calculation: Calculation) -> ActiveIntegrals:
+        return read_fcidump(integral_file, calculation)
 
     def _load(
         self, kind: str, wf_file: Path, state_file: Optional[Path], mcscf_file: Optional[Path]

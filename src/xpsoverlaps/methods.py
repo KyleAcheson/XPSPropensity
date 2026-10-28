@@ -1,12 +1,18 @@
 """Propensity-rule approximations to Dyson norms for XPS transitions.
 
-One initial calculation is compared with one or more final calculations, each
-holding states of a single spin (e.g. the doublet and the quartet core-hole
-states, from separate calculations). Each section of the output covers all
-final calculations together: the orbital mappings, the mapped CI vectors, the
-orbital order, the shake-downs (initial states only), and the propensity
-rules, where each channel is evaluated with the final calculation of its spin
-and one summary combines them.
+``propensity_overlaps``: one initial calculation is compared with one or more
+final calculations, each holding states of a single spin (e.g. the doublet and
+the quartet core-hole states, from separate calculations). Each section of the
+output covers all final calculations together: the orbital mappings, the
+mapped CI vectors, the orbital order, the shake-downs (initial states only),
+and the propensity rules, where each channel is evaluated with the final
+calculation of its spin and one summary combines them.
+
+``propensity_chp``: the initial calculation only. The final orbitals are the
+initial ones relaxed to first order in the core-hole potential of each core
+(RAS1) orbital in turn; the sections are the orbital order, the shake-downs,
+the core-hole overlaps, and the propensity rules per core orbital with one
+summary.
 """
 
 from __future__ import annotations
@@ -22,9 +28,11 @@ from xpsoverlaps.frontier import (
     orbital_order_report,
     reference_warning,
 )
+from xpsoverlaps.integrals import CoreHoleIntegrals
 from xpsoverlaps.mapping import MappedFinal, map_active_orbitals, mapped_ci_report, mapping_report
 from xpsoverlaps.model import Calculation
-from xpsoverlaps.propensity_rules import evaluate_final, propensity_report
+from xpsoverlaps.overlap_sources import CHP_OVERLAP_WARNING, CoreHoleOverlaps, core_hole_overlap_report
+from xpsoverlaps.propensity_rules import core_hole_report, evaluate_final, evaluate_shake_downs, propensity_report
 from xpsoverlaps.shakedown_transitions import (
     ShakeDown,
     ShakeDownError,
@@ -151,6 +159,46 @@ def _log_shake_downs(
     return shake_downs
 
 
-def propensity_chp(initial: Calculation, frontier: Optional[FrontierOrbitals] = None) -> None:
-    """Approximate Dyson norms from the initial state using a core-hole potential."""
-    pass
+def propensity_chp(
+    initial: Calculation,
+    integrals: CoreHoleIntegrals,
+    frontier: Optional[FrontierOrbitals] = None,
+    max_state: Optional[int] = None,
+) -> None:
+    """Approximate Dyson norms from the initial state using a core-hole potential.
+
+    Each core (RAS1) orbital c in turn gives the overlaps S_ab = (ab|cc) /
+    (e_b - e_a) between the valence orbitals, with (pq|cc) from ``integrals``
+    and e the initial orbital energies. ``frontier`` and ``max_state`` are as
+    in ``propensity_overlaps``.
+    """
+    if initial.orbitals.energies is None:
+        raise ValueError("The core-hole potential needs the initial orbital energies (CASPT2: give mcscf_file).")
+    logger.info("")
+    order = _log_orbital_order(initial, [], frontier, max_state)
+    logger.info("")
+    logger.info(_DASHES)
+    logger.info("")
+    shake_downs = _log_shake_downs(initial, order, max_state)
+    logger.info("")
+    logger.info(_DASHES)
+    if order is None:
+        return
+    cores = [orbital_id for orbital_id, label in order.unranked if label == "core"]
+    if not cores:
+        logger.warning("No core (RAS1) orbitals: the core-hole potential needs at least one.")
+        return
+
+    valence = list(reversed(order.occupied)) + list(order.virtual)
+    energies = dict(zip(initial.orbitals.orbital_ids, initial.orbitals.energies))
+    coulomb = integrals.coulomb(cores, valence)
+    overlap_sources = [CoreHoleOverlaps(coulomb[core], energies) for core in cores]
+    _section(core_hole_overlap_report(overlap_sources, {o: order.label(o) for o in valence}, integrals.source))
+    large = sum(len(overlap_source.large()) for overlap_source in overlap_sources)
+    if large:
+        logger.warning("%d core-hole overlaps |S_ab| above %s (listed under Core-hole overlaps): "
+                       "first-order relaxation is unreliable for those orbital pairs.", large, CHP_OVERLAP_WARNING)
+    if shake_downs:
+        evaluations = [(source.core, evaluate_shake_downs(shake_downs, initial, source))
+                       for source in overlap_sources]
+        _section(core_hole_report(shake_downs, initial, evaluations))

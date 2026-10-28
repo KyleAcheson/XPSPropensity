@@ -15,10 +15,11 @@ if __package__ in {None, ""}:
 
 from xpsoverlaps import methods
 from xpsoverlaps.frontier import FrontierOrbitalError, frontier_from_indices
+from xpsoverlaps.integrals import StoredIntegrals
 from xpsoverlaps.shakedown_transitions import ShakeDownError, check_max_state
 from xpsoverlaps.inputs import CalculationInput, InputError, RunInput, load_input
 from xpsoverlaps.model import Calculation
-from xpsoverlaps.readers import get_calculation
+from xpsoverlaps.readers import IntegralFileError, get_active_integrals, get_calculation
 
 # Parent of every module logger (logging.getLogger(__name__)) in the package.
 logger = logging.getLogger("xpsoverlaps")
@@ -140,7 +141,13 @@ def _run(input_file: Path) -> int:
             return 1
         methods.propensity_overlaps(initial, finals, frontier, max_state)
     else:
-        methods.propensity_chp(initial, frontier)
+        try:
+            integrals = get_active_integrals(program, run_input["Initial"]["fcidump_file"], initial)
+        except IntegralFileError as error:
+            logger.error("%s", error)
+            print(error, file=sys.stderr)
+            return 1
+        methods.propensity_chp(initial, StoredIntegrals(integrals), frontier, max_state)
     return 0
 
 

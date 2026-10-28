@@ -1,6 +1,7 @@
 """OpenMolcas readers: an HDF5 access layer, one reader per model record, and the loader."""
 
 from xpsoverlaps.readers.openmolcas.caspt2_log import read_caspt2_states
+from xpsoverlaps.readers.openmolcas.fcidump import read_fcidump
 from xpsoverlaps.readers.openmolcas.hdf5_file import MolcasHdf5
 from xpsoverlaps.readers.openmolcas.hdf5_reader import (
     read_active_space,
@@ -19,6 +20,7 @@ __all__ = [
     "read_active_space",
     "read_basis",
     "read_caspt2_states",
+    "read_fcidump",
     "read_molecule",
     "read_orbital_populations",
     "read_orbitals",

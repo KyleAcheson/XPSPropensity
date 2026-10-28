@@ -288,9 +288,11 @@ def orbital_order_report(order: OrbitalOrder, initial: Calculation, finals: Sequ
         "",
         *source,
         "population (lowest occupied = HOMO, highest virtual = LUMO). RAS1 orbitals are core and not ranked.",
-        "Final orbitals are those the initial ones map onto, in each final calculation. Populations are",
-        "state-averaged over each calculation's roots; energies are the stored diagonal Fock elements.",
     ]
+    if finals:
+        lines.append("Final orbitals are those the initial ones map onto, in each final calculation.")
+    lines += ["Populations are state-averaged over each calculation's roots; energies are the stored",
+              "diagonal Fock elements."]
     if order.override is None:
         lines.append("HOMO/LUMO from the populations (not given in the input).")
     else:

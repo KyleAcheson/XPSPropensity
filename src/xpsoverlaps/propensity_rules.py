@@ -362,16 +362,25 @@ def compute_propensity(
     )
 
 
+def evaluate_shake_downs(
+    shake_downs: Sequence[ShakeDown], initial: Calculation, overlap_source: OrbitalOverlaps,
+    final_spin: Optional[float] = None,
+) -> List[PropensityResult]:
+    """The computable shake-downs with a bright channel (to ``final_spin``, if given),
+    evaluated with the overlaps of ``overlap_source``."""
+    return [
+        compute_propensity(sd, initial, overlap_source, final_spin)
+        for sd in shake_downs
+        if sd.computable and any(final_spin is None or c.final_spin == final_spin
+                                 for c in bright_channels(sd, initial)[0])
+    ]
+
+
 def evaluate_final(
     shake_downs: Sequence[ShakeDown], initial: Calculation, final: MappedFinal
 ) -> List[PropensityResult]:
     """The computable shake-downs with a channel to ``final``'s spin, evaluated with its overlaps."""
-    overlap_source = MappedOverlaps(final.mapping)
-    return [
-        compute_propensity(sd, initial, overlap_source, final.spin)
-        for sd in shake_downs
-        if sd.computable and any(c.final_spin == final.spin for c in bright_channels(sd, initial)[0])
-    ]
+    return evaluate_shake_downs(shake_downs, initial, MappedOverlaps(final.mapping), final.spin)
 
 
 # --- Report ------------------------------------------------------------------
@@ -447,4 +456,49 @@ def propensity_report(
                 continue
             result = next(r for r in results_by_final[final.label][sd].channels if r.channel is channel)
             lines.append(f"{pair:>8}  {sd.case:<6}  {final.label:<8}  {channel.name:<21}  {result.intensity:10.6f}")
+    return lines
+
+
+def core_hole_report(
+    shake_downs: Sequence[ShakeDown],
+    initial: Calculation,
+    evaluations: Sequence[Tuple[str, Sequence[PropensityResult]]],
+) -> List[str]:
+    """For each core orbital the rules evaluated with its core-hole overlaps, then one
+    summary of every computable shake-down's channels: the intensity per core orbital and their mean."""
+    cores = [core for core, _ in evaluations]
+    lines = [
+        "Propensity rules (core-hole potential)",
+        "",
+        "S_ab = <phi_a|psi_b> = (ab|cc) / (e_b - e_a), signed (see Core-hole overlaps).",
+        "Diagonal S_ii, S_jj, S_kk are 1 to first order.",
+        "Non-zero channels: singlet -> GS closed-shell doublet or ES D1;"
+        " triplet -> ES D2 and Q (GS dark).",
+        "Every channel uses the same overlaps (Coulomb only): Q = 2 D2.",
+    ]
+    for core, results in evaluations:
+        title = f"Core hole in {core}"
+        lines += ["", title, "-" * len(title)]
+        if not results:
+            lines.append("No shake-down has a bright channel.")
+        for result in results:
+            lines += _result_lines(result)
+
+    results_by_core = {core: {result.shake_down: result for result in results} for core, results in evaluations}
+    columns = "".join(f"  {core:>10}" for core in cores)
+    lines += ["", "Summary", f"{'a -> b':>8}  {'Case':<6}  {'Channel':<21}{columns}  {'Mean':>10}"]
+    for sd in shake_downs:
+        if not sd.computable:
+            continue
+        pair = f"{_number(sd.initial_state)} -> {_number(sd.lower_state)}"
+        channels, note = bright_channels(sd, initial)
+        if not channels:
+            blanks = "".join(f"  {'-':>10}" for _ in cores)
+            lines.append(f"{pair:>8}  {sd.case:<6}  {'-':<21}{blanks}  {'-':>10}   {note}")
+        for channel in channels:
+            intensities = [next(r for r in results_by_core[core][sd].channels if r.channel is channel).intensity
+                           for core in cores]
+            values = "".join(f"  {value:10.6f}" for value in intensities)
+            lines.append(f"{pair:>8}  {sd.case:<6}  {channel.name:<21}{values}  "
+                         f"{sum(intensities) / len(intensities):10.6f}")
     return lines

@@ -10,7 +10,7 @@ import yaml
 
 
 SCHEMA_PATH = Path(__file__).with_name("input_schema.yaml")
-_FILE_KEYS = ("wf_file", "state_file", "mcscf_file")
+_FILE_KEYS = ("wf_file", "state_file", "mcscf_file", "fcidump_file")
 
 
 # Shape of a validated input file (see input_schema.yaml). Choice values are
@@ -29,6 +29,7 @@ class _CalculationInputRequired(TypedDict):
 class CalculationInput(_CalculationInputRequired, total=False):
     state_file: Path  # only for programs that write states to a separate file
     mcscf_file: Path  # MCSCF file of a correlated run (Molcas CASPT2: its RASSCF HDF5 file)
+    fcidump_file: Path  # Initial only, method chp; active-space integrals (Molcas: RASSCF FCIDUMP HDF5 file)
     homo: int  # Initial only; 1-based MO indices, given together with lumo
     lumo: int
     max_state: int  # Initial only; highest initial state used for shake-downs
@@ -114,8 +115,8 @@ def _lowercase_choices(data: Any, schema: Dict[str, Any], root: Dict[str, Any]) 
 def load_input(source: str | Path) -> RunInput:
     """Read and validate an input file.
 
-    Relative file paths (``wf_file``, ``state_file``, ``mcscf_file``) are
-    resolved against the input file's directory and returned as absolute
+    Relative file paths (``wf_file``, ``state_file``, ``mcscf_file``,
+    ``fcidump_file``) are resolved against the input file's directory and returned as absolute
     ``Path`` objects. ``Final`` is returned as a list of blocks, also when the
     file gives a single block. All problems are reported together in a single
     ``InputError``.
@@ -143,7 +144,15 @@ def load_input(source: str | Path) -> RunInput:
     # Rules JSON Schema cannot express (comparing two values, filesystem checks)
     # or would report without naming the key.
     blocks = [("Initial", data["Initial"])]
-    if data["Calculator"]["method"] == "overlaps":
+    method = data["Calculator"]["method"]
+    if method == "overlaps" and "fcidump_file" in data["Initial"]:
+        problems.append("Initial.fcidump_file: only used with method 'chp'")
+    if method == "chp" and "fcidump_file" not in data["Initial"]:
+        problems.append("Initial.fcidump_file: required for method 'chp' (the integrals (pq|cc) of the "
+                        "core-hole potential; computing them is not implemented yet)")
+    if method == "chp" and "Final" in data:
+        problems.append("Final: not used by method 'chp', which needs only the Initial calculation")
+    if method == "overlaps":
         for index, final in enumerate(data["Final"]):
             label = _final_label(index, single_final)
             blocks.append((label, final))
