@@ -1,0 +1,399 @@
+================================================================================
+                            XPSoverlaps Calculation
+================================================================================
+
+Input:
+Calculator:
+  program: molcas
+  method: overlaps
+Initial:
+  type: rasscf
+  wf_file: /home/ka3f26/XPSoverlaps/data/molcas/brthph/s2p/mb/valence.rasscf.h5
+  state_file: /home/ka3f26/XPSoverlaps/data/molcas/brthph/s2p/mb/valence-tz.log
+  homo: 34
+  lumo: 40
+  max_state: 4
+Final:
+- type: rasscf
+  wf_file: /home/ka3f26/XPSoverlaps/data/molcas/brthph/s2p/mb/core.rasscf.h5
+  state_file: /home/ka3f26/XPSoverlaps/data/molcas/brthph/s2p/mb/core-tz.log
+
+--------------------------------------------------------------------------------
+
+********************************************************************************
+* NOTE: The CI vectors below are printed exactly as read, each in its own
+* calculation's active-orbital order. They are NOT yet mapped onto a common
+* orbital ordering, so Initial and Final occupation strings cannot be
+* compared position by position.
+********************************************************************************
+
+Initial states (RASSCF): 10 states
+CI vector orbital order: mo:31 ... mo:42
+
+State       Energy (Eh)  Spin (S)  Dominant CI vector    Weight
+---------------------------------------------------------------
+    1    -3156.32326124       0.0  222222222000          0.9019
+    2    -3156.09593591       0.0  2222222u2d00          0.5372
+    3    -3156.09562616       0.0  222u222220d0          0.7238
+    4    -3156.05984775       0.0  222u22222d00          0.7511
+    5    -3156.03912846       0.0  222222u220d0          0.8791
+    6    -3156.03093495       0.0  2222222u20d0          0.7467
+    7    -3156.02256538       0.0  222022222200          0.2145
+    8    -3156.01202917       0.0  222222u22d00          0.8348
+    9    -3156.00325858       0.0  22222u2220d0          0.6746
+   10    -3155.98072747       0.0  22222u222d00          0.4453
+
+--------------------------------------------------------------------------------
+
+Final states (RASSCF): 40 states
+CI vector orbital order: mo:31 ... mo:42
+
+State       Energy (Eh)  Spin (S)  Dominant CI vector    Weight
+---------------------------------------------------------------
+    1    -3150.00430936       0.5  u22222222000          0.8812
+    2    -3150.00398060       0.5  22u222222000          0.8794
+    3    -3149.88452600       0.5  u2222222du00          0.6327
+    4    -3149.88133526       0.5  22u22222du00          0.6466
+    5    -3149.82029583       0.5  u22d22222u00          0.3493
+    6    -3149.81651349       0.5  22ud22222u00          0.3412
+    7    -3149.80259495       0.5  22u22222d0u0          0.4462
+    8    -3149.80143068       0.5  u2222222d0u0          0.5100
+    9    -3149.78825850       0.5  u2222222u0d0          0.5471
+   10    -3149.78809543       0.5  22u22222u0d0          0.4876
+   11    -3149.78067116       0.5  22u222d220u0          0.6650
+   12    -3149.77855888       0.5  u22222d220u0          0.6932
+   13    -3149.77188836       0.5  u22u22222d00          0.2598
+   14    -3149.77153315       0.5  22uu22222d00          0.2651
+   15    -3149.75287823       0.5  u2222222ud00          0.3602
+   16    -3149.75259128       0.5  22u22222ud00          0.3744
+   17    -3149.74553180       0.5  u22222u220d0          0.5206
+   18    -3149.74486104       0.5  22u222u220d0          0.5526
+   19    -3149.74181433       0.5  22u222d22u00          0.5754
+   20    -3149.74029134       0.5  u22222u22d00          0.8010
+   21    -3149.73967672       0.5  u22222d22u00          0.8012
+   22    -3149.73564646       0.5  22u222u22d00          0.5836
+   23    -3149.72243602       0.5  22u22d2220u0          0.1607
+   24    -3149.72231695       0.5  u2222d2220u0          0.2411
+   25    -3149.72217658       0.5  u2222d222u00          0.1858
+   26    -3149.71898662       0.5  22u22d222u00          0.1928
+   27    -3149.71690010       0.5  u22d2222200u          0.2036
+   28    -3149.71423410       0.5  22u22d222u00          0.2462
+   29    -3149.69151942       0.5  u2222u2220d0          0.2167
+   30    -3149.69116156       0.5  22u22u2220d0          0.1917
+   31    -3149.68405072       0.5  u2222u222d00          0.2594
+   32    -3149.68391323       0.5  22u22u222d00          0.2885
+   33    -3149.66912473       0.5  u2222222d00u          0.3649
+   34    -3149.66258276       0.5  22u22222d00u          0.3092
+   35    -3149.66131660       0.5  22u22u2220d0          0.3089
+   36    -3149.66081128       0.5  u2222d2220u0          0.2454
+   37    -3149.65628164       0.5  u2222u2220d0          0.3474
+   38    -3149.65380497       0.5  22u22d2220u0          0.2667
+   39    -3149.64877165       0.5  u22222u2ddu0          0.6368
+   40    -3149.64847915       0.5  22u222u2ddu0          0.5133
+
+--------------------------------------------------------------------------------
+
+Final: S = 0.5 (core.rasscf.h5)
+===============================
+
+Active orbital mapping (initial -> final), by MO overlap
+
+Initial  Final           S   Sim   Runner-up     |S|   Sim   Assigned by
+------------------------------------------------------------------------
+mo:31    mo:31      +0.955  0.98   mo:32       0.297  0.82   overlap
+mo:32    mo:32      +0.955  0.98   mo:31       0.297  0.82   overlap
+mo:33    mo:33      +1.000  1.00   mo:31       0.000  1.00   overlap
+mo:34    mo:39      +0.989  0.91   mo:34       0.126  0.59   overlap
+mo:35    mo:35      +0.985  0.94   mo:41       0.056  0.71   overlap
+mo:36    mo:36      +0.741  0.70   mo:34       0.615  0.38   overlap
+mo:37    mo:37      +0.990  0.97   mo:41       0.034  0.46   overlap
+mo:38    mo:34      +0.712  0.48   mo:38       0.525  0.51   overlap
+mo:39    mo:38      +0.792  0.45   mo:36       0.523  0.51   overlap
+mo:40    mo:40      +0.980  0.88   mo:38       0.109  0.27   overlap
+mo:41    mo:41      +0.958  0.89   mo:35       0.045  0.84   overlap
+mo:42    mo:42      +0.998  0.96   mo:40       0.041  0.56   overlap
+
+Mapping warnings:
+  - Close runner-up for mo:36 -> mo:36 (|S| = 0.741, similarity 0.70): mo:34 has |S| = 0.615, similarity 0.38.
+
+Dominant AO contributions (AO weights, Mulliken partition) of the paired orbitals
+
+INITIAL                                        | FINAL
+-----------------------------------------------------------------------------------------------
+mo:31                                          | mo:31
+  character: S5 p 0.98, S5 s 0.02, C3 p 0.00   |   character: S5 p 1.00, S5 s 0.00, C2 p 0.00
+  AO                    coeff weight           |   AO                    coeff weight
+  S5 2P[m=+1]         +0.9901  0.980           |   S5 2P[m=+1]         +0.9726  0.945
+                                               |   S5 2P[m=-1]         +0.2343  0.055
+-----------------------------------------------------------------------------------------------
+mo:32                                          | mo:32
+  character: S5 p 0.82, S5 s 0.18, C1 s 0.00   |   character: S5 p 0.80, S5 s 0.20, H7 s 0.00
+  AO                    coeff weight           |   AO                    coeff weight
+  S5 2P[m=-1]         +0.9007  0.811           |   S5 2P[m=-1]         +0.8703  0.757
+  S5 2S               +0.4164  0.173           |   S5 2S               +0.4382  0.192
+-----------------------------------------------------------------------------------------------
+mo:33                                          | mo:33
+  character: S5 p 1.00, C3 p 0.00, C2 p 0.00   |   character: S5 p 1.00, C3 p 0.00, C2 p 0.00
+  AO                    coeff weight           |   AO                    coeff weight
+  S5 2P[m=+0]         -1.0000  1.000           |   S5 2P[m=+0]         -1.0000  1.000
+-----------------------------------------------------------------------------------------------
+mo:34                                          | mo:39
+  character: C4 p 0.31, C1 p 0.26, BR6 p 0.13  |   character: C4 p 0.30, C1 p 0.25, BR6 p 0.18
+  AO                    coeff weight           |   AO                    coeff weight
+  C4 2P[m=+0]         -0.5263  0.308           |   C4 2P[m=+0]         -0.5255  0.297
+  C1 2P[m=+0]         +0.4982  0.259           |   C1 2P[m=+0]         +0.4936  0.250
+  BR6 4P[m=+0]        -0.4395  0.135           |   BR6 4P[m=+0]        -0.4920  0.183
+  C2 2P[m=+0]         +0.3387  0.130           |   C2 2P[m=+0]         +0.3734  0.164
+  C3 2P[m=+0]         -0.2852  0.096           |
+-----------------------------------------------------------------------------------------------
+mo:35                                          | mo:35
+  character: BR6 p 0.60, C1 p 0.28, C1 s 0.09  |   character: BR6 p 0.55, C1 p 0.27, C1 s 0.14
+  AO                    coeff weight           |   AO                    coeff weight
+  BR6 4P[m=+1]        +0.6163  0.489           |   BR6 4P[m=+1]        +0.5865  0.474
+  C1 2P[m=+1]         -0.3767  0.215           |   C1 2P[m=+1]         -0.3493  0.170
+  BR6 4P[m=-1]        +0.2951  0.108           |   C1 2S               -0.3281  0.135
+  C1 2S               -0.2486  0.085           |   C1 2P[m=-1]         -0.2708  0.100
+  C1 2P[m=-1]         -0.2120  0.063           |   BR6 4P[m=-1]        +0.2306  0.070
+-----------------------------------------------------------------------------------------------
+mo:36                                          | mo:36
+  character: BR6 p 0.74, C4 p 0.08, S5 p 0.07  |   character: BR6 p 0.56, C1 p 0.22, C2 p 0.11
+  AO                    coeff weight           |   AO                    coeff weight
+  BR6 4P[m=+0]        +0.8503  0.745           |   BR6 4P[m=+0]        +0.7078  0.560
+  C4 2P[m=+0]         -0.2279  0.080           |   C1 2P[m=+0]         +0.3778  0.215
+  S5 3P[m=+0]         -0.2643  0.071           |   C2 2P[m=+0]         +0.2547  0.112
+-----------------------------------------------------------------------------------------------
+mo:37                                          | mo:37
+  character: BR6 p 0.94, S5 p 0.02, C2 p 0.01  |   character: BR6 p 0.96, C1 d 0.01, S5 p 0.01
+  AO                    coeff weight           |   AO                    coeff weight
+  BR6 4P[m=-1]        +0.8917  0.772           |   BR6 4P[m=-1]        +0.9130  0.824
+  BR6 4P[m=+1]        -0.4158  0.167           |   BR6 4P[m=+1]        -0.3702  0.137
+-----------------------------------------------------------------------------------------------
+mo:38                                          | mo:34
+  character: S5 p 0.46, C2 p 0.24, C3 p 0.23   |   character: C3 p 0.35, BR6 p 0.20, C4 p 0.19
+  AO                    coeff weight           |   AO                    coeff weight
+  S5 3P[m=+0]         +0.7213  0.466           |   C3 2P[m=+0]         -0.4824  0.345
+  C2 2P[m=+0]         -0.4287  0.239           |   BR6 4P[m=+0]        +0.4500  0.201
+  C3 2P[m=+0]         -0.4186  0.231           |   C4 2P[m=+0]         -0.3682  0.191
+                                               |   C2 2P[m=+0]         -0.3441  0.174
+-----------------------------------------------------------------------------------------------
+mo:39                                          | mo:38
+  character: S5 p 0.31, C1 p 0.21, C2 p 0.13   |   character: S5 p 0.84, C1 p 0.07, C4 p 0.05
+  AO                    coeff weight           |   AO                    coeff weight
+  S5 3P[m=+0]         +0.4702  0.312           |   S5 3P[m=+0]         +0.8643  0.833
+  C1 2P[m=+0]         +0.3372  0.210           |   C1 2P[m=+0]         +0.1774  0.067
+  C2 2P[m=+0]         +0.2627  0.132           |   C4 2P[m=+0]         +0.1544  0.054
+  C4 2P[m=+0]         +0.2590  0.127           |
+  C3 2P[m=+0]         +0.2442  0.113           |
+  BR6 4P[m=+0]        +0.2486  0.086           |
+-----------------------------------------------------------------------------------------------
+mo:40                                          | mo:40
+  character: C1 p 0.33, C4 p 0.21, C2 p 0.14   |   character: C1 p 0.31, C4 p 0.24, C2 p 0.16
+  AO                    coeff weight           |   AO                    coeff weight
+  C1 2P[m=+0]         -0.7727  0.364           |   C1 2P[m=+0]         -0.7163  0.332
+  C4 2P[m=+0]         -0.5800  0.230           |   C4 2P[m=+0]         -0.5826  0.247
+  C2 2P[m=+0]         +0.4521  0.144           |   C2 2P[m=+0]         +0.4681  0.169
+  S5 3P[m=+0]         +0.5556  0.139           |   C3 2P[m=+0]         +0.3424  0.098
+  C3 2P[m=+0]         +0.2590  0.054           |
+-----------------------------------------------------------------------------------------------
+mo:41                                          | mo:41
+  character: BR6 p 0.42, C1 p 0.24, C1 s 0.15  |   character: BR6 p 0.40, C1 p 0.18, C1 s 0.18
+  AO                    coeff weight           |   AO                    coeff weight
+  BR6 4P[m=+1]        +0.9526  0.364           |   BR6 4P[m=+1]        +0.8953  0.371
+  C1 2S               +1.0835  0.240           |   C1 2S               +0.8718  0.223
+  C1 2P[m=+1]         +0.6391  0.205           |   C1 2P[m=-1]         +0.5251  0.129
+  C1 2P[m=-1]         +0.3977  0.071           |   C1 2P[m=+1]         +0.4482  0.078
+  BR6 4P[m=-1]        +0.4051  0.065           |   S5 3P[m=+1]         -0.3487  0.051
+-----------------------------------------------------------------------------------------------
+mo:42                                          | mo:42
+  character: C3 p 0.38, C2 p 0.27, C4 p 0.17   |   character: C3 p 0.39, C2 p 0.29, C4 p 0.14
+  AO                    coeff weight           |   AO                    coeff weight
+  C3 2P[m=+0]         -0.8285  0.409           |   C3 2P[m=+0]         -0.8253  0.416
+  C2 2P[m=+0]         +0.7081  0.292           |   C2 2P[m=+0]         +0.7289  0.315
+  C4 2P[m=+0]         +0.5610  0.182           |   C4 2P[m=+0]         +0.5065  0.144
+  C1 2P[m=+0]         -0.3644  0.065           |   C1 2P[m=+0]         -0.3746  0.065
+-----------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+Final: S = 0.5 (core.rasscf.h5)
+===============================
+
+Dominant CI vectors on the initial active-orbital order
+
+Position k refers to initial orbital k and to the final orbital matched to it:
+  initial: mo:31 mo:32 mo:33 mo:34 mo:35 mo:36 mo:37 mo:38 mo:39 mo:40 mo:41 mo:42
+  final:   mo:31 mo:32 mo:33 mo:39 mo:35 mo:36 mo:37 mo:34 mo:38 mo:40 mo:41 mo:42
+
+Initial states (RASSCF)
+State       Energy (Eh)  CI vector       Weight
+    1    -3156.32326124  222222222000    0.9019
+    2    -3156.09593591  2222222u2d00    0.5372
+    3    -3156.09562616  222u222220d0    0.7238
+    4    -3156.05984775  222u22222d00    0.7511
+    5    -3156.03912846  222222u220d0    0.8791
+    6    -3156.03093495  2222222u20d0    0.7467
+    7    -3156.02256538  222022222200    0.2145
+    8    -3156.01202917  222222u22d00    0.8348
+    9    -3156.00325858  22222u2220d0    0.6746
+   10    -3155.98072747  22222u222d00    0.4453
+
+Final states (RASSCF)
+State       Energy (Eh)  CI vector (raw)  CI vector (mapped)    Weight
+    1    -3150.00430936  u22222222000     u22222222000          0.8812
+    2    -3150.00398060  22u222222000     22u222222000          0.8794
+    3    -3149.88452600  u2222222du00     u22d22222u00          0.6327
+    4    -3149.88133526  22u22222du00     22ud22222u00          0.6466
+    5    -3149.82029583  u22d22222u00     u222222d2u00          0.3493
+    6    -3149.81651349  22ud22222u00     22u2222d2u00          0.3412
+    7    -3149.80259495  22u22222d0u0     22ud222220u0          0.4462
+    8    -3149.80143068  u2222222d0u0     u22d222220u0          0.5100
+    9    -3149.78825850  u2222222u0d0     u22u222220d0          0.5471
+   10    -3149.78809543  22u22222u0d0     22uu222220d0          0.4876
+   11    -3149.78067116  22u222d220u0     22u222d220u0          0.6650
+   12    -3149.77855888  u22222d220u0     u22222d220u0          0.6932
+   13    -3149.77188836  u22u22222d00     u222222u2d00          0.2598
+   14    -3149.77153315  22uu22222d00     22u2222u2d00          0.2651
+   15    -3149.75287823  u2222222ud00     u22u22222d00          0.3602
+   16    -3149.75259128  22u22222ud00     22uu22222d00          0.3744
+   17    -3149.74553180  u22222u220d0     u22222u220d0          0.5206
+   18    -3149.74486104  22u222u220d0     22u222u220d0          0.5526
+   19    -3149.74181433  22u222d22u00     22u222d22u00          0.5754
+   20    -3149.74029134  u22222u22d00     u22222u22d00          0.8010
+   21    -3149.73967672  u22222d22u00     u22222d22u00          0.8012
+   22    -3149.73564646  22u222u22d00     22u222u22d00          0.5836
+   23    -3149.72243602  22u22d2220u0     22u22d2220u0          0.1607
+   24    -3149.72231695  u2222d2220u0     u2222d2220u0          0.2411
+   25    -3149.72217658  u2222d222u00     u2222d222u00          0.1858
+   26    -3149.71898662  22u22d222u00     22u22d222u00          0.1928
+   27    -3149.71690010  u22d2222200u     u222222d200u          0.2036
+   28    -3149.71423410  22u22d222u00     22u22d222u00          0.2462
+   29    -3149.69151942  u2222u2220d0     u2222u2220d0          0.2167
+   30    -3149.69116156  22u22u2220d0     22u22u2220d0          0.1917
+   31    -3149.68405072  u2222u222d00     u2222u222d00          0.2594
+   32    -3149.68391323  22u22u222d00     22u22u222d00          0.2885
+   33    -3149.66912473  u2222222d00u     u22d2222200u          0.3649
+   34    -3149.66258276  22u22222d00u     22ud2222200u          0.3092
+   35    -3149.66131660  22u22u2220d0     22u22u2220d0          0.3089
+   36    -3149.66081128  u2222d2220u0     u2222d2220u0          0.2454
+   37    -3149.65628164  u2222u2220d0     u2222u2220d0          0.3474
+   38    -3149.65380497  22u22d2220u0     22u22d2220u0          0.2667
+   39    -3149.64877165  u22222u2ddu0     u22d22u22du0          0.6368  *
+   40    -3149.64847915  22u222u2ddu0     22ud22u22du0          0.5133  *
+
+* The mapping changes the order of the open shells: the occupation numbers are
+  exact, but the u/d spin coupling of the mapped string is not the same CSF.
+
+--------------------------------------------------------------------------------
+
+Orbital order
+
+Initial RAS2 occupied/virtual from the reference state 1; ordered by state-averaged
+population (lowest occupied = HOMO, highest virtual = LUMO). RAS1 orbitals are core and not ranked.
+Final orbitals are those the initial ones map onto, in each final calculation.
+Populations are state-averaged over each calculation's roots; energies are the stored
+diagonal Fock elements.
+HOMO mo:34 set by the input (agrees with the populations).
+LUMO mo:40 set by the input (agrees with the populations).
+
+Initial
+Label     MO        Population      Energy
+LUMO+2    mo:42         0.1516      0.2171
+LUMO+1    mo:41         0.4372      0.1017
+LUMO      mo:40         0.5547      0.0556
+HOMO      mo:34         1.5967     -0.2721
+HOMO-1    mo:38         1.7416     -0.3299
+HOMO-2    mo:37         1.7993     -0.4045
+HOMO-3    mo:36         1.8101     -0.4252
+HOMO-4    mo:39         1.9423     -0.5281
+HOMO-5    mo:35         1.9666     -0.6051
+core      mo:31         2.0000     -6.7656
+core      mo:32         2.0000     -7.5674
+core      mo:33         2.0000     -6.6816
+
+Final: S = 0.5 (core.rasscf.h5)
+Label     Initial   Final     Population      Energy
+LUMO+2    mo:42     mo:42         0.2070      0.0120
+LUMO+1    mo:41     mo:41         0.4861     -0.1112
+LUMO      mo:40     mo:40         0.5970     -0.1705
+HOMO      mo:34     mo:39         1.4850     -0.4661
+HOMO-1    mo:38     mo:34         1.7324     -0.5828
+HOMO-2    mo:37     mo:37         1.7493     -0.5913
+HOMO-3    mo:36     mo:36         1.7891     -0.6365
+HOMO-4    mo:39     mo:38         1.9888     -0.7951
+HOMO-5    mo:35     mo:35         1.9653     -0.8219
+core      mo:31     mo:31         1.4998     -7.4863
+core      mo:32     mo:32         2.0000     -8.8514
+core      mo:33     mo:33         1.5002     -7.4873
+
+--------------------------------------------------------------------------------
+
+Shake-down transitions between initial states
+
+Active orbitals: mo:31 ... mo:42;  HOMO = mo:34, LUMO = mo:40
+Reference (ground) state: 1;  states considered: 1..4 (max_state = 4)
+
+State  Configuration  Excitation from the reference
+    1  222222222000   reference
+    2  2222222u2d00   mo:38 -> mo:40
+    3  222u222220d0   mo:34 -> mo:41
+    4  222u22222d00   mo:34 -> mo:40
+
+  a -> b  Config a       Config b       Electron         Case    i      j      k      d       Status
+  2 -> 1  2222222u2d00   222222222000   mo:40 -> mo:38   5e GS   mo:38  mo:34  mo:40  -       ok
+  3 -> 1  222u222220d0   222222222000   mo:41 -> mo:34   3e GS   mo:34  -      mo:41  -       ok
+  4 -> 1  222u22222d00   222222222000   mo:40 -> mo:34   3e GS   mo:34  -      mo:40  -       ok
+  4 -> 2  222u22222d00   2222222u2d00   mo:38 -> mo:34   5e ES   mo:34  mo:38  mo:40  mo:34   not computable: electron would move up: i (HOMO) lies above j (HOMO-1)
+  4 -> 3  222u22222d00   222u222220d0   mo:40 -> mo:41   3e ES   mo:34  mo:41  mo:40  -       not computable: electron would move up: j (LUMO+1) lies above k (LUMO)
+
+5 transitions: 3 computable, 2 not computable.
+d: HOMO, doubly occupied in both states and left out of the rule.
+
+--------------------------------------------------------------------------------
+
+Propensity rules
+
+S_ab = |<phi_a|psi_b>|: a is the final-state orbital matched to initial orbital a,
+b is the initial-state orbital. Diagonal S_ii, S_jj, S_kk are set to 1.
+Non-zero channels: singlet -> GS closed-shell doublet or ES D1; triplet -> ES D2 and Q (GS dark).
+Each channel uses the final calculation of its spin: closed-shell doublet, D1, D2 -> S = 0.5; Q -> S = 1.5.
+
+Final: S = 0.5 (core.rasscf.h5)
+-------------------------------
+
+2 -> 1   5e GS   initial S = 0
+  i = mo:38 -> final mo:34   j = mo:34 -> final mo:39   k = mo:40 -> final mo:40
+  S_ij = |<final mo:34 | initial mo:34>| = 0.1263
+  S_ji = |<final mo:39 | initial mo:38>| = 0.1267
+  S_jk = |<final mo:39 | initial mo:40>| = 0.0059
+  S_ik = |<final mo:34 | initial mo:40>| = 0.0572
+  S_ii = |<final mo:34 | initial mo:38>| = 0.7122 (set to 1)   below 0.9: weak-relaxation approximation poor
+  S_jj = |<final mo:39 | initial mo:34>| = 0.9886 (set to 1)
+  S_kk = |<final mo:40 | initial mo:40>| = 0.9797 (set to 1)
+  M1 = S_ii S_jj - S_ij S_ji = (1)(1) - (0.1263)(0.1267) = +0.98399
+  M3 = S_ij S_jk - S_ik S_jj = (0.1263)(0.0059) - (0.0572)(1) = -0.05649
+  A = M1 M3 = (+0.98399)(-0.05649) = -0.05558
+  closed-shell doublet: 2 |A|^2 = 2 |M1 M3|^2 = 2 |(-0.05558)|^2 = 0.006179
+
+3 -> 1   3e GS   initial S = 0
+  i = mo:34 -> final mo:39   k = mo:41 -> final mo:41
+  S_ik = |<final mo:39 | initial mo:41>| = 0.0000
+  S_ii = |<final mo:39 | initial mo:34>| = 0.9886 (set to 1)
+  S_kk = |<final mo:41 | initial mo:41>| = 0.9582 (set to 1)
+  A = S_ii S_ik = (1)(0.0000) = +0.00000
+  closed-shell doublet: 2 |A|^2 = 2 |S_ii S_ik|^2 = 2 |(+0.00000)|^2 = 0.000000
+
+4 -> 1   3e GS   initial S = 0
+  i = mo:34 -> final mo:39   k = mo:40 -> final mo:40
+  S_ik = |<final mo:39 | initial mo:40>| = 0.0059
+  S_ii = |<final mo:39 | initial mo:34>| = 0.9886 (set to 1)
+  S_kk = |<final mo:40 | initial mo:40>| = 0.9797 (set to 1)
+  A = S_ii S_ik = (1)(0.0059) = +0.00592
+  closed-shell doublet: 2 |A|^2 = 2 |S_ii S_ik|^2 = 2 |(+0.00592)|^2 = 0.000070
+
+Summary
+  a -> b  Case    Final     Channel                 Intensity
+  2 -> 1  5e GS   Final     closed-shell doublet     0.006179
+  3 -> 1  3e GS   Final     closed-shell doublet     0.000000
+  4 -> 1  3e GS   Final     closed-shell doublet     0.000070
+
+--------------------------------------------------------------------------------
