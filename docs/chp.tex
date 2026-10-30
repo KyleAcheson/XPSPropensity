@@ -1,0 +1,131 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  citecolor=blue
+}
+
+\title{Calculating Propensities from a Core-Hole Potential}
+
+
+\begin{document}
+
+\section{Core-Hole Potential}
+
+Instead of an explicit calculating of the overlap term, $S_{pq}$ - which depends on the final relaxed orbital $\phi_p$ and initial orbital $\psi_q$, these can also be obtained in terms of the core-hole potential acting on the initial wave function. In first order perturbation theory the overlap is then,
+
+\begin{equation}
+  S_{pq} = \langle\phi_p|\psi_q \rangle \approx
+      \frac{\langle\psi_p|\hat{v}_{\mathrm{ch}}|\psi_q\rangle}{\epsilon_p - \epsilon_q}
+\label{eq:final_propensity_rule}
+\end{equation}
+
+with $\psi_p$ and $\psi_q$ the orbitals involved in shake-down where $p \neq q$, and $\epsilon$ defines their MO energies. We wish to compute the matrix-element,
+\begin{equation}
+    \langle \psi_p|\hat{v}_{\mathrm{ch}}|\psi_q \rangle \approx \int  dr \hspace{2mm} \psi_p^*(\mathbf{r}) v_{ch}(\mathbf{r})\psi_q(\mathbf{r}),
+\end{equation}
+with,
+\begin{equation}
+    v_{ch}(\mathbf{r}) = - \int d\mathbf{r}^{\prime} \hspace{2mm} \frac{\rho_c (\mathbf{r}^{\prime})}{|\mathbf{r}-\mathbf{r}^{\prime}|},
+\end{equation}    
+where $\rho_c$ is the density of the core orbital hole. We can expand each molecular orbital in the AO basis,
+\begin{equation}
+  \psi_p(\mathbf{r}) = \sum_{\alpha} C_{\alpha p} \chi_\alpha(\mathbf{r}),
+\end{equation}
+giving the AO representation of the matrix element
+\begin{equation}
+  \langle \psi_p|\hat{v}_{\mathrm{ch}}|\psi_q\rangle
+  \approx
+  \sum_{\alpha,\beta}
+  C_{\alpha p}^{*}
+  V_{\alpha\beta}
+  C_{\beta q},
+  \label{eq:local_core_hole_ao}
+\end{equation}
+where $V_{\alpha\beta}$ is the AO representation of the core-hole potential $v_{ch}$,
+
+\begin{equation}
+  V_{\alpha\beta}
+  =
+  -\iint d\mathbf r\,d\mathbf r'
+  \frac{
+  \chi_\alpha^{*}(\mathbf r)
+  \chi_\beta(\mathbf r)
+  \rho_c(\mathbf r')
+  }
+  {|\mathbf r-\mathbf r'|}.
+  \label{eq:core_hole_ao_integral}
+\end{equation}
+Expanding the core-orbital $\psi_c$ (in the density $\rho_c$) in an AO basis contribution,
+\begin{equation}
+  \psi_{c}(\mathbf r)
+  =
+  \sum_{\gamma}
+  C_{\gamma c}\chi_\gamma(\mathbf r),
+\end{equation}
+we arrive at an expression for the core-hole potential as a regular two-electron integral, 
+\begin{equation}
+  V_{\alpha\beta}
+  =
+  -
+  \sum_{\gamma\delta}
+  C_{\gamma c}^{*}
+  C_{\delta c}
+  (\alpha\beta|\gamma\delta),
+  \label{eq:core_hole_eri}
+\end{equation}
+where,
+
+\begin{equation}
+  (\alpha\beta|\gamma\delta)
+  =
+  \iint d\mathbf r\,d\mathbf r'
+  \frac{
+  \chi_\alpha^*(\mathbf r)
+  \chi_\beta(\mathbf r)
+  \chi_\gamma^*(\mathbf r')
+  \chi_\delta(\mathbf r')
+  }
+  {|\mathbf r-\mathbf r'|}.
+\end{equation}
+Thus giving the total matrix element in the AO representation,
+\begin{equation}
+  \boxed{
+  \langle \psi_p|\hat{v}_{\mathrm{ch}}|\psi_q\rangle
+  \approx
+  -
+  \sum_{\alpha,\beta}
+  \sum_{\gamma,\delta}
+  C_{\alpha p}^{*}
+  C_{\beta q}
+  C_{\gamma c}^{*}
+  C_{\delta c}
+  (\alpha\beta|\gamma\delta)
+  }
+  \label{eq:core_hole_final}
+\end{equation}
+%
+In MO representation this is simply the four-center MO integral
+\begin{equation}
+    \boxed{
+  \langle \psi_p|\hat{v}_{\mathrm{ch}}|\psi_q\rangle
+  \approx
+  -(p q | c c)
+  }
+\end{equation}
+
+Thus,
+\begin{equation}
+    S_{pq} \approx \frac{(pq|cc)}{\epsilon_q - \epsilon_p}
+\end{equation}
+
+\end{document}
