@@ -70,7 +70,7 @@ map onto.
 
 `Final` can also be a list of blocks, one per final-state spin, e.g. the
 doublet and the quartet core-hole states of triplet initial states (see
-`inputs/input_triplet.yaml`). Each propensity channel is evaluated with the
+`examples/brthph/triplet/input_triplet.yaml`). Each propensity channel is evaluated with the
 final calculation of its spin (D1, D2 and the closed-shell doublet with
 S = 1/2, Q with S = 3/2), and one summary combines them. Every final
 calculation must share the initial active space. Run with:
@@ -82,7 +82,7 @@ xpsoverlaps -i inputs/input.yaml -o output.log
 ```
 
 `method: chp` (core-hole potential) needs only the initial calculation (see
-`inputs/input_chp.yaml`). The final orbitals are the initial ones relaxed to
+`examples/brthph/singlet/input_chp.yaml`). The final orbitals are the initial ones relaxed to
 first order in the potential −J_c of a hole in each core (RAS1) orbital c:
 S_ab = (ab|cc)/(e_b − e_a), signed, with e the initial orbital energies. The
 integrals (pq|cc) come from `fcidump_file` in the Initial block, required for
@@ -239,3 +239,9 @@ records are immutable (frozen dataclasses): to change one, derive a copy with
 Things to check in a new reader: orbitals must be orthonormal with the AO
 overlap (`Cᵀ S C = I`; the tests check this for Molcas), and only the dominant
 configuration of each state is kept.
+
+### Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, GitHub
+issues, and where the theory, glossary (`CONTEXT.md`), design decisions
+(`docs/adr/`) and coding standards (`AGENTS.md`) are documented.
