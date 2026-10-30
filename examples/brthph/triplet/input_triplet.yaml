@@ -12,7 +12,7 @@ Initial:
   wf_file: '../../../data/molcas/brthph/s2p/mb/triplet/valence-trip.caspt2.h5'
   state_file: '../../../data/molcas/brthph/s2p/mb/triplet/valence-trip.log'
   mcscf_file: '../../../data/molcas/brthph/s2p/mb/triplet/valence-trip-tz.rasscf.h5'
-  max_state: 3
+  max_state: 4
 
 Final:
   - type: 'caspt2' # core-ionised doublets (S = 1/2)
