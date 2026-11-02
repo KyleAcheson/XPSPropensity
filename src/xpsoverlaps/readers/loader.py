@@ -4,6 +4,7 @@ Each electronic-structure program provides one ``CalculationLoader`` subclass.
 Defining the subclass registers it under its program names, so
 ``get_calculation`` never needs editing to support a new program; the
 subclass's module only has to be imported (see ``xpsoverlaps.readers``).
+A loader can also read the program's integral files (``get_active_integrals``).
 """
 
 from __future__ import annotations
@@ -13,10 +14,14 @@ import inspect
 from pathlib import Path
 from typing import ClassVar, Dict, Optional, Set, Tuple, Type
 
-from xpsoverlaps.model import Calculation
+from xpsoverlaps.model import ActiveIntegrals, Calculation
 
 # Lower-case program name -> loader class; filled by CalculationLoader.__init_subclass__.
 _LOADERS: Dict[str, Type["CalculationLoader"]] = {}
+
+
+class IntegralFileError(ValueError):
+    """Raised when an integral file cannot be read or does not belong to its calculation."""
 
 
 class CalculationLoader(ABC):
@@ -24,6 +29,7 @@ class CalculationLoader(ABC):
 
     Subclasses set ``programs`` (names accepted by ``get_calculation``),
     ``display_name`` and ``calculation_types``, and implement ``_load``.
+    Programs whose integral files can be read also override ``load_integrals``.
     """
 
     programs: ClassVar[Tuple[str, ...]]
@@ -64,9 +70,24 @@ class CalculationLoader(ABC):
     ) -> Calculation:
         """Read the files for an upper-case, supported ``kind`` of calculation."""
 
+    def load_integrals(self, integral_file: Path, calculation: Calculation) -> ActiveIntegrals:
+        """Two-electron integrals over ``calculation``'s active orbitals, read from ``integral_file``."""
+        raise NotImplementedError(f"Reading integral files is not implemented for {self.display_name}.")
+
 
 def _optional_path(path: str | Path | None) -> Optional[Path]:
     return Path(path) if path is not None else None
+
+
+def _loader(program: str) -> Type[CalculationLoader]:
+    loader = _LOADERS.get(program.strip().casefold())
+    if loader is None:
+        supported = ", ".join(sorted(_LOADERS))
+        raise NotImplementedError(
+            f"Calculation construction for program {program!r} is not implemented; "
+            f"supported programs are: {supported}."
+        )
+    return loader
 
 
 def get_calculation(
@@ -85,12 +106,11 @@ def get_calculation(
     on, for orbital populations its own files lack (e.g. the RASSCF HDF5 file
     of an OpenMolcas CASPT2 run).
     """
-    loader = _LOADERS.get(program.strip().casefold())
-    if loader is None:
-        supported = ", ".join(sorted(_LOADERS))
-        raise NotImplementedError(
-            f"Calculation construction for program {program!r} is not implemented; "
-            f"supported programs are: {supported}."
-        )
-    return loader().load(calculation_type, wf_file, state_file, mcscf_file)
+    return _loader(program)().load(calculation_type, wf_file, state_file, mcscf_file)
+
+
+def get_active_integrals(program: str, integral_file: str | Path, calculation: Calculation) -> ActiveIntegrals:
+    """Two-electron integrals over ``calculation``'s active orbitals from one of the program's
+    integral files (e.g. an OpenMolcas FCIDUMP HDF5 file), checked against ``calculation``."""
+    return _loader(program)().load_integrals(Path(integral_file), calculation)
 

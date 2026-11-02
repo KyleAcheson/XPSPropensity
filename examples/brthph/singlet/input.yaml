@@ -1,0 +1,37 @@
+# Example yaml file input:
+# Caculator - program defines the electronic structure code used for the wf calculations,
+#   method - defines the using the 'overlaps' based propensity rules which requires both initial
+#   and final states to be input. If 'chp' the overlaps are approximated from only the inital state
+#   and thus the Final input block is not used; Initial then needs fcidump_file (see input_chp.yaml).
+#
+# Initial - type can be either 'caspt2' or 'rasscf'
+#   wf_file - path to h5 file that contains initials state orbitals etc,
+#   state_file - path to log file that contains state CI vectors
+#   NOTE: maybe when using calculations from other electronic structure codes
+#   we may not need wf_file and state_file if both the orbitals and the ci vectors
+#   are written to the same file - this is therefore molcas specific.
+#
+#Final - Final (N-1) ionized calculations, same definitions as Initial.
+# However, the 'type' of both Initial and Final must be the same if both are required.
+# In the event Calculator has 'method: chp' then the Final block is not used at all
+# and all overlaps are approximated by the core-hole potential approach using only
+# the initial state orbitals - the chp approach models the effect of orbital
+# relaxation upon ionization using first-order perturbation theory.
+Calculator:
+  program: 'molcas' # electronic strucutre code wfs come from
+  method: 'overlaps' # or 'chp'
+
+Initial:
+  type: 'caspt2' # or rasscf
+  wf_file: '../../../data/molcas/brthph/s2p/mb/valence_caspt2.caspt2.h5' # path to inital state h5 file
+  state_file: '../../../data/molcas/brthph/s2p/mb/valence_caspt2.log' # path to initial state log that contains ci vectors
+  mcscf_file: '../../../data/molcas/brthph/s2p/mb/valence.rasscf.h5' # caspt2 only: rasscf h5 the caspt2 run was built on (orbital energies/populations)
+  homo: 34 # optional override of the population-based HOMO; 1-based MO index, given together with lumo
+  lumo: 40 # final-state HOMO/LUMO are taken from the orbital mapping
+  max_state: 4 # optional: only shake-downs among initial states 1..max_state
+
+Final:
+  type: 'caspt2' # or rasscf
+  wf_file: '../../../data/molcas/brthph/s2p/mb/core_caspt2.caspt2.h5'
+  state_file: '../../../data/molcas/brthph/s2p/mb/core_caspt2.log'
+  mcscf_file: '../../../data/molcas/brthph/s2p/mb/core.rasscf.h5'

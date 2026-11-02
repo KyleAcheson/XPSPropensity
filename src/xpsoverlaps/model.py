@@ -18,6 +18,9 @@ Structure::
     └── states        [ElectronicState]
                       └── dominant_configuration   Configuration (0/u/d/2 per active orbital)
 
+    ActiveIntegrals   (pq|rs) over the active orbitals, read separately from an
+                      integral file (core-hole potential only)
+
 How the parts refer to each other (checked when a ``Calculation`` is created):
 
 - ``orbitals.basis_id == basis.basis_id``, and coefficient rows follow the
@@ -246,3 +249,26 @@ class Calculation:
                     f"State {state.state_id} configuration has {len(configuration.occupations)} "
                     f"occupations; the active space has {n_active} orbitals."
                 )
+
+
+@dataclass(frozen=True, eq=False)
+class ActiveIntegrals:
+    """Two-electron integrals (pq|rs), chemists' notation, over a calculation's active orbitals.
+
+    Not part of a ``Calculation``: read from a separate integral file when a
+    method needs them (the core-hole potential). ``two_electron[p, q, r, s]``
+    is (pq|rs) with indices in ``orbital_ids`` order.
+    """
+
+    orbital_ids: List[str]
+    two_electron: np.ndarray  # (n, n, n, n)
+    source: str  # file the integrals were read from
+
+    def __post_init__(self) -> None:
+        n = len(self.orbital_ids)
+        if len(set(self.orbital_ids)) != n:
+            raise ValueError("Integral orbital IDs must be unique.")
+        if self.two_electron.shape != (n, n, n, n):
+            raise ValueError(
+                f"Two-electron integrals have shape {self.two_electron.shape}; expected {(n, n, n, n)}."
+            )

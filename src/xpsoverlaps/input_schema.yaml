@@ -2,8 +2,8 @@
 #
 # Structure and conditional requirements live here. Rules JSON Schema cannot
 # express (Initial/Final type equality, file existence) or reports unclearly
-# (mcscf_file given for a rasscf calculation) are checked in
-# xpsoverlaps/inputs.py.
+# (mcscf_file given for a rasscf calculation, fcidump_file and Final per
+# method) are checked in xpsoverlaps/inputs.py.
 #
 # Properties restricted to a string `enum` are case-insensitive: input values
 # are lowercased before validation, so write enum (and matching `const`)
@@ -52,6 +52,16 @@ properties:
           output, 1 = lowest) are considered for shake-down transitions.
         type: integer
         minimum: 1
+      fcidump_file:
+        description: >-
+          Method chp only (required there): two-electron integrals over the
+          initial active orbitals, for the core-hole potential (pq|cc).
+          Molcas: the FCIDUMP HDF5 file written by the RASSCF run of the
+          initial orbitals (for caspt2, the run of mcscf_file). Checked
+          against the initial calculation; rejected for method overlaps
+          (xpsoverlaps/inputs.py).
+        type: string
+        minLength: 1
     dependentRequired:
       homo: [lumo]
       lumo: [homo]

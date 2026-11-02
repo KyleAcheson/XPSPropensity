@@ -11,7 +11,7 @@ from xpsoverlaps.readers import get_calculation
 
 ROOT = Path(__file__).parents[1]
 TRIPLET = ROOT / "data" / "molcas" / "brthph" / "s2p" / "mb" / "triplet"
-INPUT = ROOT / "inputs" / "input_triplet.yaml"
+INPUT = ROOT / "examples" / "brthph" / "triplet" / "input_triplet.yaml"
 
 
 def _load(name, mcscf):

@@ -25,10 +25,11 @@ in 5e ES. A pair whose electron would move up, or whose roles include a core
 
 from __future__ import annotations
 
-from typing import List, NamedTuple, Optional, Sequence, Tuple
+from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple
 
 from xpsoverlaps.frontier import FrontierOrbitals, OrbitalOrder, ReferenceDeterminant, population_reference
 from xpsoverlaps.model import Calculation, ElectronicState
+from xpsoverlaps.overlap_sources import OrbitalOverlaps
 
 _ELECTRONS = {"0": 0, "u": 1, "d": 1, "2": 2}
 
@@ -58,6 +59,45 @@ class ShakeDown(NamedTuple):
     @property
     def computable(self) -> bool:
         return self.reason is None
+
+    @property
+    def orbital_roles(self) -> Dict[str, str]:
+        """Role -> initial orbital ID, e.g. {"i": "mo:34", "j": "mo:35", "k": "mo:40"}; unused roles left out."""
+        return {role: orbital_id for role, orbital_id in (("i", self.i), ("j", self.j), ("k", self.k))
+                if orbital_id is not None}
+
+    def overlaps(self, overlap_source: OrbitalOverlaps) -> ShakeDownOverlaps:
+        """S_ab between this shake-down's orbitals, with the numbers from ``overlap_source``."""
+        return ShakeDownOverlaps(self.orbital_roles, overlap_source)
+
+
+class ShakeDownOverlaps:
+    """S_ab for the role letters of one shake-down, e.g. ``S("ik")``.
+
+    The role letters are turned into the shake-down's initial orbital IDs and
+    ``overlap_source`` gives the overlap of those orbitals. The propensity rules
+    call the object itself: ``S("ik")`` is S_ik with diagonals set to 1, while
+    ``actual`` gives the overlap the source has, diagonals included.
+    """
+
+    def __init__(self, orbital_roles: Dict[str, str], overlap_source: OrbitalOverlaps) -> None:
+        self.orbital_roles = orbital_roles
+        self.overlap_source = overlap_source
+
+    def actual(self, pair: str) -> float:
+        a, b = pair
+        return self.overlap_source.overlap(self.orbital_roles[a], self.orbital_roles[b])
+
+    def __call__(self, pair: str) -> float:
+        return 1.0 if pair[0] == pair[1] else self.actual(pair)
+
+    def describe(self, pair: str) -> str:
+        a, b = pair
+        return self.overlap_source.describe(self.orbital_roles[a], self.orbital_roles[b])
+
+    def describe_role(self, role: str) -> str:
+        """``i = mo:38 -> final mo:34`` for the overlaps method."""
+        return f"{role} = {self.overlap_source.describe_orbital(self.orbital_roles[role])}"
 
 
 def excitation(occupations: Sequence[str], reference: Sequence[str], orbital_ids: Sequence[str]) -> Excitation:
@@ -162,9 +202,9 @@ def _classify(a: str, b: str, moved: Tuple[str, str], exc_a: Excitation, exc_b: 
     return ShakeDown(a, b, moved, "5e ES", i=i, j=j, k=k, d=homo if j != homo else None, reason=reason)
 
 
-def _unranked(order: OrbitalOrder, **roles: str) -> Optional[str]:
+def _unranked(order: OrbitalOrder, **orbital_roles: str) -> Optional[str]:
     """Why a shake-down involving a core (RAS1) or RAS3 orbital has no rule, or None."""
-    for role, orbital_id in roles.items():
+    for role, orbital_id in orbital_roles.items():
         if not order.is_valence(orbital_id):
             return f"{role} = {orbital_id} is a {order.label(orbital_id)} orbital: no rule"
     return None
@@ -219,11 +259,11 @@ def shake_down_report(calculation: Calculation, order: OrbitalOrder,
         f"{'Case':<6}  {'i':<6} {'j':<6} {'k':<6} {'d':<6}  Status",
     ]
     for sd in shake_downs:
-        roles = " ".join(f"{(orbital or '-'):<6}" for orbital in (sd.i, sd.j, sd.k, sd.d))
+        orbitals = " ".join(f"{(orbital or '-'):<6}" for orbital in (sd.i, sd.j, sd.k, sd.d))
         lines.append(
             f"{number(sd.initial_state) + ' -> ' + number(sd.lower_state):>8}  "
             f"{config(sd.initial_state):<{width}}  {config(sd.lower_state):<{width}}  "
-            f"{sd.moved[0] + ' -> ' + sd.moved[1]:<15}  {(sd.case or '-'):<6}  {roles}  "
+            f"{sd.moved[0] + ' -> ' + sd.moved[1]:<15}  {(sd.case or '-'):<6}  {orbitals}  "
             f"{'ok' if sd.computable else 'not computable: ' + sd.reason}"
         )
     n_ok = sum(sd.computable for sd in shake_downs)
