@@ -147,7 +147,8 @@ def _run(input_file: Path) -> int:
             logger.error("%s", error)
             print(error, file=sys.stderr)
             return 1
-        methods.propensity_chp(initial, StoredIntegrals(integrals), frontier, max_state)
+        methods.propensity_chp(initial, StoredIntegrals(integrals), frontier, max_state,
+                               order=run_input["Calculator"]["order"])
     return 0
 
 

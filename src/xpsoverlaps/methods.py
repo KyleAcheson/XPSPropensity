@@ -9,16 +9,16 @@ and the propensity rules, where each channel is evaluated with the final
 calculation of its spin and one summary combines them.
 
 ``propensity_chp``: the initial calculation only. The final orbitals are the
-initial ones relaxed to first order in the core-hole potential of each core
-(RAS1) orbital in turn; the sections are the orbital order, the shake-downs,
-the core-hole overlaps, and the propensity rules per core orbital with one
-summary.
+initial ones relaxed, to first or to all orders, in the core-hole potential of
+each core (RAS1) orbital in turn; the sections are the orbital order, the
+shake-downs, the core-hole overlaps, and the propensity rules per core orbital
+with one summary.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Sequence, Union
+from typing import List, Literal, Optional, Sequence, Union
 
 from xpsoverlaps.frontier import (
     FrontierOrbitals,
@@ -31,7 +31,12 @@ from xpsoverlaps.frontier import (
 from xpsoverlaps.integrals import CoreHoleIntegrals
 from xpsoverlaps.mapping import MappedFinal, map_active_orbitals, mapped_ci_report, mapping_report
 from xpsoverlaps.model import Calculation
-from xpsoverlaps.overlap_sources import CHP_OVERLAP_WARNING, CoreHoleOverlaps, core_hole_overlap_report
+from xpsoverlaps.overlap_sources import (
+    AllOrdersCoreHoleOverlaps,
+    CoreHoleOverlaps,
+    FirstOrderCoreHoleOverlaps,
+    core_hole_overlap_report,
+)
 from xpsoverlaps.propensity_rules import core_hole_report, evaluate_final, evaluate_shake_downs, propensity_report
 from xpsoverlaps.shakedown_transitions import (
     ShakeDown,
@@ -164,41 +169,52 @@ def propensity_chp(
     integrals: CoreHoleIntegrals,
     frontier: Optional[FrontierOrbitals] = None,
     max_state: Optional[int] = None,
+    order: Literal[1, "all"] = 1,
 ) -> None:
     """Approximate Dyson norms from the initial state using a core-hole potential.
 
-    Each core (RAS1) orbital c in turn gives the overlaps S_ab = (ab|cc) /
-    (e_b - e_a) between the valence orbitals, with (pq|cc) from ``integrals``
-    and e the initial orbital energies. ``frontier`` and ``max_state`` are as
-    in ``propensity_overlaps``.
+    Each core (RAS1) orbital c in turn relaxes the initial orbitals in -J_c,
+    with (pq|cc) from ``integrals`` and e the initial orbital energies: to
+    first order (``order`` 1), S_ab = (ab|cc) / (e_b - e_a) between the RAS2
+    orbitals, or to all orders (``order`` "all") by diagonalising
+    diag(e) - J_c over the valence (RAS2 and RAS3) orbitals. ``frontier`` and
+    ``max_state`` are as in ``propensity_overlaps``.
     """
+    if order not in (1, "all"):
+        raise ValueError(f"The core-hole potential order must be 1 or 'all', not {order!r}.")
     if initial.orbitals.energies is None:
         raise ValueError("The core-hole potential needs the initial orbital energies (CASPT2: give mcscf_file).")
     logger.info("")
-    order = _log_orbital_order(initial, [], frontier, max_state)
+    orbital_order = _log_orbital_order(initial, [], frontier, max_state)
     logger.info("")
     logger.info(_DASHES)
     logger.info("")
-    shake_downs = _log_shake_downs(initial, order, max_state)
+    shake_downs = _log_shake_downs(initial, orbital_order, max_state)
     logger.info("")
     logger.info(_DASHES)
-    if order is None:
+    if orbital_order is None:
         return
-    cores = [orbital_id for orbital_id, label in order.unranked if label == "core"]
+    cores = [orbital_id for orbital_id, label in orbital_order.unranked if label == "core"]
     if not cores:
         logger.warning("No core (RAS1) orbitals: the core-hole potential needs at least one.")
         return
 
-    valence = list(reversed(order.occupied)) + list(order.virtual)
+    role_orbitals = list(reversed(orbital_order.occupied)) + list(orbital_order.virtual)  # RAS2
     energies = dict(zip(initial.orbitals.orbital_ids, initial.orbitals.energies))
-    coulomb = integrals.coulomb(cores, valence)
-    overlap_sources = [CoreHoleOverlaps(coulomb[core], energies) for core in cores]
-    _section(core_hole_overlap_report(overlap_sources, {o: order.label(o) for o in valence}, integrals.source))
-    large = sum(len(overlap_source.large()) for overlap_source in overlap_sources)
-    if large:
-        logger.warning("%d core-hole overlaps |S_ab| above %s (listed under Core-hole overlaps): "
-                       "first-order relaxation is unreliable for those orbital pairs.", large, CHP_OVERLAP_WARNING)
+    overlap_sources: List[CoreHoleOverlaps]
+    if order == 1:
+        coulomb = integrals.coulomb(cores, role_orbitals)
+        overlap_sources = [FirstOrderCoreHoleOverlaps(coulomb[core], energies) for core in cores]
+    else:
+        valence = role_orbitals + [orbital_id for orbital_id, label in orbital_order.unranked if label == "RAS3"]
+        coulomb = integrals.coulomb(cores, valence)
+        overlap_sources = [AllOrdersCoreHoleOverlaps(coulomb[core], energies, initial) for core in cores]
+    labels = {o: orbital_order.label(o) for o in role_orbitals}
+    _section(core_hole_overlap_report(overlap_sources, labels, integrals.source))
+    warned = sum(len(overlap_source.warnings()) for overlap_source in overlap_sources)
+    if warned:
+        logger.warning("%d %s", warned, overlap_sources[0].warning_summary)
     if shake_downs:
-        evaluations = [(source.core, evaluate_shake_downs(shake_downs, initial, source))
+        evaluations = [(source, evaluate_shake_downs(shake_downs, initial, source))
                        for source in overlap_sources]
         _section(core_hole_report(shake_downs, initial, evaluations))

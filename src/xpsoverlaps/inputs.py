@@ -16,9 +16,13 @@ _FILE_KEYS = ("wf_file", "state_file", "mcscf_file", "fcidump_file")
 # Shape of a validated input file (see input_schema.yaml). Choice values are
 # lower case and file paths are absolute. Optional keys live in the
 # ``total=False`` subclasses (Python 3.9 has no ``NotRequired``).
-class CalculatorInput(TypedDict):
+class _CalculatorInputRequired(TypedDict):
     program: str
     method: Literal["overlaps", "chp"]
+
+
+class CalculatorInput(_CalculatorInputRequired, total=False):
+    order: Literal[1, "all"]  # method chp only; set to 1 when not given
 
 
 class _CalculationInputRequired(TypedDict):
@@ -84,7 +88,7 @@ def _chain(schema: Dict[str, Any], root: Dict[str, Any]) -> List[Dict[str, Any]]
 
 
 def _lowercase_choices(data: Any, schema: Dict[str, Any], root: Dict[str, Any]) -> None:
-    """Lowercase values of properties restricted to a string ``enum``.
+    """Lowercase string values of properties whose ``enum`` has string choices.
 
     This makes choice fields (program, method, type, ...) case-insensitive;
     the schema's enum values must therefore be written in lowercase. Free-form
@@ -106,7 +110,7 @@ def _lowercase_choices(data: Any, schema: Dict[str, Any], root: Dict[str, Any]) 
         if key not in data:
             continue
         choices = next((s["enum"] for s in _chain(property_schema, root) if "enum" in s), None)
-        if isinstance(data[key], str) and choices and all(isinstance(c, str) for c in choices):
+        if isinstance(data[key], str) and choices and any(isinstance(c, str) for c in choices):
             data[key] = data[key].strip().lower()
         else:
             _lowercase_choices(data[key], property_schema, root)
@@ -152,6 +156,10 @@ def load_input(source: str | Path) -> RunInput:
                         "core-hole potential; computing them is not implemented yet)")
     if method == "chp" and "Final" in data:
         problems.append("Final: not used by method 'chp', which needs only the Initial calculation")
+    if method == "overlaps" and "order" in data["Calculator"]:
+        problems.append("Calculator.order: only used with method 'chp'")
+    if method == "chp":
+        data["Calculator"].setdefault("order", 1)
     if method == "overlaps":
         for index, final in enumerate(data["Final"]):
             label = _final_label(index, single_final)

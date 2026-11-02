@@ -2,7 +2,7 @@
 
 Approximates XPS shake-down intensities (Dyson norms) from orbital overlaps between
 an initial N-electron state and a core-ionised (N−1)-electron final state, using
-propensity rules. The theory is in `docs/shakedown_cases.tex` and `docs/chp.tex`.
+propensity rules. The theory is in `docs/shakedown_cases.tex`, `docs/chp.tex` and `docs/chp_all_orders.tex`.
 
 ## Language
 

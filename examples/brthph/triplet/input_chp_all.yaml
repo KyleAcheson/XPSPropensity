@@ -1,0 +1,16 @@
+# Core-hole potential (chp) to all orders: only the initial calculation is
+# needed. The final orbitals are the eigenvectors of diag(e) - J_c over the
+# valence orbitals, for a hole in each core (RAS1) orbital, using the integrals
+# (pq|cc) of fcidump_file; each is assigned to an initial orbital by MO overlap.
+Calculator:
+  program: molcas
+  method: chp
+  order: all            # 1 (the default): first order
+
+Initial:
+  type: caspt2
+  wf_file: ../../../data/molcas/brthph/s2p/mb/triplet/valence-trip.caspt2.h5
+  state_file: ../../../data/molcas/brthph/s2p/mb/triplet/valence-trip.log
+  mcscf_file: ../../../data/molcas/brthph/s2p/mb/triplet/valence-trip-tz.rasscf.h5
+  fcidump_file: ../../../data/molcas/brthph/s2p/mb/triplet/valence-trip-tz.FciDmp.h5   # written by the RASSCF run of mcscf_file
+  max_state: 3

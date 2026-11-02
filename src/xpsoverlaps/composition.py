@@ -57,12 +57,7 @@ def orbital_ao_weights(
     each AO-pair overlap term split equally. These are not electron
     populations; they are not weighted by occupation.
     """
-    basis, orbitals = calculation.basis, calculation.orbitals
-    if provider is None:
-        provider = get_overlap_provider(basis, basis)
-    positions = [orbitals.orbital_ids.index(i) for i in _requested_ids(calculation, orbital_ids)]
-    coefficients = orbitals.coefficients[:, positions]
-    return coefficients * (provider.cross_overlap(basis, basis) @ coefficients)
+    return _ao_weights(calculation, _coefficients(calculation, orbital_ids), provider)
 
 
 def orbital_compositions(
@@ -78,12 +73,34 @@ def orbital_compositions(
     contributions with weight >= ``threshold`` are kept individually.
     """
     orbital_ids = _requested_ids(calculation, orbital_ids)
-    labels = calculation.basis.function_labels
-    weights = orbital_ao_weights(calculation, orbital_ids, provider)
-    orbitals = calculation.orbitals
-    coefficients = orbitals.coefficients[:, [orbitals.orbital_ids.index(i) for i in orbital_ids]]
+    return orbital_compositions_from_coefficients(
+        calculation, _coefficients(calculation, orbital_ids), orbital_ids, provider, threshold, max_count
+    )
 
+
+def orbital_compositions_from_coefficients(
+    calculation: Calculation,
+    coefficients: np.ndarray,
+    orbital_ids: Sequence[str],
+    provider: Optional[AOOverlapProvider] = None,
+    threshold: float = 0.05,
+    max_count: int = 8,
+) -> Dict[str, OrbitalComposition]:
+    """AO composition of orbitals given by their AO coefficients in ``calculation``'s basis.
+
+    ``coefficients`` is (n_AO, n_orbitals), e.g. MOs mixed by a rotation, and
+    ``orbital_ids`` names its columns. Otherwise as ``orbital_compositions``.
+    """
     basis, atoms = calculation.basis, calculation.molecule.atoms
+    coefficients = np.asarray(coefficients, dtype=float)
+    if coefficients.ndim != 2 or coefficients.shape[1] != len(orbital_ids):
+        raise ValueError(f"Coefficients have {coefficients.shape[-1]} columns for {len(orbital_ids)} orbital IDs.")
+    if coefficients.shape[0] != basis.n_functions:
+        raise ValueError(f"Coefficients have {coefficients.shape[0]} rows; the basis has "
+                         f"{basis.n_functions} functions.")
+    labels = basis.function_labels
+    weights = _ao_weights(calculation, coefficients, provider)
+
     ao_groups = [
         ao_group(atoms[center], l)
         for center, l in zip(basis.function_centers, basis.function_angular_momenta)
@@ -107,6 +124,21 @@ def orbital_compositions(
             orbital_id, dominant, _normalized_groups(group_names, group_weights[:, column])
         )
     return compositions
+
+
+def _coefficients(calculation: Calculation, orbital_ids: Optional[Iterable[str]]) -> np.ndarray:
+    orbitals = calculation.orbitals
+    positions = [orbitals.orbital_ids.index(i) for i in _requested_ids(calculation, orbital_ids)]
+    return orbitals.coefficients[:, positions]
+
+
+def _ao_weights(
+    calculation: Calculation, coefficients: np.ndarray, provider: Optional[AOOverlapProvider]
+) -> np.ndarray:
+    basis = calculation.basis
+    if provider is None:
+        provider = get_overlap_provider(basis, basis)
+    return coefficients * (provider.cross_overlap(basis, basis) @ coefficients)
 
 
 def _normalized_groups(names: Sequence[str], weights: np.ndarray) -> Dict[str, float]:
