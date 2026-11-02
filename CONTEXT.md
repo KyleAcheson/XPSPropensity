@@ -45,7 +45,7 @@ S_ab = ⟨φ_a|ψ_b⟩; the first index is always the final (relaxed) orbital, t
 A RAS1 orbital from which the XPS electron is removed.
 
 **Valence orbitals**:
-The RAS2 orbitals; the only orbitals that take orbital roles i, j, k, d.
+The RAS2 and RAS3 orbitals. Only the RAS2 orbitals take orbital roles i, j, k, d.
 
 **SA orbitals**:
 The natural orbitals of the state-averaged density of an SA-RASSCF calculation; every orbital-level quantity uses these.
@@ -120,12 +120,15 @@ The 2×2 minors of the valence overlap block that the 5e rules are written in.
 Obtains S from an initial and a final calculation through the orbital mapping.
 
 **Core-hole potential (CHP)**:
-Obtains S from the initial calculation alone: initial orbitals relaxed in v_ch = −J_c of the core orbital, to first order, S_pq = −(pq|cc)/(ε_p − ε_q) (see ADR-0003).
+Obtains S from the initial calculation alone: initial orbitals relaxed in v_ch = −J_c of the core orbital, either to first order, S_pq = −(pq|cc)/(ε_p − ε_q) (see ADR-0003), or to all orders (see ADR-0004). Both treat the initial orbitals as eigenfunctions of diag(ε).
 _Avoid_: core-hole approximation, frozen-orbital method
 
 **Hole shift**:
 Replacing ε_p by ε_p − (pp|cc) in the CHP denominators, so the gaps are those of the core-ionised state.
 
-**All-orders CHP (F − J_c)**:
-Diagonalising diag(ε) − J_c in the initial orbitals; the eigenvectors are the relaxed orbitals to all orders in v_ch.
-_Avoid_: exact CHP
+**All-orders CHP**:
+Diagonalising diag(ε) − J_c over the valence initial orbitals; the eigenvectors, each assigned to an initial orbital as in the orbital mapping, are the relaxed orbitals to all orders in v_ch, the sum of the perturbation series whose first term is first-order CHP.
+_Avoid_: exact CHP, F − J_c
+
+**Full-Fock CHP (F − J_c)**:
+Diagonalising the full Fock matrix F = F_I + F_A minus J_c, keeping the off-diagonal F_pq that diag(ε) drops. Not used at present (see ADR-0004).
