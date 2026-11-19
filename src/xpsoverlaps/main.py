@@ -77,8 +77,9 @@ def _log_states(block: str, calculation: Calculation) -> None:
     columns = f"{'State':>5}  {'Energy (Eh)':>16}  {'Spin (S)':>8}  {'Dominant CI vector':<{ci_width}}  {'Weight':>8}"
 
     logger.info("")
+    irrep = f", {calculation.state_irrep.upper()}" if calculation.point_group.has_symmetry else ""
     logger.info(
-        "%s states (%s): %d states", block, calculation.provenance.method, len(calculation.states)
+        "%s states (%s%s): %d states", block, calculation.provenance.method, irrep, len(calculation.states)
     )
     logger.info("CI vector orbital order: %s ... %s", active_ids[0], active_ids[-1])
     logger.info("")
@@ -102,34 +103,39 @@ def _log_states(block: str, calculation: Calculation) -> None:
     logger.info(_DASHES)
 
 
+def _fail(message: str) -> int:
+    """Log an error that stops the run, print it to the terminal too, and return the exit code 1."""
+    logger.error("%s", message)
+    print(message, file=sys.stderr)
+    return 1
+
+
 def _run(input_file: Path) -> int:
     _log_header()
     try:
         run_input = load_input(input_file)
     except InputError as error:
-        logger.error("%s", error)
-        print(error, file=sys.stderr)
-        return 1
+        return _fail(str(error))
     _log_input(run_input)
     _log_unmapped_ci_note()
 
     program = run_input["Calculator"]["program"]
+    chp = run_input["Calculator"]["method"] == "chp"
     initials = []
     for n, block in enumerate(run_input["Initial"], start=1):
         label = "Initial" if len(run_input["Initial"]) == 1 else f"Initial {n}"
         calculation = _load_block(program, block)
         _log_states(label, calculation)
-        frontier = None
+        frontier, integrals = None, None
         try:
             if "homo" in block:  # the schema guarantees lumo is given too
                 frontier = frontier_from_indices(calculation, block["homo"], block["lumo"])
             check_max_state(calculation, block.get("max_state"))
-        except (FrontierOrbitalError, ShakeDownError) as error:
-            message = str(error) if len(run_input["Initial"]) == 1 else f"{label}: {error}"
-            logger.error("%s", message)
-            print(message, file=sys.stderr)
-            return 1
-        initials.append(methods.InitialCalculation(label, calculation, frontier, block.get("max_state")))
+            if chp:
+                integrals = StoredIntegrals(get_active_integrals(program, block["fcidump_file"], calculation))
+        except (FrontierOrbitalError, ShakeDownError, IntegralFileError) as error:
+            return _fail(str(error) if len(run_input["Initial"]) == 1 else f"{label}: {error}")
+        initials.append(methods.InitialCalculation(label, calculation, frontier, block.get("max_state"), integrals))
 
     if run_input["Calculator"]["method"] == "overlaps":
         blocks = run_input["Final"]
@@ -139,9 +145,7 @@ def _run(input_file: Path) -> int:
         try:
             methods.check_calculations(initials, finals)
         except methods.CalculationSetError as error:
-            logger.error("%s", error)
-            print(error, file=sys.stderr)
-            return 1
+            return _fail(str(error))
         failures = methods.propensity_overlaps(initials, finals)
         if failures:
             for failure in failures:
@@ -151,20 +155,8 @@ def _run(input_file: Path) -> int:
         try:
             methods.check_calculations(initials, [])
         except methods.CalculationSetError as error:
-            logger.error("%s", error)
-            print(error, file=sys.stderr)
-            return 1
-        with_integrals = []
-        for block, initial in zip(run_input["Initial"], initials):
-            try:
-                integrals = get_active_integrals(program, block["fcidump_file"], initial.calculation)
-            except IntegralFileError as error:
-                message = str(error) if len(initials) == 1 else f"{initial.label}: {error}"
-                logger.error("%s", message)
-                print(message, file=sys.stderr)
-                return 1
-            with_integrals.append(initial._replace(integrals=StoredIntegrals(integrals)))
-        methods.propensity_chp(with_integrals, order=run_input["Calculator"]["order"])
+            return _fail(str(error))
+        methods.propensity_chp(initials, order=run_input["Calculator"]["order"])
     return 0
 
 

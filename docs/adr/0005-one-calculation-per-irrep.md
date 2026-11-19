@@ -35,6 +35,7 @@ Rows 2 and 4 are where the assumption can fail, and each gets a check that write
 - Final blocks are keyed by (spin, irrep) instead of spin alone. Two Initial blocks with the same irrep, or two Final blocks with the same (spin, irrep), are input errors. An Initial and a Final block may share an irrep.
 - With symmetry an orbital ID carries its irrep, as `mo:<index within irrep>_i<irrep number>` (e.g. `mo:34_i1`), and `homo`/`lumo` take the same form (`34_i1`). Calculations without symmetry keep `mo:N`.
 - The overlaps method gives one value per core hole. Core orbitals of the same irrep share one final calculation and so one value, with no factor for their number.
+- CHP gives one value per core orbital. Its summary averages only over core orbitals that reach the same final irrep (those of one core-hole irrep), since final states of different irreps are distinct. Without symmetry it averages over all core orbitals, as before.
 - Within the rules, a ground-state shake-down needs Γ_I totally symmetric, since the reference is closed-shell. Initial blocks of other irreps have only excited-state shake-downs there, and their transitions to the ground state are cross-core.
 - Non-Abelian groups (degenerate irreps) are outside this rule. Molcas does not run them.
 - An Initial block whose active orbitals cannot be mapped onto a final calculation it needs is reported in its own part and skipped. The other blocks and the closing summary are still produced, and the run exits with code 1. The mapping error itself stays a hard error.

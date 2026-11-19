@@ -5,6 +5,7 @@ Molcas's, desymmetrised MOs are orthonormal, and every dominant configuration
 has its state's irrep (so the CI strings are lined up with the active orbitals).
 """
 
+import dataclasses
 from pathlib import Path
 import shutil
 
@@ -12,6 +13,7 @@ import h5py
 import numpy as np
 import pytest
 
+from xpsoverlaps.mapping import IrrepMappingError, map_active_orbitals
 from xpsoverlaps.model import PointGroup
 from xpsoverlaps.overlap import get_overlap_provider
 from xpsoverlaps.readers import IntegralFileError, get_active_integrals, get_calculation
@@ -181,3 +183,12 @@ def test_fcidump_integrals_written_with_symmetry_are_put_on_the_right_orbitals(t
 def test_an_fcidump_file_of_another_irrep_is_rejected(thiophenol_a):
     with pytest.raises(IntegralFileError, match="ISYM"):
         get_active_integrals("molcas", THIOPHENOL / "valence-dz-ap.FciDmp.h5", thiophenol_a)
+
+
+def test_orbitals_matched_across_irreps_are_a_hard_error(thiophenol_a):
+    # A model in which the a" core orbital mo:1_i2 is labelled a': its match (mo:1_i2, a") crosses irreps.
+    irreps = ["a'" if orbital_id == "mo:1_i2" else irrep
+              for orbital_id, irrep in zip(thiophenol_a.orbitals.orbital_ids, thiophenol_a.orbitals.irreps)]
+    relabelled = dataclasses.replace(thiophenol_a, orbitals=dataclasses.replace(thiophenol_a.orbitals, irreps=irreps))
+    with pytest.raises(IrrepMappingError, match=r"mo:1_i2 \(a'\) -> mo:1_i2 \(a\"\)"):
+        map_active_orbitals(relabelled, _rasscf(THIOPHENOL, "core-dz-ap"))

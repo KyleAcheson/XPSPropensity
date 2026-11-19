@@ -32,6 +32,11 @@ class OrbitalMappingError(ValueError):
     """Raised when active orbitals cannot be mapped consistently."""
 
 
+class IrrepMappingError(ValueError):
+    """Raised when orbitals are matched across irreps, whose overlaps vanish: a reader or model error,
+    not a property of the calculations, so it stops the run (unlike ``OrbitalMappingError``)."""
+
+
 @dataclass(frozen=True)
 class MappingOptions:
     min_overlap: float = 0.5  # warn if a matched |S| is below this
@@ -304,12 +309,11 @@ def map_active_orbitals(
         orbital_compositions(final, provider=provider),
         options,
     )
-    initial_irrep = dict(zip(initial.orbitals.orbital_ids, initial.orbitals.irreps))
-    final_irrep = dict(zip(final.orbitals.orbital_ids, final.orbitals.irreps))
+    initial_irrep, final_irrep = initial.orbitals.irrep_by_id(), final.orbitals.irrep_by_id()
     crossed = [f"{m.initial_id} ({initial_irrep[m.initial_id]}) -> {m.final_id} ({final_irrep[m.final_id]})"
                for m in mapping.matches if initial_irrep[m.initial_id] != final_irrep[m.final_id]]
     if crossed:
-        raise OrbitalMappingError("Active orbitals were matched across irreps, whose overlaps vanish: "
+        raise IrrepMappingError("Active orbitals were matched across irreps, whose overlaps vanish: "
                                   + ", ".join(crossed) + ".")
     return mapping
 
@@ -323,14 +327,14 @@ class MappedFinal(NamedTuple):
     spin: float  # the S shared by all its states
 
     @property
-    def irrep(self) -> str:
+    def irrep(self) -> Optional[str]:
         """Irrep of the final states (each calculation holds the states of one irrep)."""
-        return self.calculation.states[0].symmetry if self.calculation.states else None
+        return self.calculation.state_irrep
 
     @property
     def title(self) -> str:
         """e.g. "Final 1: S = 0.5 (core-doub.caspt2.h5)"; with symmetry "Final 2: S = 0.5, A" (core-dz-ap.rasscf.h5)"."""
-        irrep = f", {self.irrep.upper()}" if len(self.calculation.point_group.irreps) > 1 else ""
+        irrep = f", {self.irrep.upper()}" if self.calculation.point_group.has_symmetry else ""
         return f"{self.label}: S = {self.spin:g}{irrep} ({Path(self.calculation.provenance.source_files[0]).name})"
 
 
@@ -379,8 +383,7 @@ class CoreOverlapBlock:
                  initial_cores: Sequence[str], final_cores: Sequence[str], final_label: str) -> None:
         self.mapping = mapping
         self.final_label = final_label
-        initial_irrep = dict(zip(initial.orbitals.orbital_ids, initial.orbitals.irreps))
-        final_irrep = dict(zip(final.orbitals.orbital_ids, final.orbitals.irreps))
+        initial_irrep, final_irrep = initial.orbitals.irrep_by_id(), final.orbitals.irrep_by_id()
         self.blocks: Dict[str, Tuple[List[str], List[str]]] = {}  # irrep -> (initial cores, final cores)
         for irrep in dict.fromkeys(initial_irrep[c] for c in initial_cores):
             self.blocks[irrep] = ([c for c in initial_cores if initial_irrep[c] == irrep],

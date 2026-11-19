@@ -6,6 +6,7 @@ Input:
 Calculator:
   program: molcas
   method: chp
+  order: 1
 Initial:
   type: caspt2
   wf_file: /home/ka3f26/XPSoverlaps/data/molcas/brthph/s2p/mb/valence_caspt2.caspt2.h5

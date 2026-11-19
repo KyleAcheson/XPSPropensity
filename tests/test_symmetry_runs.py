@@ -213,3 +213,30 @@ def test_all_orders_chp_runs_every_initial_block_with_the_same_labels(tmp_path):
         assert f"Core hole in {core}" in part
         assert "Relaxed orbitals chp:n (eigenvectors of diag(e) - J_c" in part
     assert "Summary over all initial calculations (core-hole potential)" in text
+
+
+def test_chp_averages_only_core_holes_that_reach_the_same_final_irrep(thiophenol_chp):
+    # a' block: mo:21_i1 and mo:22_i1 (a') both reach A' and are averaged; mo:1_i2 (a") alone reaches A".
+    summary = _part(thiophenol_chp, C1).split("\nSummary\n", 1)[1].split("\n\n", 1)[0].splitlines()
+    assert summary[2].split("Channel", 1)[1].split() == ["mo:21_i1", "mo:22_i1", "Mean", "A'", "mo:1_i2"]
+    for row in summary[3:]:
+        values = [float(v) for v in row.split()[-4:]]
+        assert values[2] == pytest.approx((values[0] + values[1]) / 2, abs=1e-6)
+
+
+# --- Runs without symmetry -----------------------------------------------------
+
+
+@pytest.mark.parametrize("example", ["singlet/input.yaml", "triplet/input_triplet.yaml"])
+def test_runs_without_symmetry_reproduce_the_stored_example_output(tmp_path, example):
+    # The stored outputs were regenerated once for #17 (they gained the core-orbital overlap block);
+    # everything after the input dump (the only part with absolute paths) must stay the same.
+    input_file = ROOT / "examples" / "brthph" / example
+    stored = (input_file.parent / ("output.log")).read_text(encoding="utf-8")
+    output = tmp_path / "run.out"
+    assert main_module.main(["-i", str(input_file), "-o", str(output)]) == 0
+
+    def after_input(text):
+        return text.split("\nInput:\n", 1)[1].split("-" * 80, 1)[1]
+
+    assert after_input(output.read_text(encoding="utf-8")) == after_input(stored)

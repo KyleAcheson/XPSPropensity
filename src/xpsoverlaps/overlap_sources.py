@@ -34,6 +34,8 @@ CHP_OVERLAP_WARNING = 0.5
 CHP_RAS3_WEIGHT = 0.01
 # All orders: eigenvalues of diag(e) - J_c closer than this (Eh) leave the relaxed orbitals undefined.
 CHP_DEGENERACY = 1e-10
+# All orders: (pq|cc) between orbitals of different irreps (Eh) vanishes by symmetry; above this it is an error.
+CHP_IRREP_COUPLING = 1e-10
 
 
 class OrbitalOverlaps(ABC):
@@ -229,13 +231,14 @@ class AllOrdersCoreHoleOverlaps(CoreHoleOverlaps):
 
         A degeneracy within an irrep leaves the relaxed orbitals undefined and is an error.
         """
-        irrep_of = dict(zip(initial.orbitals.orbital_ids, initial.orbitals.irreps))
+        irrep_of = initial.orbitals.irrep_by_id()
         found = []  # (eigenvalue, full eigenvector)
         for irrep in dict.fromkeys(irrep_of[o] for o in ids):
             rows = [n for n, o in enumerate(ids) if irrep_of[o] == irrep]
-            if np.any(matrix[np.ix_(rows, [n for n in range(len(ids)) if n not in rows])]):
-                raise ValueError(f"diag(e) - J_c couples orbitals of irrep {irrep} to other irreps; "
-                                 "(pq|cc) must vanish between irreps.")
+            coupling = matrix[np.ix_(rows, [n for n in range(len(ids)) if n not in rows])]
+            if coupling.size and np.abs(coupling).max() > CHP_IRREP_COUPLING:
+                raise ValueError(f"diag(e) - J_c couples orbitals of irrep {irrep} to other irreps by up to "
+                                 f"{np.abs(coupling).max():.1e}; (pq|cc) must vanish between irreps.")
             values, vectors = np.linalg.eigh(matrix[np.ix_(rows, rows)])
             close = np.flatnonzero(np.diff(values) < CHP_DEGENERACY)
             if close.size:

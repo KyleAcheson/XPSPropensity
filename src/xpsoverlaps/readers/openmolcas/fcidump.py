@@ -63,11 +63,10 @@ def read_fcidump(path: str | Path, calculation: Calculation) -> ActiveIntegrals:
     if norb != len(active):
         problems.append(f"it has {norb} orbitals; the active space has {len(active)}")
     irreps = calculation.point_group.irreps
-    irrep_of = dict(zip(calculation.orbitals.orbital_ids, calculation.orbitals.irreps))
+    irrep_of = calculation.orbitals.irrep_by_id()
     if not problems and orbsym != [irreps.index(irrep_of[orbital_id]) + 1 for orbital_id in active]:
         problems.append(f"its orbital irreps (ORBSYM {orbsym}) are not those of the active orbitals")
-    state_irreps = {state.symmetry for state in calculation.states}
-    if isym is not None and len(state_irreps) == 1 and int(isym) != irreps.index(state_irreps.pop()):
+    if isym is not None and calculation.state_irrep is not None and int(isym) != irreps.index(calculation.state_irrep):
         problems.append(f"it was written for states of irrep {irreps[int(isym)]} (ISYM {int(isym)}); "
                         "the calculation's states are of another irrep")
     electrons = calculation.active_space.electron_count

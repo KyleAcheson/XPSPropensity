@@ -427,8 +427,8 @@ class CoreHoleRoute(NamedTuple):
 
 def core_hole_routes(initial: Calculation, cores: Sequence[str]) -> List[CoreHoleRoute]:
     """One route per irrep among the core orbitals, in their order: the final irrep their holes reach."""
-    initial_irrep = initial.states[0].symmetry
-    irrep_of = dict(zip(initial.orbitals.orbital_ids, initial.orbitals.irreps))
+    initial_irrep = initial.state_irrep
+    irrep_of = initial.orbitals.irrep_by_id()
     return [
         CoreHoleRoute(irrep, tuple(c for c in cores if irrep_of[c] == irrep),
                       initial.point_group.product(initial_irrep, irrep))
@@ -498,14 +498,12 @@ def propensity_report(
     initial: Calculation,
     evaluations: Sequence[Tuple[MappedFinal, Sequence[PropensityResult]]],
     routes: Optional[Sequence[CoreHoleRoute]] = None,
-    forbidden: Sequence[str] = (),
 ) -> List[str]:
     """For each final calculation the rules evaluated with its overlaps, then one
     summary of every computable shake-down's channels across the final calculations.
 
     With symmetry (``routes``), the final calculations are grouped by the
-    core-hole route that reaches their irrep, and ``forbidden`` lists the
-    final calculations no core hole of this initial irrep reaches.
+    core-hole route that reaches their irrep.
     """
     lines = [
         "Propensity rules",
@@ -520,8 +518,6 @@ def propensity_report(
     if routes is not None:
         lines.append("A core hole of irrep c reaches final states of irrep (initial irrep) x c only;"
                      " its rules use the final calculations of that irrep.")
-        lines += [f"{title}: symmetry-forbidden for this initial irrep (no core hole reaches it)."
-                  for title in forbidden]
 
     def final_blocks(group: Sequence[Tuple[MappedFinal, Sequence[PropensityResult]]]) -> List[str]:
         block = []
@@ -536,8 +532,9 @@ def propensity_report(
     if routes is None:
         lines += final_blocks(evaluations)
     for route in routes or []:
-        lines += ["", route.heading, "=" * len(route.heading)]
         group = [(final, results) for final, results in evaluations if final.irrep == route.final_irrep]
+        heading = f"{route.heading}: {', '.join(final.label for final, _ in group) or 'no final calculation'}"
+        lines += ["", heading, "=" * len(heading)]
         lines += final_blocks(group) if group else ["", f"No {route.final_irrep.upper()} final calculation."]
 
     lines += ["", "Summary", summary_header(routes is not None)]
@@ -588,21 +585,29 @@ def core_hole_report(
         for result in results:
             lines += _result_lines(result)
 
-    columns = "".join(f"  {core:>10}" for core in cores)
+    # Core orbitals are averaged only within a group that reaches one final irrep: without symmetry all of
+    # them; with symmetry those of one core-hole irrep (final states of different irreps are distinct).
+    groups = ([(list(route.cores), f"Mean {route.final_irrep.upper()}") for route in routes] if routes is not None
+              else [(cores, "Mean")])
+    columns = []
+    for group, mean_label in groups:
+        columns += [(core, [core]) for core in group]
+        if routes is None or len(group) > 1:
+            columns.append((mean_label, group))
     lines += ["", "Summary"]
     if routes is not None:
         lines.append("Final irreps: " + ", ".join(f"{core} ({route.core_irrep}) -> {route.final_irrep.upper()}"
                                                   for route in routes for core in route.cores))
-    lines.append(f"{'a -> b':>8}  {'Case':<6}  {'Channel':<21}{columns}  {'Mean':>10}")
+        lines.append("Means are taken over the core orbitals whose holes reach the same final irrep.")
+    lines.append(f"{'a -> b':>8}  {'Case':<6}  {'Channel':<21}" + "".join(f"  {label:>10}" for label, _ in columns))
     for sd, channel, intensities, note in core_hole_rows(shake_downs, initial, evaluations):
         pair = f"{_number(sd.initial_state)} -> {_number(sd.lower_state)}"
         if channel is None:
-            blanks = "".join(f"  {'-':>10}" for _ in cores)
-            lines.append(f"{pair:>8}  {sd.case:<6}  {'-':<21}{blanks}  {'-':>10}   {note}")
+            blanks = "".join(f"  {'-':>10}" for _ in columns)
+            lines.append(f"{pair:>8}  {sd.case:<6}  {'-':<21}{blanks}   {note}")
             continue
-        values = "".join(f"  {intensities[core]:10.6f}" for core in cores)
-        lines.append(f"{pair:>8}  {sd.case:<6}  {channel.name:<21}{values}  "
-                     f"{sum(intensities.values()) / len(intensities):10.6f}")
+        values = "".join(f"  {sum(intensities[core] for core in group) / len(group):10.6f}" for _, group in columns)
+        lines.append(f"{pair:>8}  {sd.case:<6}  {channel.name:<21}{values}")
     return lines
 
 

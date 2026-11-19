@@ -99,8 +99,8 @@ class InitialCalculation(NamedTuple):
     integrals: Optional[CoreHoleIntegrals] = None  # method chp only
 
     @property
-    def irrep(self) -> str:
-        return self.calculation.states[0].symmetry
+    def irrep(self) -> Optional[str]:
+        return self.calculation.state_irrep
 
     @property
     def title(self) -> str:
@@ -126,9 +126,9 @@ def check_calculations(
         problems.append("All calculations must use the same point group: " + "; ".join(
             f"{label} has irreps {', '.join(calculation.point_group.irreps)}" for label, calculation in labelled) + ".")
     for label, calculation in labelled:
-        if len({state.symmetry for state in calculation.states}) > 1:
+        if calculation.states and calculation.state_irrep is None:
             problems.append(f"{label} must contain states of one irrep.")
-    symmetric = len(labelled[0][1].point_group.irreps) > 1
+    symmetric = labelled[0][1].point_group.has_symmetry
     seen: Dict[str, str] = {}
     for initial in initials:
         if initial.irrep in seen:
@@ -142,7 +142,7 @@ def check_calculations(
         if None in spins or len(spins) != 1:
             problems.append(f"{label} must contain states of one known spin (found S = "
                             f"{', '.join('?' if s is None else f'{s:g}' for s in spins)}).")
-        keys.append((spins.pop() if len(spins) == 1 else None, final.states[0].symmetry if final.states else None))
+        keys.append((spins.pop() if len(spins) == 1 else None, final.state_irrep))
     known = [key for key in keys if key[0] is not None]
     for spin, irrep in sorted({key for key in known if known.count(key) > 1}):
         if symmetric:
@@ -179,7 +179,7 @@ def propensity_overlaps(
         finals = [finals]
     keys = check_calculations(initials, finals)
     labels = ["Final"] if len(finals) == 1 else [f"Final {n}" for n in range(1, len(finals) + 1)]
-    symmetric = len(finals[0].point_group.irreps) > 1
+    symmetric = finals[0].point_group.has_symmetry
     summaries, failures = [], []
     for initial in initials:
         try:
@@ -209,14 +209,14 @@ def _overlaps_for_initial(
     routes = core_hole_routes(calculation, cores) if symmetric else None
     reached = {route.final_irrep for route in routes} if routes is not None else None
     used = [(label, final, spin) for label, final, spin in zip(labels, finals, spins)
-            if reached is None or final.states[0].symmetry in reached]
-    forbidden = [f"{label} ({final.states[0].symmetry.upper()})" for label, final in zip(labels, finals)
-                 if reached is not None and final.states[0].symmetry not in reached]
+            if reached is None or final.state_irrep in reached]
+    forbidden = [f"{label} ({final.state_irrep.upper()})" for label, final in zip(labels, finals)
+                 if reached is not None and final.state_irrep not in reached]
     if symmetric:
-        logger.info("")
-        logger.info("=" * len(initial.title))
-        logger.info(initial.title)
-        logger.info("=" * len(initial.title))
+        _log_part_title(initial)
+        for title in forbidden:
+            logger.info("%s: symmetry-forbidden for %s (no core hole of %s reaches its irrep).",
+                        title, initial.label, initial.irrep.upper())
     mapped = []
     for label, final, spin in used:
         try:
@@ -224,8 +224,7 @@ def _overlaps_for_initial(
         except OrbitalMappingError as error:
             raise InitialBlockError(f"{initial.label} ({initial.irrep.upper()}) is skipped: its active orbitals "
                                     f"cannot be mapped onto {label}. {error}") from error
-    active_irreps = (dict(zip(calculation.orbitals.orbital_ids, calculation.orbitals.irreps))
-                     if symmetric else None)
+    active_irreps = calculation.orbitals.irrep_by_id() if symmetric else None
     core_blocks = [CoreOverlapBlock(final.mapping, calculation, final.calculation, cores,
                                     core_orbitals(final.calculation), final.label) for final in mapped]
     _section([line for final, block in zip(mapped, core_blocks)
@@ -242,18 +241,31 @@ def _overlaps_for_initial(
     logger.info("")
     shake_downs = _log_shake_downs(calculation, order, initial.max_state)
     if symmetric:
-        logger.info("")
-        logger.warning(
-            "%s (%s): cross-core shake-downs to states of other irreps are symmetry-allowed but not included: "
-            "they need core-valence overlaps or final-state CI mixing (ADR-0005).",
-            initial.label, initial.irrep.upper())
+        _warn_cross_core(initial)
     logger.info("")
     logger.info(_DASHES)
     if not shake_downs:
         return []
     evaluations = [(final, evaluate_final(shake_downs, calculation, final)) for final in mapped]
-    _section(propensity_report(shake_downs, calculation, evaluations, routes, forbidden))
+    _section(propensity_report(shake_downs, calculation, evaluations, routes))
     return summary_rows(shake_downs, calculation, evaluations, routes)
+
+
+def _log_part_title(initial: InitialCalculation) -> None:
+    """The title of an Initial block's part of the output (with symmetry)."""
+    logger.info("")
+    logger.info("=" * len(initial.title))
+    logger.info(initial.title)
+    logger.info("=" * len(initial.title))
+
+
+def _warn_cross_core(initial: InitialCalculation) -> None:
+    """The approximation every Initial block of a run with symmetry makes (ADR-0005)."""
+    logger.info("")
+    logger.warning(
+        "%s (%s): cross-core shake-downs to states of other irreps are symmetry-allowed but not included: "
+        "they need core-valence overlaps or final-state CI mixing (ADR-0005).",
+        initial.label, initial.irrep.upper())
 
 
 def _titled(final: MappedFinal, lines: List[str]) -> List[str]:
@@ -339,7 +351,7 @@ def propensity_chp(
         if initial.integrals is None:
             raise ValueError(f"{initial.label} has no integrals (pq|cc) for the core-hole potential.")
     check_calculations(initials, [])
-    symmetric = len(initials[0].calculation.point_group.irreps) > 1
+    symmetric = initials[0].calculation.point_group.has_symmetry
     blocks = [_chp_for_initial(initial, order, symmetric) for initial in initials]
     if len(initials) > 1:
         _section(core_hole_closing_summary([block for block in blocks if block is not None]))
@@ -350,10 +362,7 @@ def _chp_for_initial(initial: InitialCalculation, order: Literal[1, "all"], symm
     when no rules could be evaluated."""
     calculation = initial.calculation
     if symmetric:
-        logger.info("")
-        logger.info("=" * len(initial.title))
-        logger.info(initial.title)
-        logger.info("=" * len(initial.title))
+        _log_part_title(initial)
     logger.info("")
     orbital_order = _log_orbital_order(calculation, [], initial.frontier, initial.max_state)
     logger.info("")
@@ -361,11 +370,7 @@ def _chp_for_initial(initial: InitialCalculation, order: Literal[1, "all"], symm
     logger.info("")
     shake_downs = _log_shake_downs(calculation, orbital_order, initial.max_state)
     if symmetric:
-        logger.info("")
-        logger.warning(
-            "%s (%s): cross-core shake-downs to states of other irreps are symmetry-allowed but not included: "
-            "they need core-valence overlaps or final-state CI mixing (ADR-0005).",
-            initial.label, initial.irrep.upper())
+        _warn_cross_core(initial)
     logger.info("")
     logger.info(_DASHES)
     if orbital_order is None:
@@ -393,6 +398,7 @@ def _chp_for_initial(initial: InitialCalculation, order: Literal[1, "all"], symm
         logger.warning("%d %s", warned, overlap_sources[0].warning_summary)
     if not shake_downs:
         return None
-    evaluations = [(source, evaluate_shake_downs(shake_downs, calculation, source)) for source in overlap_sources]
+    evaluations = [(overlap_source, evaluate_shake_downs(shake_downs, calculation, overlap_source))
+                   for overlap_source in overlap_sources]
     _section(core_hole_report(shake_downs, calculation, evaluations, routes))
     return initial.irrep, routes or [], core_hole_rows(shake_downs, calculation, evaluations)

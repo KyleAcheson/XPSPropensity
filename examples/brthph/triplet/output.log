@@ -11,7 +11,7 @@ Initial:
   wf_file: /home/ka3f26/XPSoverlaps/data/molcas/brthph/s2p/mb/triplet/valence-trip.caspt2.h5
   state_file: /home/ka3f26/XPSoverlaps/data/molcas/brthph/s2p/mb/triplet/valence-trip.log
   mcscf_file: /home/ka3f26/XPSoverlaps/data/molcas/brthph/s2p/mb/triplet/valence-trip-tz.rasscf.h5
-  max_state: 3
+  max_state: 4
 Final:
 - type: caspt2
   wf_file: /home/ka3f26/XPSoverlaps/data/molcas/brthph/s2p/mb/triplet/core-doub.caspt2.h5
@@ -260,6 +260,14 @@ mo:42                                          | mo:42
   C1 2P[m=+0]         -0.4436  0.096           |   C1 2P[m=+0]         -0.3746  0.065
 -----------------------------------------------------------------------------------------------
 
+Core (RAS1) orbital overlaps |<final|initial>| by irrep (the rules take them as the identity)
+
+Irrep a
+Initial      mo:31     mo:32     mo:33
+mo:31        0.961     0.277     0.000
+mo:32        0.277     0.961     0.000
+mo:33        0.000     0.000     1.000
+
 Final 2: S = 1.5 (core-quart.caspt2.h5)
 =======================================
 
@@ -378,6 +386,14 @@ mo:42                                          | mo:40
   C4 2P[m=+0]         +0.4772  0.128           |   C4 2P[m=+0]         +0.4454  0.106
   C1 2P[m=+0]         -0.4436  0.096           |   C1 2P[m=+0]         -0.4389  0.093
 -----------------------------------------------------------------------------------------------
+
+Core (RAS1) orbital overlaps |<final|initial>| by irrep (the rules take them as the identity)
+
+Irrep a
+Initial      mo:31     mo:32     mo:33
+mo:31        0.961     0.277     0.000
+mo:32        0.277     0.961     0.000
+mo:33        0.000     0.000     1.000
 
 --------------------------------------------------------------------------------
 
@@ -569,18 +585,21 @@ core      mo:33     mo:33         1.5002     -7.4819
 Shake-down transitions between initial states
 
 Active orbitals: mo:31 ... mo:42;  HOMO = mo:39, LUMO = mo:40
-Reference determinant: 222222222000 (from populations);  states considered: 1..3 (max_state = 3)
+Reference determinant: 222222222000 (from populations);  states considered: 1..4 (max_state = 4)
 
 State  Configuration  Excitation from the reference
     1  22222222uu00   mo:39 -> mo:40
     2  222u22222u00   mo:34 -> mo:40
     3  22222222u0u0   mo:39 -> mo:41
+    4  22222222u00u   mo:39 -> mo:42
 
   a -> b  Config a       Config b       Electron         Case    i      j      k      d       Status
   2 -> 1  222u22222u00   22222222uu00   mo:39 -> mo:34   5e ES   mo:34  mo:39  mo:40  -       ok
   3 -> 1  22222222u0u0   22222222uu00   mo:41 -> mo:40   3e ES   mo:39  mo:40  mo:41  -       ok
+  4 -> 1  22222222u00u   22222222uu00   mo:42 -> mo:40   3e ES   mo:39  mo:40  mo:42  -       ok
+  4 -> 3  22222222u00u   22222222u0u0   mo:42 -> mo:41   3e ES   mo:39  mo:41  mo:42  -       ok
 
-2 transitions: 2 computable, 0 not computable.
+4 transitions: 4 computable, 0 not computable.
 d: HOMO, doubly occupied in both states and left out of the rule.
 
 --------------------------------------------------------------------------------
@@ -626,6 +645,30 @@ Final 1: S = 0.5 (core-doub.caspt2.h5)
   Omega = S_ik S_ji = (0.0000)(0.0197) = +0.00000
   D2: 1/3 |Pi - Omega|^2 = 1/3 |S_ii S_jk - S_ik S_ji|^2 = 1/3 |(+0.00000) - (+0.00000)|^2 = 0.000000
 
+4 -> 1   3e ES   initial S = 1
+  i = mo:39 -> final mo:39   j = mo:40 -> final mo:40   k = mo:42 -> final mo:42
+  S_jk = |<final mo:40 | initial mo:42>| = 0.0582
+  S_ik = |<final mo:39 | initial mo:42>| = 0.0183
+  S_ji = |<final mo:40 | initial mo:39>| = 0.0197
+  S_ii = |<final mo:39 | initial mo:39>| = 0.9965 (set to 1)
+  S_jj = |<final mo:40 | initial mo:40>| = 0.9798 (set to 1)
+  S_kk = |<final mo:42 | initial mo:42>| = 0.9943 (set to 1)
+  Pi = S_ii S_jk = (1)(0.0582) = +0.05820
+  Omega = S_ik S_ji = (0.0183)(0.0197) = +0.00036
+  D2: 1/3 |Pi - Omega|^2 = 1/3 |S_ii S_jk - S_ik S_ji|^2 = 1/3 |(+0.05820) - (+0.00036)|^2 = 0.001115
+
+4 -> 3   3e ES   initial S = 1
+  i = mo:39 -> final mo:39   j = mo:41 -> final mo:41   k = mo:42 -> final mo:42
+  S_jk = |<final mo:41 | initial mo:42>| = 0.0000
+  S_ik = |<final mo:39 | initial mo:42>| = 0.0183
+  S_ji = |<final mo:41 | initial mo:39>| = 0.0000
+  S_ii = |<final mo:39 | initial mo:39>| = 0.9965 (set to 1)
+  S_jj = |<final mo:41 | initial mo:41>| = 0.9547 (set to 1)
+  S_kk = |<final mo:42 | initial mo:42>| = 0.9943 (set to 1)
+  Pi = S_ii S_jk = (1)(0.0000) = +0.00001
+  Omega = S_ik S_ji = (0.0183)(0.0000) = +0.00000
+  D2: 1/3 |Pi - Omega|^2 = 1/3 |S_ii S_jk - S_ik S_ji|^2 = 1/3 |(+0.00001) - (+0.00000)|^2 = 0.000000
+
 Final 2: S = 1.5 (core-quart.caspt2.h5)
 ---------------------------------------
 
@@ -660,11 +703,39 @@ Final 2: S = 1.5 (core-quart.caspt2.h5)
   Omega = S_ik S_ji = (0.0000)(0.0375) = +0.00000
   Q: 2/3 |Pi - Omega|^2 = 2/3 |S_ii S_jk - S_ik S_ji|^2 = 2/3 |(+0.00001) - (+0.00000)|^2 = 0.000000
 
+4 -> 1   3e ES   initial S = 1
+  i = mo:39 -> final mo:34   j = mo:40 -> final mo:42   k = mo:42 -> final mo:40
+  S_jk = |<final mo:42 | initial mo:42>| = 0.0310
+  S_ik = |<final mo:34 | initial mo:42>| = 0.0255
+  S_ji = |<final mo:42 | initial mo:39>| = 0.0375
+  S_ii = |<final mo:34 | initial mo:39>| = 0.9885 (set to 1)
+  S_jj = |<final mo:42 | initial mo:40>| = 0.9819 (set to 1)
+  S_kk = |<final mo:40 | initial mo:42>| = 0.9973 (set to 1)
+  Pi = S_ii S_jk = (1)(0.0310) = +0.03102
+  Omega = S_ik S_ji = (0.0255)(0.0375) = +0.00096
+  Q: 2/3 |Pi - Omega|^2 = 2/3 |S_ii S_jk - S_ik S_ji|^2 = 2/3 |(+0.03102) - (+0.00096)|^2 = 0.000602
+
+4 -> 3   3e ES   initial S = 1
+  i = mo:39 -> final mo:34   j = mo:41 -> final mo:41   k = mo:42 -> final mo:40
+  S_jk = |<final mo:41 | initial mo:42>| = 0.0000
+  S_ik = |<final mo:34 | initial mo:42>| = 0.0255
+  S_ji = |<final mo:41 | initial mo:39>| = 0.0000
+  S_ii = |<final mo:34 | initial mo:39>| = 0.9885 (set to 1)
+  S_jj = |<final mo:41 | initial mo:41>| = 0.9509 (set to 1)
+  S_kk = |<final mo:40 | initial mo:42>| = 0.9973 (set to 1)
+  Pi = S_ii S_jk = (1)(0.0000) = +0.00001
+  Omega = S_ik S_ji = (0.0255)(0.0000) = +0.00000
+  Q: 2/3 |Pi - Omega|^2 = 2/3 |S_ii S_jk - S_ik S_ji|^2 = 2/3 |(+0.00001) - (+0.00000)|^2 = 0.000000
+
 Summary
   a -> b  Case    Final     Channel                 Intensity
   2 -> 1  5e ES   Final 1   D2                       0.000025
   2 -> 1  5e ES   Final 2   Q                        0.008157
   3 -> 1  3e ES   Final 1   D2                       0.000000
   3 -> 1  3e ES   Final 2   Q                        0.000000
+  4 -> 1  3e ES   Final 1   D2                       0.001115
+  4 -> 1  3e ES   Final 2   Q                        0.000602
+  4 -> 3  3e ES   Final 1   D2                       0.000000
+  4 -> 3  3e ES   Final 2   Q                        0.000000
 
 --------------------------------------------------------------------------------

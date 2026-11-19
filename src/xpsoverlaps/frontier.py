@@ -134,7 +134,7 @@ def frontier_from_indices(
     """
     orbital_ids = calculation.orbitals.orbital_ids
     active_ids = calculation.active_space.orbital_ids
-    symmetric = len(calculation.point_group.irreps) > 1
+    symmetric = calculation.point_group.has_symmetry
     problems: List[str] = []
     found: List[str] = []
     for name, given in (("HOMO", homo), ("LUMO", lumo)):

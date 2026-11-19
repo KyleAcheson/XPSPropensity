@@ -182,6 +182,11 @@ class PointGroup:
     def totally_symmetric(self) -> str:
         return self.irreps[0]
 
+    @property
+    def has_symmetry(self) -> bool:
+        """True for a point group with more than one irrep (not C1)."""
+        return len(self.irreps) > 1
+
     def product(self, *irreps: str) -> str:
         """Direct product of irreps, e.g. ``product("b2", "b1") == "a2"`` in C2v; () is totally symmetric."""
         index = 0
@@ -223,6 +228,10 @@ class OrbitalSet:
             values = getattr(self, name)
             if values is not None and len(values) != n_mo:
                 raise ValueError(f"Orbital {name} must match the MO count ({len(values)} for {n_mo} MOs).")
+
+    def irrep_by_id(self) -> Dict[str, str]:
+        """Orbital ID -> irrep label."""
+        return dict(zip(self.orbital_ids, self.irreps))
 
 
 @dataclass(frozen=True, eq=False)
@@ -324,9 +333,16 @@ class Calculation:
                 "lined up with the active orbitals: " + "; ".join(mismatched) + "."
             )
 
+    @property
+    def state_irrep(self) -> Optional[str]:
+        """The irrep of the states, or None if they have several or none (a program run
+        with symmetry, e.g. Molcas, holds the states of one irrep per calculation)."""
+        irreps = {state.symmetry for state in self.states}
+        return irreps.pop() if len(irreps) == 1 else None
+
     def configuration_irrep(self, configuration: Configuration) -> str:
         """Irrep of a configuration: the product of the irreps of its singly occupied orbitals."""
-        irrep_of = dict(zip(self.orbitals.orbital_ids, self.orbitals.irreps))
+        irrep_of = self.orbitals.irrep_by_id()
         return self.point_group.product(*(
             irrep_of[orbital_id]
             for orbital_id, occupation in zip(self.active_space.orbital_ids, configuration.occupations)
