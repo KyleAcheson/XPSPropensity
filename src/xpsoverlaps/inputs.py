@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Literal, TypedDict
+from typing import Any, Dict, List, Literal, TypedDict, Union
 
 import jsonschema
 import yaml
@@ -34,14 +34,16 @@ class CalculationInput(_CalculationInputRequired, total=False):
     state_file: Path  # only for programs that write states to a separate file
     mcscf_file: Path  # MCSCF file of a correlated run (Molcas CASPT2: its RASSCF HDF5 file)
     fcidump_file: Path  # Initial only, method chp; active-space integrals (Molcas: RASSCF FCIDUMP HDF5 file)
-    homo: int  # Initial only; 1-based MO indices, given together with lumo
-    lumo: int
+    homo: Union[int, str]  # Initial only, given with lumo: a 1-based MO index, or "<index>_i<irrep>" with symmetry
+    lumo: Union[int, str]
     max_state: int  # Initial only; highest initial state used for shake-downs
 
 
 class _RunInputRequired(TypedDict):
     Calculator: CalculatorInput
-    Initial: CalculationInput
+    # Always a list, one block per irrep with symmetry: a single block in the
+    # file is returned as a one-element list.
+    Initial: List[CalculationInput]
 
 
 class RunInput(_RunInputRequired, total=False):
@@ -64,15 +66,15 @@ def load_schema() -> Dict[str, Any]:
         return yaml.safe_load(schema_file)
 
 
-def _final_label(index: int, single: bool) -> str:
-    """How a Final block is named in messages: "Final" if it is the only one, else "Final[n]" (1-based)."""
-    return "Final" if single else f"Final[{index + 1}]"
+def _block_label(block: str, index: int, single: bool) -> str:
+    """How an Initial or Final block is named in messages: "Final" if it is the only one, else "Final[n]" (1-based)."""
+    return block if single else f"{block}[{index + 1}]"
 
 
-def _location(path: Any, single_final: bool) -> str:
+def _location(path: Any, single: Dict[str, bool]) -> str:
     parts = list(path)
-    if len(parts) >= 2 and parts[0] == "Final" and isinstance(parts[1], int):
-        parts = [_final_label(parts[1], single_final)] + parts[2:]
+    if len(parts) >= 2 and parts[0] in single and isinstance(parts[1], int):
+        parts = [_block_label(parts[0], parts[1], single[parts[0]])] + parts[2:]
     return ".".join(str(part) for part in parts) or "<root>"
 
 
@@ -121,9 +123,9 @@ def load_input(source: str | Path) -> RunInput:
 
     Relative file paths (``wf_file``, ``state_file``, ``mcscf_file``,
     ``fcidump_file``) are resolved against the input file's directory and returned as absolute
-    ``Path`` objects. ``Final`` is returned as a list of blocks, also when the
-    file gives a single block. All problems are reported together in a single
-    ``InputError``.
+    ``Path`` objects. ``Initial`` and ``Final`` are returned as lists of blocks,
+    also when the file gives a single block. All problems are reported
+    together in a single ``InputError``.
     """
     path = Path(source).resolve()
     with path.open(encoding="utf-8") as input_file:
@@ -131,15 +133,17 @@ def load_input(source: str | Path) -> RunInput:
     if data is None:
         raise InputError(path, ["file is empty"])
 
-    single_final = isinstance(data, dict) and isinstance(data.get("Final"), dict)
-    if single_final:
-        data["Final"] = [data["Final"]]
+    single = {}
+    for block in ("Initial", "Final"):
+        single[block] = isinstance(data, dict) and isinstance(data.get(block), dict)
+        if single[block]:
+            data[block] = [data[block]]
 
     schema = load_schema()
     _lowercase_choices(data, schema, schema)
     validator = jsonschema.Draft202012Validator(schema)
     problems = [
-        f"{_location(error.absolute_path, single_final)}: {error.message}"
+        f"{_location(error.absolute_path, single)}: {error.message}"
         for error in sorted(validator.iter_errors(data), key=lambda error: [str(p) for p in error.absolute_path])
     ]
     if problems:
@@ -147,13 +151,18 @@ def load_input(source: str | Path) -> RunInput:
 
     # Rules JSON Schema cannot express (comparing two values, filesystem checks)
     # or would report without naming the key.
-    blocks = [("Initial", data["Initial"])]
+    initials = [(_block_label("Initial", n, single["Initial"]), block) for n, block in enumerate(data["Initial"])]
+    first_label, first = initials[0]
+    blocks = list(initials)
     method = data["Calculator"]["method"]
-    if method == "overlaps" and "fcidump_file" in data["Initial"]:
-        problems.append("Initial.fcidump_file: only used with method 'chp'")
-    if method == "chp" and "fcidump_file" not in data["Initial"]:
-        problems.append("Initial.fcidump_file: required for method 'chp' (the integrals (pq|cc) of the "
-                        "core-hole potential; computing them is not implemented yet)")
+    for label, initial in initials:
+        if method == "overlaps" and "fcidump_file" in initial:
+            problems.append(f"{label}.fcidump_file: only used with method 'chp'")
+        if method == "chp" and "fcidump_file" not in initial:
+            problems.append(f"{label}.fcidump_file: required for method 'chp' (the integrals (pq|cc) of the "
+                            "core-hole potential; computing them is not implemented yet)")
+        if initial["type"] != first["type"]:
+            problems.append(f"{label}.type: {initial['type']!r} must match {first_label}.type {first['type']!r}")
     if method == "chp" and "Final" in data:
         problems.append("Final: not used by method 'chp', which needs only the Initial calculation")
     if method == "overlaps" and "order" in data["Calculator"]:
@@ -162,12 +171,10 @@ def load_input(source: str | Path) -> RunInput:
         data["Calculator"].setdefault("order", 1)
     if method == "overlaps":
         for index, final in enumerate(data["Final"]):
-            label = _final_label(index, single_final)
+            label = _block_label("Final", index, single["Final"])
             blocks.append((label, final))
-            if data["Initial"]["type"] != final["type"]:
-                problems.append(
-                    f"{label}.type: {final['type']!r} must match Initial.type {data['Initial']['type']!r}"
-                )
+            if first["type"] != final["type"]:
+                problems.append(f"{label}.type: {final['type']!r} must match {first_label}.type {first['type']!r}")
 
     for label, block in blocks:
         if "mcscf_file" in block and block["type"] == "rasscf":

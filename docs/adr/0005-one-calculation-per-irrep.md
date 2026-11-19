@@ -37,3 +37,4 @@ Rows 2 and 4 are where the assumption can fail, and each gets a check that write
 - The overlaps method gives one value per core hole. Core orbitals of the same irrep share one final calculation and so one value, with no factor for their number.
 - Within the rules, a ground-state shake-down needs Γ_I totally symmetric, since the reference is closed-shell. Initial blocks of other irreps have only excited-state shake-downs there, and their transitions to the ground state are cross-core.
 - Non-Abelian groups (degenerate irreps) are outside this rule. Molcas does not run them.
+- An Initial block whose active orbitals cannot be mapped onto a final calculation it needs is reported in its own part and skipped. The other blocks and the closing summary are still produced, and the run exits with code 1. The mapping error itself stays a hard error.

@@ -1,12 +1,20 @@
 """Propensity-rule approximations to Dyson norms for XPS transitions.
 
-``propensity_overlaps``: one initial calculation is compared with one or more
-final calculations, each holding states of a single spin (e.g. the doublet and
-the quartet core-hole states, from separate calculations). Each section of the
-output covers all final calculations together: the orbital mappings, the
-mapped CI vectors, the orbital order, the shake-downs (initial states only),
-and the propensity rules, where each channel is evaluated with the final
-calculation of its spin and one summary combines them.
+``propensity_overlaps``: an initial calculation is compared with one or more
+final calculations, each holding states of a single spin and irrep (e.g. the
+doublet and the quartet core-hole states, from separate calculations). Each
+section of the output covers all final calculations together: the orbital
+mappings (with the core-orbital overlap block), the mapped CI vectors, the
+orbital order, the shake-downs (initial states only), and the propensity
+rules, where each channel is evaluated with the final calculation of its spin
+and one summary combines them.
+
+With point-group symmetry there is one initial calculation per irrep, each
+analysed on its own in a part of the output (ADR-0005). A core hole of irrep
+Γ_c in an initial calculation of irrep Γ_I reaches final states of irrep
+Γ_I × Γ_c only, so its rules use the final calculations of that irrep; the
+rules are grouped by core-hole irrep, and a closing summary covers all initial
+calculations.
 
 ``propensity_chp``: the initial calculation only. The final orbitals are the
 initial ones relaxed, to first or to all orders, in the core-hole potential of
@@ -18,10 +26,12 @@ with one summary.
 from __future__ import annotations
 
 import logging
-from typing import List, Literal, Optional, Sequence, Union
+from pathlib import Path
+from typing import Dict, List, Literal, NamedTuple, Optional, Sequence, Tuple, Union
 
 from xpsoverlaps.frontier import (
     FrontierOrbitals,
+    core_orbitals,
     OrbitalOrder,
     OrbitalOrderError,
     orbital_order,
@@ -29,7 +39,14 @@ from xpsoverlaps.frontier import (
     reference_warning,
 )
 from xpsoverlaps.integrals import CoreHoleIntegrals
-from xpsoverlaps.mapping import MappedFinal, map_active_orbitals, mapped_ci_report, mapping_report
+from xpsoverlaps.mapping import (
+    CoreOverlapBlock,
+    MappedFinal,
+    OrbitalMappingError,
+    map_active_orbitals,
+    mapped_ci_report,
+    mapping_report,
+)
 from xpsoverlaps.model import Calculation
 from xpsoverlaps.overlap_sources import (
     AllOrdersCoreHoleOverlaps,
@@ -37,7 +54,16 @@ from xpsoverlaps.overlap_sources import (
     FirstOrderCoreHoleOverlaps,
     core_hole_overlap_report,
 )
-from xpsoverlaps.propensity_rules import core_hole_report, evaluate_final, evaluate_shake_downs, propensity_report
+from xpsoverlaps.propensity_rules import (
+    SummaryRow,
+    closing_summary,
+    core_hole_report,
+    core_hole_routes,
+    evaluate_final,
+    evaluate_shake_downs,
+    propensity_report,
+    summary_rows,
+)
 from xpsoverlaps.shakedown_transitions import (
     ShakeDown,
     ShakeDownError,
@@ -51,65 +77,178 @@ logger = logging.getLogger(__name__)
 _DASHES = "-" * 80
 
 
-class FinalCalculationError(ValueError):
-    """Raised when the final calculations cannot be told apart by spin."""
+class CalculationSetError(ValueError):
+    """Raised when the Initial and Final calculations of a run do not fit together."""
 
 
-def final_spins(finals: Sequence[Calculation]) -> List[float]:
-    """The spin of each final calculation: all its states must share one S, and
-    no two final calculations may have the same S (each channel needs one)."""
-    spins, problems = [], []
-    for n, final in enumerate(finals, start=1):
-        values = {state.spin for state in final.states}
-        label = "Final" if len(finals) == 1 else f"Final {n}"
-        if None in values or len(values) != 1:
+class InitialBlockError(ValueError):
+    """Raised when one Initial block cannot be analysed (e.g. its orbitals cannot be mapped); the run goes on."""
+
+
+class InitialCalculation(NamedTuple):
+    """One Initial block: a calculation (of one irrep, with symmetry) and its input HOMO/LUMO and max_state."""
+
+    label: str  # "Initial" for a single block, else "Initial 1", "Initial 2", ...
+    calculation: Calculation
+    frontier: Optional[FrontierOrbitals] = None
+    max_state: Optional[int] = None
+
+    @property
+    def irrep(self) -> str:
+        return self.calculation.states[0].symmetry
+
+    @property
+    def title(self) -> str:
+        """e.g. "Initial 1: A' (valence-dz-a.rasscf.h5)"."""
+        return f"{self.label}: {self.irrep.upper()} ({Path(self.calculation.provenance.source_files[0]).name})"
+
+
+def check_calculations(
+    initials: Sequence[InitialCalculation], finals: Sequence[Calculation]
+) -> List[Tuple[float, str]]:
+    """The (spin, irrep) of each final calculation, after checking the run fits together.
+
+    All calculations use one point group; each holds states of one irrep (and
+    each final one of one known spin); no two Initial blocks share an irrep and
+    no two final calculations share (spin, irrep): each channel and core-hole
+    irrep needs exactly one (ADR-0005).
+    """
+    problems = []
+    final_labels = ["Final"] if len(finals) == 1 else [f"Final {n}" for n in range(1, len(finals) + 1)]
+    labelled = [(i.label, i.calculation) for i in initials] + list(zip(final_labels, finals))
+    groups = {calculation.point_group.irreps for _, calculation in labelled}
+    if len(groups) > 1:
+        problems.append("All calculations must use the same point group: " + "; ".join(
+            f"{label} has irreps {', '.join(calculation.point_group.irreps)}" for label, calculation in labelled) + ".")
+    for label, calculation in labelled:
+        if len({state.symmetry for state in calculation.states}) > 1:
+            problems.append(f"{label} must contain states of one irrep.")
+    symmetric = len(finals[0].point_group.irreps) > 1 if finals else False
+    seen: Dict[str, str] = {}
+    for initial in initials:
+        if initial.irrep in seen:
+            problems.append(f"{seen[initial.irrep]} and {initial.label} have the same irrep "
+                            f"{initial.irrep.upper()}; give one Initial block per irrep.")
+        seen.setdefault(initial.irrep, initial.label)
+
+    keys: List[Tuple[float, str]] = []
+    for label, final in zip(final_labels, finals):
+        spins = {state.spin for state in final.states}
+        if None in spins or len(spins) != 1:
             problems.append(f"{label} must contain states of one known spin (found S = "
-                            f"{', '.join('?' if s is None else f'{s:g}' for s in values)}).")
-        spins.append(values.pop() if len(values) == 1 else None)
-    known = [s for s in spins if s is not None]
-    for spin in sorted({s for s in known if known.count(s) > 1}):
-        problems.append(f"More than one final calculation has S = {spin:g}; each spin needs exactly one.")
+                            f"{', '.join('?' if s is None else f'{s:g}' for s in spins)}).")
+        keys.append((spins.pop() if len(spins) == 1 else None, final.states[0].symmetry if final.states else None))
+    known = [key for key in keys if key[0] is not None]
+    for spin, irrep in sorted({key for key in known if known.count(key) > 1}):
+        if symmetric:
+            problems.append(f"More than one final calculation has S = {spin:g} and irrep {irrep.upper()}; "
+                            "each spin and irrep needs exactly one.")
+        else:
+            problems.append(f"More than one final calculation has S = {spin:g}; each spin needs exactly one.")
     if problems:
-        raise FinalCalculationError(" ".join(problems))
-    return spins
+        raise CalculationSetError(" ".join(problems))
+    return keys
 
 
 def propensity_overlaps(
-    initial: Calculation,
+    initials: Union[Calculation, Sequence[InitialCalculation]],
     finals: Union[Calculation, Sequence[Calculation]],
     frontier: Optional[FrontierOrbitals] = None,
     max_state: Optional[int] = None,
-) -> None:
-    """Approximate Dyson norms from initial/final state orbital overlaps.
+) -> List[str]:
+    """Approximate Dyson norms from initial/final state orbital overlaps; return the errors of failed blocks.
 
-    ``finals`` is one final calculation or several of different spin. The
-    initial active orbitals are ordered by population; ``frontier`` (the input
-    HOMO/LUMO) overrides the HOMO and LUMO of that order. Shake-downs are
-    considered among initial states 1..``max_state`` (all if None).
+    ``initials`` is one initial calculation, or one ``InitialCalculation`` per
+    irrep; each is analysed on its own (ADR-0005). ``finals`` is one final
+    calculation or several of different (spin, irrep). For a single initial
+    calculation ``frontier`` (the input HOMO/LUMO) overrides the HOMO and LUMO
+    of the population order, and shake-downs are considered among initial
+    states 1..``max_state`` (all if None). An Initial block whose active
+    orbitals cannot be mapped onto a final calculation it needs is reported
+    and skipped; the others and the closing summary are still produced, and
+    the returned list holds one error per skipped block.
     """
+    if isinstance(initials, Calculation):
+        initials = [InitialCalculation("Initial", initials, frontier, max_state)]
     if isinstance(finals, Calculation):
         finals = [finals]
-    spins = final_spins(finals)
+    keys = check_calculations(initials, finals)
     labels = ["Final"] if len(finals) == 1 else [f"Final {n}" for n in range(1, len(finals) + 1)]
-    mapped = [
-        MappedFinal(label, final, map_active_orbitals(initial, final), spin)
-        for label, final, spin in zip(labels, finals, spins)
-    ]
+    symmetric = len(finals[0].point_group.irreps) > 1
+    summaries, failures = [], []
+    for initial in initials:
+        try:
+            summaries.append((initial.irrep, _overlaps_for_initial(initial, finals, labels, [s for s, _ in keys],
+                                                                   symmetric)))
+        except InitialBlockError as error:
+            logger.error("%s", error)
+            logger.info("")
+            logger.info(_DASHES)
+            failures.append(str(error))
+    if len(initials) > 1:
+        _section(closing_summary(summaries, failures))
+    return failures
 
-    _section([line for final in mapped for line in _titled(final, mapping_report(final.mapping))])
+
+def _overlaps_for_initial(
+    initial: InitialCalculation, finals: Sequence[Calculation], labels: Sequence[str], spins: Sequence[float],
+    symmetric: bool,
+) -> List[SummaryRow]:
+    """The sections of one Initial block; returns its summary rows.
+
+    With symmetry only the final calculations some core hole reaches are used
+    (irrep Γ_I × Γ_c, ADR-0005), and the rules are grouped by core-hole irrep.
+    """
+    calculation = initial.calculation
+    cores = core_orbitals(calculation)
+    routes = core_hole_routes(calculation, cores) if symmetric else None
+    reached = {route.final_irrep for route in routes} if routes is not None else None
+    used = [(label, final, spin) for label, final, spin in zip(labels, finals, spins)
+            if reached is None or final.states[0].symmetry in reached]
+    forbidden = [f"{label} ({final.states[0].symmetry.upper()})" for label, final in zip(labels, finals)
+                 if reached is not None and final.states[0].symmetry not in reached]
+    if symmetric:
+        logger.info("")
+        logger.info("=" * len(initial.title))
+        logger.info(initial.title)
+        logger.info("=" * len(initial.title))
+    mapped = []
+    for label, final, spin in used:
+        try:
+            mapped.append(MappedFinal(label, final, map_active_orbitals(calculation, final), spin))
+        except OrbitalMappingError as error:
+            raise InitialBlockError(f"{initial.label} ({initial.irrep.upper()}) is skipped: its active orbitals "
+                                    f"cannot be mapped onto {label}. {error}") from error
+    active_irreps = (dict(zip(calculation.orbitals.orbital_ids, calculation.orbitals.irreps))
+                     if symmetric else None)
+    core_blocks = [CoreOverlapBlock(final.mapping, calculation, final.calculation, cores,
+                                    core_orbitals(final.calculation), final.label) for final in mapped]
+    _section([line for final, block in zip(mapped, core_blocks)
+              for line in _titled(final, mapping_report(final.mapping, active_irreps) + [""] + block.report())])
+    for block in core_blocks:
+        for warning in block.warnings():
+            logger.warning(warning)
     _section([line for final in mapped
-              for line in _titled(final, mapped_ci_report(initial, final.calculation, final.mapping))])
+              for line in _titled(final, mapped_ci_report(calculation, final.calculation, final.mapping))])
     logger.info("")
-    order = _log_orbital_order(initial, mapped, frontier, max_state)
-    logger.info("")
-    logger.info(_DASHES)
-    logger.info("")
-    shake_downs = _log_shake_downs(initial, order, max_state)
+    order = _log_orbital_order(calculation, mapped, initial.frontier, initial.max_state)
     logger.info("")
     logger.info(_DASHES)
-    if shake_downs:
-        evaluations = [(final, evaluate_final(shake_downs, initial, final)) for final in mapped]
-        _section(propensity_report(shake_downs, initial, evaluations))
+    logger.info("")
+    shake_downs = _log_shake_downs(calculation, order, initial.max_state)
+    if symmetric:
+        logger.info("")
+        logger.warning(
+            "%s (%s): cross-core shake-downs to states of other irreps are symmetry-allowed but not included: "
+            "they need core-valence overlaps or final-state CI mixing (ADR-0005).",
+            initial.label, initial.irrep.upper())
+    logger.info("")
+    logger.info(_DASHES)
+    if not shake_downs:
+        return []
+    evaluations = [(final, evaluate_final(shake_downs, calculation, final)) for final in mapped]
+    _section(propensity_report(shake_downs, calculation, evaluations, routes, forbidden))
+    return summary_rows(shake_downs, calculation, evaluations, routes)
 
 
 def _titled(final: MappedFinal, lines: List[str]) -> List[str]:

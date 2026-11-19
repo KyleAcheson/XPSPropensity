@@ -149,7 +149,9 @@ def find_shake_downs(
     """All pairs a -> b among states 1..max_state (b lower in energy, one electron moved).
 
     Pairs whose configurations differ by more than one electron are not
-    shake-downs and are not listed.
+    shake-downs and are not listed. A pair of states of different irreps
+    would need the core hole to move to another core orbital (a cross-core
+    shake-down, ADR-0005), which the rules leave out: it is not computable.
     """
     orbital_ids = calculation.active_space.orbital_ids
     ref = order.reference.occupations
@@ -165,10 +167,12 @@ def find_shake_downs(
             if len(move.holes) != 1:
                 continue
             moved = (move.holes[0], move.particles[0])
-            shake_downs.append(
-                _classify(a.state_id, b.state_id, moved, excitations[a.state_id], excitations[b.state_id],
-                          not excitations[b.state_id].holes, order)
-            )
+            shake_down = _classify(a.state_id, b.state_id, moved, excitations[a.state_id],
+                                   excitations[b.state_id], not excitations[b.state_id].holes, order)
+            if a.symmetry != b.symmetry:
+                shake_down = shake_down._replace(
+                    reason=f"cross-core: a is {a.symmetry} and b is {b.symmetry}, so the core hole would move")
+            shake_downs.append(shake_down)
     return shake_downs
 
 
@@ -231,6 +235,8 @@ def shake_down_report(calculation: Calculation, order: OrbitalOrder,
         return "".join(by_id[state_id].dominant_configuration.occupations)
 
     width = max(len(orbital_ids), len("Configuration"))
+    longest_id = max(len(orbital_id) for orbital_id in orbital_ids)  # mo:34, or mo:34_i1 with symmetry
+    id_width, electron_width = max(6, longest_id), max(15, 2 * longest_id + 4)
 
     lines = [
         "Shake-down transitions between initial states",
@@ -255,15 +261,15 @@ def shake_down_report(calculation: Calculation, order: OrbitalOrder,
 
     lines += [
         "",
-        f"{'a -> b':>8}  {'Config a':<{width}}  {'Config b':<{width}}  {'Electron':<15}  "
-        f"{'Case':<6}  {'i':<6} {'j':<6} {'k':<6} {'d':<6}  Status",
+        f"{'a -> b':>8}  {'Config a':<{width}}  {'Config b':<{width}}  {'Electron':<{electron_width}}  "
+        f"{'Case':<6}  " + " ".join(f"{role:<{id_width}}" for role in "ijkd") + "  Status",
     ]
     for sd in shake_downs:
-        orbitals = " ".join(f"{(orbital or '-'):<6}" for orbital in (sd.i, sd.j, sd.k, sd.d))
+        orbitals = " ".join(f"{(orbital or '-'):<{id_width}}" for orbital in (sd.i, sd.j, sd.k, sd.d))
         lines.append(
             f"{number(sd.initial_state) + ' -> ' + number(sd.lower_state):>8}  "
             f"{config(sd.initial_state):<{width}}  {config(sd.lower_state):<{width}}  "
-            f"{sd.moved[0] + ' -> ' + sd.moved[1]:<15}  {(sd.case or '-'):<6}  {orbitals}  "
+            f"{sd.moved[0] + ' -> ' + sd.moved[1]:<{electron_width}}  {(sd.case or '-'):<6}  {orbitals}  "
             f"{'ok' if sd.computable else 'not computable: ' + sd.reason}"
         )
     n_ok = sum(sd.computable for sd in shake_downs)

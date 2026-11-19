@@ -51,6 +51,8 @@ def _log_input(run_input: RunInput) -> None:
         block: [printable_block(item) for item in fields] if isinstance(fields, list) else printable_block(fields)
         for block, fields in run_input.items()
     }
+    if len(printable["Initial"]) == 1:  # a single Initial block is shown as given
+        printable["Initial"] = printable["Initial"][0]
     logger.info("Input:")
     logger.info("%s", yaml.safe_dump(printable, sort_keys=False).rstrip())
     logger.info("")
@@ -112,21 +114,22 @@ def _run(input_file: Path) -> int:
     _log_unmapped_ci_note()
 
     program = run_input["Calculator"]["program"]
-    initial = _load_block(program, run_input["Initial"])
-    _log_states("Initial", initial)
-
-    frontier = None
-    max_state = run_input["Initial"].get("max_state")
-    try:
-        if "homo" in run_input["Initial"]:  # the schema guarantees lumo is given too
-            frontier = frontier_from_indices(
-                initial, run_input["Initial"]["homo"], run_input["Initial"]["lumo"]
-            )
-        check_max_state(initial, max_state)
-    except (FrontierOrbitalError, ShakeDownError) as error:
-        logger.error("%s", error)
-        print(error, file=sys.stderr)
-        return 1
+    initials = []
+    for n, block in enumerate(run_input["Initial"], start=1):
+        label = "Initial" if len(run_input["Initial"]) == 1 else f"Initial {n}"
+        calculation = _load_block(program, block)
+        _log_states(label, calculation)
+        frontier = None
+        try:
+            if "homo" in block:  # the schema guarantees lumo is given too
+                frontier = frontier_from_indices(calculation, block["homo"], block["lumo"])
+            check_max_state(calculation, block.get("max_state"))
+        except (FrontierOrbitalError, ShakeDownError) as error:
+            message = str(error) if len(run_input["Initial"]) == 1 else f"{label}: {error}"
+            logger.error("%s", message)
+            print(message, file=sys.stderr)
+            return 1
+        initials.append(methods.InitialCalculation(label, calculation, frontier, block.get("max_state")))
 
     if run_input["Calculator"]["method"] == "overlaps":
         blocks = run_input["Final"]
@@ -134,15 +137,20 @@ def _run(input_file: Path) -> int:
         for n, final in enumerate(finals, start=1):
             _log_states("Final" if len(finals) == 1 else f"Final {n}", final)
         try:
-            methods.final_spins(finals)
-        except methods.FinalCalculationError as error:
+            methods.check_calculations(initials, finals)
+        except methods.CalculationSetError as error:
             logger.error("%s", error)
             print(error, file=sys.stderr)
             return 1
-        methods.propensity_overlaps(initial, finals, frontier, max_state)
+        failures = methods.propensity_overlaps(initials, finals)
+        if failures:
+            for failure in failures:
+                print(failure, file=sys.stderr)
+            return 1
     else:
+        initial, frontier, max_state = initials[0].calculation, initials[0].frontier, initials[0].max_state
         try:
-            integrals = get_active_integrals(program, run_input["Initial"]["fcidump_file"], initial)
+            integrals = get_active_integrals(program, run_input["Initial"][0]["fcidump_file"], initial)
         except IntegralFileError as error:
             logger.error("%s", error)
             print(error, file=sys.stderr)

@@ -37,8 +37,8 @@ def _write(tmp_path, data):
 def test_example_input_resolves_paths_relative_to_input_file():
     data = load_input(ROOT / "inputs" / "input.yaml")
 
-    assert data["Initial"]["wf_file"] == DATA / "valence_caspt2.caspt2.h5"
-    assert data["Initial"]["mcscf_file"] == DATA / "valence.rasscf.h5"
+    assert data["Initial"][0]["wf_file"] == DATA / "valence_caspt2.caspt2.h5"
+    assert data["Initial"][0]["mcscf_file"] == DATA / "valence.rasscf.h5"
     # A single Final block is returned as a one-element list.
     assert [final["state_file"] for final in data["Final"]] == [DATA / "core_caspt2.log"]
     assert data["Final"][0]["mcscf_file"] == DATA / "core.rasscf.h5"
@@ -58,7 +58,7 @@ def test_chp_method_needs_an_fcidump_file_and_no_final_block(tmp_path):
     loaded = load_input(_write(tmp_path, _chp_input()))
 
     assert "Final" not in loaded
-    assert loaded["Initial"]["fcidump_file"] == tmp_path / "valence.FciDmp.h5"  # relative to the input file
+    assert loaded["Initial"][0]["fcidump_file"] == tmp_path / "valence.FciDmp.h5"  # relative to the input file
 
 
 @pytest.mark.parametrize(
@@ -119,8 +119,8 @@ def test_choice_values_are_case_insensitive_but_paths_are_not(tmp_path):
     loaded = load_input(_write(tmp_path, data))
 
     assert loaded["Calculator"] == {"program": "molcas", "method": "overlaps"}
-    assert loaded["Initial"]["type"] == loaded["Final"][0]["type"] == "caspt2"
-    assert loaded["Initial"]["wf_file"] == DATA / "valence_caspt2.caspt2.h5"
+    assert loaded["Initial"][0]["type"] == loaded["Final"][0]["type"] == "caspt2"
+    assert loaded["Initial"][0]["wf_file"] == DATA / "valence_caspt2.caspt2.h5"
 
 
 def _mutate_missing_final(data):
@@ -143,10 +143,10 @@ def _mutate_unknown_program(data):
 
 def test_homo_and_lumo_are_optional_but_accepted_together(tmp_path):
     data = _valid_input()
-    assert "homo" not in load_input(_write(tmp_path, data))["Initial"]
+    assert "homo" not in load_input(_write(tmp_path, data))["Initial"][0]
 
     data["Initial"].update(homo=34, lumo=40)
-    loaded = load_input(_write(tmp_path, data))["Initial"]
+    loaded = load_input(_write(tmp_path, data))["Initial"][0]
     assert (loaded["homo"], loaded["lumo"]) == (34, 40)
 
 
@@ -158,7 +158,7 @@ def test_rasscf_input_needs_no_mcscf_file(tmp_path):
                            state_file=str(DATA / f"{prefix}-tz.log"))
 
     loaded = load_input(_write(tmp_path, data))
-    assert "mcscf_file" not in loaded["Initial"] and "mcscf_file" not in loaded["Final"][0]
+    assert "mcscf_file" not in loaded["Initial"][0] and "mcscf_file" not in loaded["Final"][0]
 
 
 TRIPLET = DATA / "triplet"
@@ -270,8 +270,8 @@ def _mutate_missing_mcscf_file(data):
         (_mutate_unknown_key, "Unevaluated properties are not allowed ('wf_fiel' was unexpected)"),
         (_mutate_homo_without_lumo, "Initial: 'lumo' is a dependency of 'homo'"),
         (_mutate_homo_in_final, "Final: Unevaluated properties are not allowed ('homo', 'lumo' were unexpected)"),
-        (_mutate_homo_not_integer, "Initial.homo: '34' is not of type 'integer'"),
-        (_mutate_homo_zero, "Initial.homo: 0 is less than the minimum of 1"),
+        (_mutate_homo_not_integer, "Initial.homo: '34' is not valid under any of the given schemas"),
+        (_mutate_homo_zero, "Initial.homo: 0 is not valid under any of the given schemas"),
         (_mutate_max_state_zero, "Initial.max_state: 0 is less than the minimum of 1"),
         (_mutate_max_state_in_final, "Final: Unevaluated properties are not allowed ('max_state' was unexpected)"),
         (_mutate_missing_wf_file, "Final: 'wf_file' is a required property"),
@@ -287,6 +287,66 @@ def _mutate_missing_mcscf_file(data):
 def test_invalid_inputs_are_rejected(tmp_path, mutate, message):
     data = _valid_input()
     mutate(data)
+
+    with pytest.raises(InputError) as excinfo:
+        load_input(_write(tmp_path, data))
+    assert message in str(excinfo.value)
+
+
+THIOPHENOL = ROOT / "data" / "molcas" / "thiophenol" / "s2p" / "dz"
+
+
+def _two_initials():
+    """One Initial block per irrep (thiophenol a' and a" valence states)."""
+    data = _valid_input()
+    data["Initial"] = [
+        {"type": "caspt2", "wf_file": str(THIOPHENOL / f"valence-{irrep}-caspt2.caspt2.h5"),
+         "state_file": str(THIOPHENOL / f"valence-{irrep}-caspt2.log"),
+         "mcscf_file": str(THIOPHENOL / f"valence-dz-{irrep}.rasscf.h5")}
+        for irrep in ("a", "ap")
+    ]
+    data["Final"] = {"type": "caspt2", "wf_file": str(THIOPHENOL / "core-ap-caspt2.caspt2.h5"),
+                     "state_file": str(THIOPHENOL / "core-ap-caspt2.log"),
+                     "mcscf_file": str(THIOPHENOL / "core-dz-ap.rasscf.h5")}
+    return data
+
+
+def test_initial_accepts_a_list_of_blocks_and_a_single_block_becomes_one(tmp_path):
+    loaded = load_input(_write(tmp_path, _two_initials()))
+    assert [block["wf_file"].name for block in loaded["Initial"]] == [
+        "valence-a-caspt2.caspt2.h5", "valence-ap-caspt2.caspt2.h5"]
+
+    single = load_input(_write(tmp_path, _valid_input()))
+    assert [block["wf_file"] for block in single["Initial"]] == [DATA / "valence_caspt2.caspt2.h5"]
+
+
+def test_homo_and_lumo_can_name_an_orbital_of_an_irrep(tmp_path):
+    data = _two_initials()
+    data["Initial"][1].update(homo="5_i2", lumo="25_i1")
+
+    loaded = load_input(_write(tmp_path, data))["Initial"][1]
+    assert (loaded["homo"], loaded["lumo"]) == ("5_i2", "25_i1")
+
+    data["Initial"][1].update(homo="5a")
+    with pytest.raises(InputError, match=r"Initial\[2\]\.homo: '5a' is not valid"):
+        load_input(_write(tmp_path, data))
+
+
+@pytest.mark.parametrize(
+    "mutate,message",
+    [
+        (lambda initial: initial[1].pop("mcscf_file"), "Initial[2]: 'mcscf_file' is a required property"),
+        (lambda initial: initial[0].update(homo=34), "Initial[1]: 'lumo' is a dependency of 'homo'"),
+        (lambda initial: initial[1].update(fcidump_file="valence.FciDmp.h5"),
+         "Initial[2].fcidump_file: only used with method 'chp'"),
+        (lambda initial: initial[1].update(type="rasscf"),
+         "Initial[2].type: 'rasscf' must match Initial[1].type 'caspt2'"),
+        (lambda initial: initial.clear(), "Initial: [] should be non-empty"),
+    ],
+)
+def test_errors_in_a_list_of_initial_blocks_name_the_block(tmp_path, mutate, message):
+    data = _two_initials()
+    mutate(data["Initial"])
 
     with pytest.raises(InputError) as excinfo:
         load_input(_write(tmp_path, data))

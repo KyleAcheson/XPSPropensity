@@ -14,8 +14,8 @@ active (pseudo)natural orbitals have no well-defined orbital energies, so
 populations are the ordering criterion; the stored energies (diagonal Fock
 elements) only break ties and are reported for comparison.
 
-The HOMO and LUMO can be given in the input (1-based MO indices) as an
-override: they are moved to the top of their set and the remaining orbitals
+The HOMO and LUMO can be given in the input as an override (a 1-based MO
+index, or with symmetry ``<index>_i<irrep>``, the MO's index within its irrep): they are moved to the top of their set and the remaining orbitals
 keep the population order. In a population-built reference they are also
 forced to be occupied (HOMO) and virtual (LUMO), which settles a reference
 whose last occupied and first virtual populations are too close to tell
@@ -24,7 +24,7 @@ apart. The final-state HOMO/LUMO follow from the active-orbital mapping.
 
 from __future__ import annotations
 
-from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple
+from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
 
 from xpsoverlaps.mapping import MappedFinal, OrbitalMapping
 from xpsoverlaps.model import Calculation
@@ -120,30 +120,55 @@ class OrbitalOrder(NamedTuple):
         return "LUMO" if level == 1 else f"LUMO+{level - 1}"
 
 
-def frontier_from_indices(calculation: Calculation, homo: int, lumo: int) -> FrontierOrbitals:
-    """Validate user-given 1-based MO indices and return the orbital IDs.
+def frontier_from_indices(
+    calculation: Calculation, homo: Union[int, str], lumo: Union[int, str]
+) -> FrontierOrbitals:
+    """Validate the user-given HOMO and LUMO and return their orbital IDs.
 
-    Only checks what must hold for any calculation: both orbitals exist,
-    differ, and are active (only active orbitals are mapped). Whether they are
-    the right HOMO and LUMO is the user's responsibility; nothing here depends
-    on which states the calculation contains.
+    Without symmetry each is a 1-based MO index; with symmetry the MO's index
+    within its irrep and the irrep number, ``"<index>_i<irrep>"`` (orbital ID
+    ``mo:<index>_i<irrep>``). Only checks what must hold for any calculation:
+    both orbitals exist, differ, and are active (only active orbitals are
+    mapped). Whether they are the right HOMO and LUMO is the user's
+    responsibility; nothing here depends on which states the calculation contains.
     """
     orbital_ids = calculation.orbitals.orbital_ids
     active_ids = calculation.active_space.orbital_ids
+    symmetric = len(calculation.point_group.irreps) > 1
     problems: List[str] = []
-    for name, index in (("HOMO", homo), ("LUMO", lumo)):
-        if not 1 <= index <= len(orbital_ids):
-            problems.append(f"{name} index {index} is outside 1..{len(orbital_ids)}.")
-        elif orbital_ids[index - 1] not in active_ids:
-            problems.append(
-                f"{name} {orbital_ids[index - 1]} is not an active orbital "
-                f"(active: {active_ids[0]} ... {active_ids[-1]})."
-            )
+    found: List[str] = []
+    for name, given in (("HOMO", homo), ("LUMO", lumo)):
+        if symmetric and not isinstance(given, str):
+            # Suggest the active orbital with that index in some irrep, else any active orbital.
+            example = ([o for o in active_ids if o.startswith(f"mo:{given}_")] or active_ids)[0]
+            problems.append(f"{name} {given}: with symmetry give the {name} as <index>_i<irrep>, "
+                            f"e.g. {example[len('mo:'):]}.")
+        elif not symmetric and isinstance(given, str):
+            problems.append(f"{name} {given}: without symmetry give the {name} as a 1-based MO index.")
+        elif isinstance(given, str) and f"mo:{given}" not in orbital_ids:
+            problems.append(f"{name} {given} is not an orbital of the calculation.")
+        elif not isinstance(given, str) and not 1 <= given <= len(orbital_ids):
+            problems.append(f"{name} index {given} is outside 1..{len(orbital_ids)}.")
+        else:
+            orbital_id = f"mo:{given}" if isinstance(given, str) else orbital_ids[given - 1]
+            found.append(orbital_id)
+            if orbital_id not in active_ids:
+                problems.append(
+                    f"{name} {orbital_id} is not an active orbital "
+                    f"(active: {active_ids[0]} ... {active_ids[-1]})."
+                )
     if homo == lumo:
         problems.append(f"HOMO and LUMO are the same orbital ({homo}).")
     if problems:
         raise FrontierOrbitalError("Invalid HOMO/LUMO: " + " ".join(problems))
-    return FrontierOrbitals(orbital_ids[homo - 1], orbital_ids[lumo - 1])
+    return FrontierOrbitals(*found)
+
+
+def core_orbitals(calculation: Calculation) -> List[str]:
+    """The core orbitals: the RAS1 orbitals, in active-space order."""
+    return [orbital_id for orbital_id, partition in zip(calculation.active_space.orbital_ids,
+                                                        calculation.active_space.partitions)
+            if partition == _CORE_PARTITION]
 
 
 def population_reference(

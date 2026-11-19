@@ -11,6 +11,7 @@ logging; ``mapping_report(mapping)`` turns the result into text lines.
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Literal, Mapping, NamedTuple, Optional, Sequence, Tuple
@@ -288,10 +289,12 @@ def map_active_orbitals(
     """Map the initial active orbitals onto the final ones (no logging).
 
     Uses state-averaged orbitals (one orbital set per calculation). Nothing is
-    permuted; the returned mapping only records the correspondence.
+    permuted; the returned mapping only records the correspondence. With
+    symmetry, overlaps between irreps vanish, so every orbital must be matched
+    within its irrep; a match across irreps is an error.
     """
     provider = get_overlap_provider(initial.basis, final.basis)
-    return match_active_orbitals(
+    mapping = match_active_orbitals(
         mo_overlap(initial, final, provider),
         initial.orbitals.orbital_ids,
         final.orbitals.orbital_ids,
@@ -301,6 +304,14 @@ def map_active_orbitals(
         orbital_compositions(final, provider=provider),
         options,
     )
+    initial_irrep = dict(zip(initial.orbitals.orbital_ids, initial.orbitals.irreps))
+    final_irrep = dict(zip(final.orbitals.orbital_ids, final.orbitals.irreps))
+    crossed = [f"{m.initial_id} ({initial_irrep[m.initial_id]}) -> {m.final_id} ({final_irrep[m.final_id]})"
+               for m in mapping.matches if initial_irrep[m.initial_id] != final_irrep[m.final_id]]
+    if crossed:
+        raise OrbitalMappingError("Active orbitals were matched across irreps, whose overlaps vanish: "
+                                  + ", ".join(crossed) + ".")
+    return mapping
 
 
 class MappedFinal(NamedTuple):
@@ -312,15 +323,31 @@ class MappedFinal(NamedTuple):
     spin: float  # the S shared by all its states
 
     @property
+    def irrep(self) -> str:
+        """Irrep of the final states (each calculation holds the states of one irrep)."""
+        return self.calculation.states[0].symmetry if self.calculation.states else None
+
+    @property
     def title(self) -> str:
-        """e.g. "Final 1: S = 0.5 (core-doub.caspt2.h5)"."""
-        return f"{self.label}: S = {self.spin:g} ({Path(self.calculation.provenance.source_files[0]).name})"
+        """e.g. "Final 1: S = 0.5 (core-doub.caspt2.h5)"; with symmetry "Final 2: S = 0.5, A" (core-dz-ap.rasscf.h5)"."""
+        irrep = f", {self.irrep.upper()}" if len(self.calculation.point_group.irreps) > 1 else ""
+        return f"{self.label}: S = {self.spin:g}{irrep} ({Path(self.calculation.provenance.source_files[0]).name})"
 
 
-def mapping_report(mapping: OrbitalMapping) -> List[str]:
-    """Text report of a mapping: match table, warnings, and paired orbital compositions."""
+def mapping_report(mapping: OrbitalMapping, irreps: Optional[Mapping[str, str]] = None) -> List[str]:
+    """Text report of a mapping: match table, warnings, and paired orbital compositions.
+
+    ``irreps`` (initial orbital ID -> irrep), given for a calculation with
+    symmetry, splits the match table into one table per irrep.
+    """
     lines = ["Active orbital mapping (initial -> final), by MO overlap", ""]
-    lines += format_mapping(mapping)
+    if irreps is None:
+        lines += format_mapping(mapping)
+    else:
+        for irrep in dict.fromkeys(irreps[match.initial_id] for match in mapping.matches):
+            matches = [match for match in mapping.matches if irreps[match.initial_id] == irrep]
+            lines += [f"Irrep {irrep}", *format_mapping(dataclasses.replace(mapping, matches=matches)), ""]
+        lines.pop()
     lines.append("")
     if mapping.warnings:
         lines.append("Mapping warnings:")
@@ -333,6 +360,48 @@ def mapping_report(mapping: OrbitalMapping) -> List[str]:
         for match in mapping.matches
     ]
     return lines + describe_orbital_pairs(pairs)
+
+
+class CoreOverlapBlock:
+    """|<phi_c'|psi_c>| between the initial and final core (RAS1) orbitals, one block per irrep.
+
+    The propensity rules take this block as the identity (S_cc = 1, S_cc' = 0):
+    the final state keeps its core hole in the ionised orbital. Near-degenerate
+    core orbitals of one irrep (e.g. in-plane S 2p) can rotate between the
+    initial and final calculations; a matched |S_cc| below
+    ``DIAGONAL_WARNING`` is warned about, as cross-core shake-downs then carry
+    intensity the rules leave out (ADR-0005).
+    """
+
+    DIAGONAL_WARNING = 0.9
+
+    def __init__(self, mapping: OrbitalMapping, initial: Calculation, final: Calculation,
+                 initial_cores: Sequence[str], final_cores: Sequence[str], final_label: str) -> None:
+        self.mapping = mapping
+        self.final_label = final_label
+        initial_irrep = dict(zip(initial.orbitals.orbital_ids, initial.orbitals.irreps))
+        final_irrep = dict(zip(final.orbitals.orbital_ids, final.orbitals.irreps))
+        self.blocks: Dict[str, Tuple[List[str], List[str]]] = {}  # irrep -> (initial cores, final cores)
+        for irrep in dict.fromkeys(initial_irrep[c] for c in initial_cores):
+            self.blocks[irrep] = ([c for c in initial_cores if initial_irrep[c] == irrep],
+                                  [c for c in final_cores if final_irrep[c] == irrep])
+
+    def report(self) -> List[str]:
+        lines = ["Core (RAS1) orbital overlaps |<final|initial>| by irrep (the rules take them as the identity)"]
+        for irrep, (initial_cores, final_cores) in self.blocks.items():
+            lines += ["", f"Irrep {irrep}", f"{'Initial':<8}  " + "  ".join(f"{c:>8}" for c in final_cores)]
+            for c in initial_cores:
+                lines.append(f"{c:<8}  " + "  ".join(f"{abs(self.mapping.overlap(c, f)):8.3f}" for f in final_cores))
+        return lines
+
+    def warnings(self) -> List[str]:
+        return [
+            f"Core orbital {c} rotates in {self.final_label}: |S| with its match {self.mapping.final_id(c)} is "
+            f"{abs(self.mapping.overlap(c, self.mapping.final_id(c))):.3f} < {self.DIAGONAL_WARNING}; the rules "
+            "take the core block of S as the identity, so cross-core shake-downs are not included (ADR-0005)."
+            for initial_cores, _ in self.blocks.values() for c in initial_cores
+            if abs(self.mapping.overlap(c, self.mapping.final_id(c))) < self.DIAGONAL_WARNING
+        ]
 
 
 def remap_occupations(occupations: Sequence[str], mapping: OrbitalMapping) -> List[str]:

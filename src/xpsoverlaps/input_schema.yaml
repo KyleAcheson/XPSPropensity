@@ -36,25 +36,46 @@ properties:
         enum: [1, all]
 
   Initial:
+    description: >-
+      Initial N-electron calculations: one block, or a list of blocks, one per
+      irrep for calculations run with symmetry (each holds the states of one
+      irrep). Each block is analysed on its own. A single block is wrapped in
+      a list before validation (xpsoverlaps/inputs.py).
+    type: array
+    minItems: 1
+    items: {$ref: '#/$defs/initial_calculation'}
+
+  Final:
+    description: >-
+      Final (N-1)-electron ionized calculations: one block, or a list of
+      blocks whose states have different spins (e.g. the doublet and the
+      quartet core-hole states). Each propensity channel uses the final
+      calculation of its spin. A single block is wrapped in a list before
+      validation (xpsoverlaps/inputs.py).
+    type: array
+    minItems: 1
+    items: {$ref: '#/$defs/final_calculation'}
+
+$defs:
+  initial_calculation:
     $ref: '#/$defs/calculation'
-    description: Initial N-electron calculation.
     properties:
       homo:
         description: >-
-          Optional override of the HOMO, as a 1-based MO index; must be given
-          together with lumo. By default the HOMO/LUMO and the order of the
-          active orbitals come from the orbital populations; the final-state
-          HOMO/LUMO follow from the orbital mapping.
-        type: integer
-        minimum: 1
+          Optional override of the HOMO; must be given together with lumo. A
+          1-based MO index without symmetry; with symmetry the MO's index within
+          its irrep and the irrep number, as <index>_i<irrep> (e.g. 24_i1). By
+          default the HOMO/LUMO and the order of the active orbitals come from
+          the orbital populations; the final-state HOMO/LUMO follow from the
+          orbital mapping.
+        $ref: '#/$defs/orbital'
       lumo:
-        description: 1-based MO index of the LUMO; see homo.
-        type: integer
-        minimum: 1
+        description: The LUMO, in the same form as homo; see homo.
+        $ref: '#/$defs/orbital'
       max_state:
         description: >-
-          Optional. Only initial states 1..max_state (numbered as in the
-          output, 1 = lowest) are considered for shake-down transitions.
+          Optional. Only initial states 1..max_state of this block (numbered as
+          in the output, 1 = lowest) are considered for shake-down transitions.
         type: integer
         minimum: 1
       fcidump_file:
@@ -72,18 +93,21 @@ properties:
       lumo: [homo]
     unevaluatedProperties: false
 
-  Final:
-    description: >-
-      Final (N-1)-electron ionized calculations: one block, or a list of
-      blocks whose states have different spins (e.g. the doublet and the
-      quartet core-hole states). Each propensity channel uses the final
-      calculation of its spin. A single block is wrapped in a list before
-      validation (xpsoverlaps/inputs.py).
-    type: array
-    minItems: 1
-    items: {$ref: '#/$defs/final_calculation'}
+  caspt2_needs_mcscf_file:
+    if:
+      required: [type]
+      properties:
+        type: {const: caspt2}
+    then:
+      required: [mcscf_file]
 
-$defs:
+  orbital:
+    oneOf:
+      - type: integer
+        minimum: 1
+      - type: string
+        pattern: '^[1-9][0-9]*_i[1-8]$'
+
   # Shared keys of Initial and Final. Unknown keys are rejected by
   # unevaluatedProperties in each block, so Initial can add its own keys.
   final_calculation:
@@ -140,25 +164,11 @@ allOf:
             program: {enum: [molcas]}
     then:
       properties:
-        Initial: {required: [state_file]}
+        Initial: {items: {required: [state_file]}}
         Final: {items: {required: [state_file]}}
 
   # Molcas CASPT2 HDF5 files keep the RASSCF orbitals but not their energies
   # and populations: each calculation reads them from its RASSCF file.
-  - if:
-      required: [Calculator, Initial]
-      properties:
-        Calculator:
-          required: [program]
-          properties:
-            program: {enum: [molcas]}
-        Initial:
-          required: [type]
-          properties:
-            type: {const: caspt2}
-    then:
-      properties:
-        Initial: {required: [mcscf_file]}
   - if:
       required: [Calculator]
       properties:
@@ -168,14 +178,8 @@ allOf:
             program: {enum: [molcas]}
     then:
       properties:
-        Final:
-          items:
-            if:
-              required: [type]
-              properties:
-                type: {const: caspt2}
-            then:
-              required: [mcscf_file]
+        Initial: {items: {$ref: '#/$defs/caspt2_needs_mcscf_file'}}
+        Final: {items: {$ref: '#/$defs/caspt2_needs_mcscf_file'}}
 
   # Programs that write everything to wf_file reject state_file, so it is not
   # silently ignored. Add such a program to this enum (and to
@@ -189,5 +193,5 @@ allOf:
   #           program: {enum: [orca]}
   #   then:
   #     properties:
-  #       Initial: {not: {required: [state_file]}}
+  #       Initial: {items: {not: {required: [state_file]}}}
   #       Final: {items: {not: {required: [state_file]}}}

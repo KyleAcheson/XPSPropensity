@@ -73,7 +73,18 @@ doublet and the quartet core-hole states of triplet initial states (see
 `examples/brthph/triplet/input_triplet.yaml`). Each propensity channel is evaluated with the
 final calculation of its spin (D1, D2 and the closed-shell doublet with
 S = 1/2, Q with S = 3/2), and one summary combines them. Every final
-calculation must share the initial active space. Run with:
+calculation must share the initial active space.
+
+With point-group symmetry each calculation holds the states of one irrep, so
+`Initial` and `Final` are lists with one block per irrep (and spin), see
+`examples/thiophenol/singlet/input.yaml`; each block's irrep is read from its
+files. Each Initial block is analysed on its own. A core hole of irrep c in an
+initial calculation of irrep I reaches final states of irrep I × c only, so its
+rules use the Final block of that irrep (ADR-0005); a closing summary covers
+all Initial blocks. `homo`/`lumo` then name an orbital as `<index>_i<irrep>`,
+e.g. `24_i1` for `mo:24_i1`. A block whose orbitals cannot be mapped onto a
+final calculation is reported and skipped, and the run exits with code 1.
+Run with:
 
 ```bash
 python src/xpsoverlaps/main.py -i inputs/input.yaml -o output.log
@@ -114,8 +125,9 @@ from an HDF5 file (`wf_file`) plus its log (`state_file`). CASPT2 HDF5 files
 lack orbital energies and populations, so a CASPT2 calculation reads them from
 the RASSCF HDF5 file it was built on (`mcscf_file`). Calculations run with
 symmetry are read (MOs in the AO basis, an irrep per orbital and state, IDs such
-as `mo:34_i1` for the 34th MO of irrep 1), but the propensity methods do not use
-symmetry yet. Every file's AO overlap is checked against Molcas's own.
+as `mo:34_i1` for the 34th MO of irrep 1); the overlaps method uses symmetry,
+the core-hole potential does not yet. Every file's AO overlap is checked
+against Molcas's own.
 
 ### Package structure
 

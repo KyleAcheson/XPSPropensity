@@ -5,7 +5,7 @@ import pytest
 import yaml
 
 from xpsoverlaps import main as main_module
-from xpsoverlaps.methods import FinalCalculationError, final_spins, propensity_overlaps
+from xpsoverlaps.methods import CalculationSetError, InitialCalculation, check_calculations, propensity_overlaps
 from xpsoverlaps.readers import get_calculation
 
 
@@ -49,10 +49,11 @@ def output(calculations):
 
 def test_each_final_calculation_has_one_spin_and_spins_differ(calculations):
     initial, doublet, quartet = calculations
+    initials = [InitialCalculation("Initial", initial)]
 
-    assert final_spins([doublet, quartet]) == [0.5, 1.5]
-    with pytest.raises(FinalCalculationError, match="More than one final calculation has S = 0.5"):
-        final_spins([doublet, doublet])
+    assert check_calculations(initials, [doublet, quartet]) == [(0.5, "a"), (1.5, "a")]
+    with pytest.raises(CalculationSetError, match="More than one final calculation has S = 0.5; each spin needs"):
+        check_calculations(initials, [doublet, doublet])
 
 
 def test_every_section_covers_both_final_calculations_in_turn(output):

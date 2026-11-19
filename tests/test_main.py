@@ -65,10 +65,11 @@ def test_main_overlaps_loads_initial_and_final_calculations(monkeypatch, tmp_pat
     assert main_module.main(["-i", str(INPUT), "-o", str(tmp_path / "run.out")]) == 0
 
     assert set(calls) == {"overlaps"}
-    initial, finals, frontier = calls["overlaps"]
-    assert len(initial.states) == 10
+    initials, finals, _ = calls["overlaps"]
+    [initial] = initials  # one Initial block, with its input HOMO/LUMO
+    assert len(initial.calculation.states) == 10
     assert [len(final.states) for final in finals] == [40]
-    assert (frontier.homo, frontier.lumo) == ("mo:34", "mo:40")
+    assert (initial.frontier.homo, initial.frontier.lumo) == ("mo:34", "mo:40")
 
 
 def test_main_chp_loads_only_initial_calculation(monkeypatch, tmp_path):

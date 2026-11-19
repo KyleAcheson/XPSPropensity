@@ -412,13 +412,101 @@ def _result_lines(result: PropensityResult) -> List[str]:
     return lines
 
 
+class CoreHoleRoute(NamedTuple):
+    """The core orbitals of one irrep and the final irrep they reach: Γ_F = Γ_I × Γ_c (ADR-0005)."""
+
+    core_irrep: str
+    cores: Tuple[str, ...]
+    final_irrep: str
+
+    @property
+    def heading(self) -> str:
+        """e.g. "Core hole a' (mo:21_i1, mo:22_i1) -> final A'"."""
+        return f"Core hole {self.core_irrep} ({', '.join(self.cores)}) -> final {self.final_irrep.upper()}"
+
+
+def core_hole_routes(initial: Calculation, cores: Sequence[str]) -> List[CoreHoleRoute]:
+    """One route per irrep among the core orbitals, in their order: the final irrep their holes reach."""
+    initial_irrep = initial.states[0].symmetry
+    irrep_of = dict(zip(initial.orbitals.orbital_ids, initial.orbitals.irreps))
+    return [
+        CoreHoleRoute(irrep, tuple(c for c in cores if irrep_of[c] == irrep),
+                      initial.point_group.product(initial_irrep, irrep))
+        for irrep in dict.fromkeys(irrep_of[c] for c in cores)
+    ]
+
+
+class SummaryRow(NamedTuple):
+    """One channel of one shake-down in the summary, or the reason it has none."""
+
+    shake_down: ShakeDown
+    channel: Optional[Channel]  # None when the shake-down has no bright channel
+    route: Optional[CoreHoleRoute]  # None without symmetry
+    final_label: Optional[str]  # None when no final calculation serves the channel
+    intensity: Optional[float]
+    note: Optional[str] = None
+
+    def columns(self, symmetric: bool) -> str:
+        sd = self.shake_down
+        pair = f"{_number(sd.initial_state)} -> {_number(sd.lower_state)}"
+        irreps = f"{self.route.core_irrep:<4}  {self.route.final_irrep.upper():<4}  " if symmetric else ""
+        intensity = f"{self.intensity:10.6f}" if self.intensity is not None else f"{'-':>10}"
+        name = self.channel.name if self.channel is not None else "-"
+        return (f"{pair:>8}  {sd.case:<6}  {irreps}{self.final_label or '-':<8}  {name:<21}  {intensity}"
+                + (f"   {self.note}" if self.note else ""))
+
+
+def summary_header(symmetric: bool) -> str:
+    irreps = f"{'Core':<4}  {'To':<4}  " if symmetric else ""  # core-hole irrep, final irrep
+    return f"{'a -> b':>8}  {'Case':<6}  {irreps}{'Final':<8}  {'Channel':<21}  {'Intensity':>10}"
+
+
+def summary_rows(
+    shake_downs: Sequence[ShakeDown],
+    initial: Calculation,
+    evaluations: Sequence[Tuple[MappedFinal, Sequence[PropensityResult]]],
+    routes: Optional[Sequence[CoreHoleRoute]] = None,
+) -> List[SummaryRow]:
+    """Every computable shake-down's channels, each with the final calculation of its spin
+    (and, with ``routes``, of each core-hole route's final irrep)."""
+    results_by_final = {
+        final.label: {result.shake_down: result for result in results} for final, results in evaluations
+    }
+    rows = []
+    for sd in shake_downs:
+        if not sd.computable:
+            continue
+        channels, note = bright_channels(sd, initial)
+        for route in routes or [None]:
+            if not channels:
+                rows.append(SummaryRow(sd, None, route, None, None, note))
+            for channel in channels:
+                final = next((f for f, _ in evaluations if f.spin == channel.final_spin
+                              and (route is None or f.irrep == route.final_irrep)), None)
+                if final is None:
+                    irrep = "" if route is None else f", {route.final_irrep.upper()}"
+                    rows.append(SummaryRow(sd, channel, route, None, None,
+                                           f"no S = {channel.final_spin:g}{irrep} final calculation"))
+                    continue
+                result = next(r for r in results_by_final[final.label][sd].channels if r.channel is channel)
+                rows.append(SummaryRow(sd, channel, route, final.label, result.intensity))
+    return rows
+
+
 def propensity_report(
     shake_downs: Sequence[ShakeDown],
     initial: Calculation,
     evaluations: Sequence[Tuple[MappedFinal, Sequence[PropensityResult]]],
+    routes: Optional[Sequence[CoreHoleRoute]] = None,
+    forbidden: Sequence[str] = (),
 ) -> List[str]:
     """For each final calculation the rules evaluated with its overlaps, then one
-    summary of every computable shake-down's channels across the final calculations."""
+    summary of every computable shake-down's channels across the final calculations.
+
+    With symmetry (``routes``), the final calculations are grouped by the
+    core-hole route that reaches their irrep, and ``forbidden`` lists the
+    final calculations no core hole of this initial irrep reaches.
+    """
     lines = [
         "Propensity rules",
         "",
@@ -429,33 +517,42 @@ def propensity_report(
         "Each channel uses the final calculation of its spin: closed-shell doublet, D1, D2 -> S = 0.5;"
         " Q -> S = 1.5.",
     ]
-    for final, results in evaluations:
-        lines += ["", final.title, "-" * len(final.title)]
-        if not results:
-            lines.append(f"No shake-down has a channel to S = {final.spin:g} final states.")
-        for result in results:
-            lines += _result_lines(result)
+    if routes is not None:
+        lines.append("A core hole of irrep c reaches final states of irrep (initial irrep) x c only;"
+                     " its rules use the final calculations of that irrep.")
+        lines += [f"{title}: symmetry-forbidden for this initial irrep (no core hole reaches it)."
+                  for title in forbidden]
 
-    results_by_final = {
-        final.label: {result.shake_down: result for result in results} for final, results in evaluations
-    }
-    finals_by_spin = {final.spin: final for final, _ in evaluations}
-    lines += ["", "Summary", f"{'a -> b':>8}  {'Case':<6}  {'Final':<8}  {'Channel':<21}  {'Intensity':>10}"]
-    for sd in shake_downs:
-        if not sd.computable:
-            continue
-        pair = f"{_number(sd.initial_state)} -> {_number(sd.lower_state)}"
-        channels, note = bright_channels(sd, initial)
-        if not channels:
-            lines.append(f"{pair:>8}  {sd.case:<6}  {'-':<8}  {'-':<21}  {'-':>10}   {note}")
-        for channel in channels:
-            final = finals_by_spin.get(channel.final_spin)
-            if final is None:
-                lines.append(f"{pair:>8}  {sd.case:<6}  {'-':<8}  {channel.name:<21}  {'-':>10}"
-                             f"   no S = {channel.final_spin:g} final calculation")
-                continue
-            result = next(r for r in results_by_final[final.label][sd].channels if r.channel is channel)
-            lines.append(f"{pair:>8}  {sd.case:<6}  {final.label:<8}  {channel.name:<21}  {result.intensity:10.6f}")
+    def final_blocks(group: Sequence[Tuple[MappedFinal, Sequence[PropensityResult]]]) -> List[str]:
+        block = []
+        for final, results in group:
+            block += ["", final.title, "-" * len(final.title)]
+            if not results:
+                block.append(f"No shake-down has a channel to S = {final.spin:g} final states.")
+            for result in results:
+                block += _result_lines(result)
+        return block
+
+    if routes is None:
+        lines += final_blocks(evaluations)
+    for route in routes or []:
+        lines += ["", route.heading, "=" * len(route.heading)]
+        group = [(final, results) for final, results in evaluations if final.irrep == route.final_irrep]
+        lines += final_blocks(group) if group else ["", f"No {route.final_irrep.upper()} final calculation."]
+
+    lines += ["", "Summary", summary_header(routes is not None)]
+    lines += [row.columns(routes is not None) for row in summary_rows(shake_downs, initial, evaluations, routes)]
+    return lines
+
+
+def closing_summary(blocks: Sequence[Tuple[str, Sequence[SummaryRow]]], failures: Sequence[str] = ()) -> List[str]:
+    """The summaries of several initial calculations in one table; ``blocks`` holds each one's irrep and
+    rows, ``failures`` the errors of the blocks that were skipped."""
+    lines = ["Summary over all initial calculations", "", f"{'Init':<4}  " + summary_header(True)]
+    for irrep, rows in blocks:
+        lines += [f"{irrep.upper():<4}  " + row.columns(True) for row in rows]
+    if failures:
+        lines += ["", "Not evaluated:"] + [f"  {failure.splitlines()[0]}" for failure in failures]
     return lines
 
 
