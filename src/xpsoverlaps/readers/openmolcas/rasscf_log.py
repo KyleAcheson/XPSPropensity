@@ -10,6 +10,9 @@ from xpsoverlaps.model import Configuration, ElectronicState
 
 
 _NUMBER = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[EeDd][+-]?\d+)?"
+# With symmetry Molcas prints a space at every RAS/irrep boundary of an
+# occupation string ("22 2 2200 2222000"); the spaces are dropped when read.
+_OCCUPATION = r"[20ud]+(?: [20ud]+)*"
 _ROOT_ENERGY = re.compile(
     rf"::\s*RASSCF root number\s+(\d+)\s+Total energy:\s*({_NUMBER})",
     re.IGNORECASE,
@@ -21,7 +24,7 @@ _CI_ROOT_BLOCK = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 _CI_CONFIGURATION = re.compile(
-    rf"^\s*(\d+)\s+([20ud]+)\s+({_NUMBER})\s+({_NUMBER})\s*$",
+    rf"^\s*(\d+)\s+({_OCCUPATION})\s+({_NUMBER})\s+({_NUMBER})\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -55,7 +58,7 @@ def read_rasscf_states(source: str | Path) -> List[ElectronicState]:
             configurations.append(
                 Configuration(
                     configuration_id=configuration_id,
-                    occupations=list(occupation.lower()),
+                    occupations=list(occupation.replace(" ", "").lower()),
                     coefficient=_as_float(coefficient),
                     weight=_as_float(weight),
                 )

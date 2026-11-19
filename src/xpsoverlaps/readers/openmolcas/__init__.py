@@ -4,11 +4,13 @@ from xpsoverlaps.readers.openmolcas.caspt2_log import read_caspt2_states
 from xpsoverlaps.readers.openmolcas.fcidump import read_fcidump
 from xpsoverlaps.readers.openmolcas.hdf5_file import MolcasHdf5
 from xpsoverlaps.readers.openmolcas.hdf5_reader import (
+    check_ao_overlap,
     read_active_space,
     read_basis,
     read_molecule,
     read_orbital_populations,
     read_orbitals,
+    read_point_group,
     read_state_energies,
 )
 from xpsoverlaps.readers.openmolcas.loader import OpenMolcasLoader
@@ -17,6 +19,7 @@ from xpsoverlaps.readers.openmolcas.rasscf_log import read_rasscf_states
 __all__ = [
     "MolcasHdf5",
     "OpenMolcasLoader",
+    "check_ao_overlap",
     "read_active_space",
     "read_basis",
     "read_caspt2_states",
@@ -24,6 +27,7 @@ __all__ = [
     "read_molecule",
     "read_orbital_populations",
     "read_orbitals",
+    "read_point_group",
     "read_rasscf_states",
     "read_state_energies",
 ]

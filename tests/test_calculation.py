@@ -13,6 +13,7 @@ from xpsoverlaps.readers.openmolcas import (
     read_basis,
     read_molecule,
     read_orbitals,
+    read_point_group,
 )
 
 
@@ -107,8 +108,9 @@ def test_defining_a_loader_subclass_makes_get_calculation_support_it(isolated_re
                 basis = read_basis(h5, molecule)
                 orbitals = read_orbitals(h5, basis)
                 active_space = read_active_space(h5, orbitals)
+                point_group = read_point_group(h5)
             return Calculation(
-                Provenance("SingleFile", kind, [str(wf_file)]), molecule, basis, orbitals, active_space
+                Provenance("SingleFile", kind, [str(wf_file)]), molecule, basis, orbitals, active_space, point_group
             )
 
     calculation = get_calculation(" singlefile ", "casscf", DATA / "valence.rasscf.h5")

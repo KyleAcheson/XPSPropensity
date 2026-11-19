@@ -12,9 +12,10 @@ Structure::
     ├── basis         AOBasis          one entry per AO (= row of the MO coefficients)
     │                 ├── GaussianBasis    explicit contracted shells (GaussianShell)
     │                 └── EngineBasis      integrals from a program's own engine
-    ├── orbitals      OrbitalSet       AO x MO coefficients, one ID per MO; energies and
-    │                                  populations when the files provide them
+    ├── orbitals      OrbitalSet       AO x MO coefficients, one ID and irrep per MO; energies
+    │                                  and populations when the files provide them
     ├── active_space  ActiveSpace      active orbital IDs, in CI-string order
+    ├── point_group   PointGroup       irreps and their products (one irrep without symmetry)
     └── states        [ElectronicState]
                       └── dominant_configuration   Configuration (0/u/d/2 per active orbital)
 
@@ -30,6 +31,11 @@ How the parts refer to each other (checked when a ``Calculation`` is created):
   referred to by ID, not position.
 - Each configuration has one occupation per active orbital, in
   ``active_space.orbital_ids`` order.
+- Orbital irreps and state symmetries are irreps of ``point_group``, and each
+  state's dominant configuration has the state's irrep (the product of the
+  irreps of its singly occupied orbitals), which checks that the CI strings
+  are lined up with the active orbitals. MO coefficients are over the AO
+  basis also for calculations run with symmetry.
 
 Units: lengths in bohr, energies in hartree, spin as S.
 
@@ -43,7 +49,7 @@ array fields; compare the fields you need instead.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
@@ -141,12 +147,60 @@ class EngineBasis(AOBasis):
             raise ValueError("EngineBasis needs an engine name.")
 
 
+class PointGroup:
+    """Irreps of an Abelian point group (D2h or a subgroup) and their direct products.
+
+    ``products[i][j]`` is the index of irrep i x irrep j; irrep 0 is the
+    totally symmetric one. In these groups every irrep is its own inverse,
+    which is checked along with closure. A calculation without symmetry has
+    the one-irrep group C1. The irrep order is the program's (the reader
+    builds the table from its conventions).
+    """
+
+    def __init__(self, irreps: Sequence[str], products: Sequence[Sequence[int]]) -> None:
+        self.irreps = tuple(irreps)
+        n = len(self.irreps)
+        if n not in (1, 2, 4, 8):
+            raise ValueError(f"An Abelian point group has 1, 2, 4 or 8 irreps; found {n}.")
+        if len(set(self.irreps)) != n:
+            raise ValueError(f"Irrep labels must be distinct; found {list(self.irreps)}.")
+        table = [tuple(int(k) for k in row) for row in products]
+        if len(table) != n or any(sorted(row) != list(range(n)) for row in table):
+            raise ValueError("Each row of the irrep product table must be a permutation of the irreps.")
+        for i in range(n):
+            if table[0][i] != i or table[i][i] != 0 or any(table[i][j] != table[j][i] for j in range(n)):
+                raise ValueError(
+                    "The irrep product table must have the totally symmetric irrep first, be "
+                    "symmetric, and give the totally symmetric irrep for each irrep squared."
+                )
+        self._products = table
+
+    def __repr__(self) -> str:
+        return f"PointGroup({list(self.irreps)})"
+
+    @property
+    def totally_symmetric(self) -> str:
+        return self.irreps[0]
+
+    def product(self, *irreps: str) -> str:
+        """Direct product of irreps, e.g. ``product("b2", "b1") == "a2"`` in C2v; () is totally symmetric."""
+        index = 0
+        for irrep in irreps:
+            if irrep not in self.irreps:
+                raise ValueError(f"{irrep!r} is not an irrep of {list(self.irreps)}.")
+            index = self._products[index][self.irreps.index(irrep)]
+        return self.irreps[index]
+
+
 @dataclass(frozen=True, eq=False)
 class OrbitalSet:
     """Molecular orbitals: AO rows x MO columns, one ID per MO (e.g. ``"mo:34"``).
 
     ``energies`` and ``occupations`` are the orbitals' (state-averaged) energies
     and populations, or None when the calculation's files do not provide them.
+    ``irreps`` is each MO's irrep label (all the totally symmetric one without
+    symmetry). Coefficients are over the AO basis, also when the program
+    stores them over symmetry-adapted functions.
     """
 
     basis_id: str
@@ -155,6 +209,7 @@ class OrbitalSet:
     energies: Optional[List[float]]
     occupations: Optional[List[float]]
     source_type_labels: List[str]  # the program's orbital type per MO (e.g. Molcas "I", "1", "S")
+    irreps: List[str]
 
     def __post_init__(self) -> None:
         if self.coefficients.ndim != 2:
@@ -162,8 +217,8 @@ class OrbitalSet:
         n_ao, n_mo = self.coefficients.shape
         if n_ao == 0 or n_mo == 0:
             raise ValueError("An orbital set must contain at least one AO and one MO.")
-        if not len(self.orbital_ids) == len(self.source_type_labels) == n_mo:
-            raise ValueError("Orbital IDs and type labels must match the MO count.")
+        if not len(self.orbital_ids) == len(self.source_type_labels) == len(self.irreps) == n_mo:
+            raise ValueError("Orbital IDs, type labels and irreps must match the MO count.")
         for name in ("energies", "occupations"):
             values = getattr(self, name)
             if values is not None and len(values) != n_mo:
@@ -208,7 +263,7 @@ class ElectronicState:
     energy: Optional[float] = None
     energy_units: str = "hartree"
     spin: Optional[float] = None  # S, e.g. 0.5 for a doublet
-    symmetry: Optional[str] = None
+    symmetry: Optional[str] = None  # irrep label in a Calculation; log readers give the program's raw label
     dominant_configuration: Optional[Configuration] = None
 
 
@@ -229,6 +284,7 @@ class Calculation:
     basis: AOBasis
     orbitals: OrbitalSet
     active_space: ActiveSpace
+    point_group: PointGroup
     states: List[ElectronicState] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -241,6 +297,9 @@ class Calculation:
         known_ids = set(self.orbitals.orbital_ids)
         if any(orbital_id not in known_ids for orbital_id in self.active_space.orbital_ids):
             raise ValueError("Every active orbital ID must exist in the orbital set.")
+        unknown = sorted(set(self.orbitals.irreps) - set(self.point_group.irreps))
+        if unknown:
+            raise ValueError(f"Orbital irreps {unknown} are not irreps of {self.point_group}.")
         n_active = len(self.active_space.orbital_ids)
         for state in self.states:
             configuration = state.dominant_configuration
@@ -249,6 +308,30 @@ class Calculation:
                     f"State {state.state_id} configuration has {len(configuration.occupations)} "
                     f"occupations; the active space has {n_active} orbitals."
                 )
+            if state.symmetry is not None and state.symmetry not in self.point_group.irreps:
+                raise ValueError(f"State {state.state_id} symmetry {state.symmetry!r} is not an irrep of "
+                                 f"{self.point_group}.")
+        mismatched = [
+            f"{state.state_id} is {state.symmetry} but its dominant configuration "
+            f"{''.join(state.dominant_configuration.occupations)} is {self.configuration_irrep(state.dominant_configuration)}"
+            for state in self.states
+            if state.symmetry is not None and state.dominant_configuration is not None
+            and self.configuration_irrep(state.dominant_configuration) != state.symmetry
+        ]
+        if mismatched:
+            raise ValueError(
+                "Dominant configurations do not have their state's irrep, so the CI strings are not "
+                "lined up with the active orbitals: " + "; ".join(mismatched) + "."
+            )
+
+    def configuration_irrep(self, configuration: Configuration) -> str:
+        """Irrep of a configuration: the product of the irreps of its singly occupied orbitals."""
+        irrep_of = dict(zip(self.orbitals.orbital_ids, self.orbitals.irreps))
+        return self.point_group.product(*(
+            irrep_of[orbital_id]
+            for orbital_id, occupation in zip(self.active_space.orbital_ids, configuration.occupations)
+            if occupation in "ud"
+        ))
 
 
 @dataclass(frozen=True, eq=False)

@@ -10,13 +10,16 @@ from xpsoverlaps.model import Configuration, ElectronicState
 
 
 _NUMBER = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[EeDd][+-]?\d+)?"
+# With symmetry Molcas prints a space at every RAS/irrep boundary of an
+# occupation string ("22 2 2200 2222000"); the spaces are dropped when read.
+_OCCUPATION = r"[20ud]+(?: [20ud]+)*"
 _MIXED_STATE = re.compile(
     r"The CI coefficients for the MIXED state nr\.\s*(\d+)(.*?)(?="
     r"The CI coefficients for the MIXED state nr\.|\Z)",
     re.DOTALL,
 )
 _CONFIGURATION = re.compile(
-    rf"^\s*(\d+)\s+\((.*?)\)\s+([20ud]+)\s+({_NUMBER})\s+({_NUMBER})\s*$",
+    rf"^\s*(\d+)\s+\((.*?)\)\s+({_OCCUPATION})\s+({_NUMBER})\s+({_NUMBER})\s*$",
     re.MULTILINE | re.IGNORECASE,
 )
 _CASPT2_ENERGY = re.compile(
@@ -62,7 +65,7 @@ def read_caspt2_states(source: str | Path) -> List[ElectronicState]:
             configurations.append(
                 Configuration(
                     configuration_id=conf_id,
-                    occupations=list(occupation.lower()),
+                    occupations=list(occupation.replace(" ", "").lower()),
                     coefficient=_as_float(coefficient),
                     weight=_as_float(weight),
                     source_metadata={"sguga_info": sgu_info.strip()},

@@ -5,6 +5,12 @@ CASPT2 keeps the RASSCF orbitals but leaves MO_ENERGIES and MO_OCCUPATIONS in
 its own HDF5 file empty, so the orbital energies and populations come from
 the RASSCF file. Either way the loaded ``OrbitalSet`` carries them in the same
 fields; without an ``mcscf_file`` a CASPT2 calculation has none (None).
+
+Every file's AO overlap from the reconstructed basis is checked against
+Molcas's AO_OVERLAP_MATRIX. With symmetry (NSYM > 1) Molcas runs one irrep
+(LSYM) per calculation: its states get that irrep, the MOs are transformed to
+the AO basis, and the active orbitals are put in CI-string order (see
+``hdf5_file``).
 """
 
 from __future__ import annotations
@@ -19,11 +25,13 @@ from xpsoverlaps.readers.openmolcas.caspt2_log import read_caspt2_states
 from xpsoverlaps.readers.openmolcas.fcidump import read_fcidump
 from xpsoverlaps.readers.openmolcas.hdf5_file import MolcasHdf5
 from xpsoverlaps.readers.openmolcas.hdf5_reader import (
+    check_ao_overlap,
     read_active_space,
     read_basis,
     read_molecule,
     read_orbital_populations,
     read_orbitals,
+    read_point_group,
     read_state_energies,
 )
 from xpsoverlaps.readers.openmolcas.rasscf_log import read_rasscf_states
@@ -67,11 +75,15 @@ class OpenMolcasLoader(CalculationLoader):
         with MolcasHdf5(wf_file) as h5:
             molecule = read_molecule(h5)
             basis = read_basis(h5, molecule)
+            check_ao_overlap(h5, basis)
             orbitals = read_orbitals(h5, basis, populations=kind == "RASSCF")
             active_space = read_active_space(h5, orbitals)
+            point_group = read_point_group(h5)
+            state_irrep = h5.state_irrep_index()
             hdf5_energies = read_state_energies(h5, energy_dataset)
             reference_energies = read_state_energies(h5, _REFERENCE_ENERGIES) if mcscf_file else []
         states = _check_against_hdf5_energies(read_states(state_file), hdf5_energies)
+        states = _with_state_irrep(states, point_group.irreps[state_irrep], state_irrep)
         source_files = [str(h5.path), str(state_file.resolve())]
         if mcscf_file is not None:
             orbitals = _with_mcscf_populations(orbitals, mcscf_file, reference_energies)
@@ -83,8 +95,24 @@ class OpenMolcasLoader(CalculationLoader):
             basis=basis,
             orbitals=orbitals,
             active_space=active_space,
+            point_group=point_group,
             states=states,
         )
+
+
+def _with_state_irrep(states: Sequence[ElectronicState], irrep: str, index: int) -> List[ElectronicState]:
+    """States labelled with the calculation's irrep (Molcas runs one irrep, LSYM, per calculation).
+
+    The log prints the same irrep as a 1-based number ("State symmetry"); a
+    different number means the log and the HDF5 file are not the same calculation.
+    """
+    for state in states:
+        if state.symmetry is not None and state.symmetry != str(index + 1):
+            raise ValueError(
+                f"The log gives state symmetry {state.symmetry} but the HDF5 file has LSYM = {index + 1}; "
+                "the files may not belong to the same calculation."
+            )
+    return [dataclasses.replace(state, symmetry=irrep) for state in states]
 
 
 def _with_mcscf_populations(
