@@ -1,0 +1,19 @@
+# Thiophenol S 2p XPS, Cs symmetry (irrep 1 = a', irrep 2 = a"), core-hole
+# potential to all orders: as input_chp.yaml with order: all. diag(e) - J_c is
+# diagonalised irrep block by irrep block.
+Calculator:
+  program: molcas
+  method: chp
+  order: all            # 1 (the default): first order
+
+Initial:
+  - type: caspt2  # a' valence states (LSYM 1)
+    wf_file: ../../../data/molcas/thiophenol/s2p/dz/valence-a-caspt2.caspt2.h5
+    state_file: ../../../data/molcas/thiophenol/s2p/dz/valence-a-caspt2.log
+    mcscf_file: ../../../data/molcas/thiophenol/s2p/dz/valence-dz-a.rasscf.h5
+    fcidump_file: ../../../data/molcas/thiophenol/s2p/dz/valence-dz-a.FciDmp.h5  # written by the RASSCF run of mcscf_file
+  - type: caspt2  # a" valence states (LSYM 2)
+    wf_file: ../../../data/molcas/thiophenol/s2p/dz/valence-ap-caspt2.caspt2.h5
+    state_file: ../../../data/molcas/thiophenol/s2p/dz/valence-ap-caspt2.log
+    mcscf_file: ../../../data/molcas/thiophenol/s2p/dz/valence-dz-ap.rasscf.h5
+    fcidump_file: ../../../data/molcas/thiophenol/s2p/dz/valence-dz-ap.FciDmp.h5

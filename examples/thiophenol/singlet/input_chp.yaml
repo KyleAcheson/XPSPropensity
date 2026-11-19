@@ -1,0 +1,21 @@
+# Thiophenol S 2p XPS, Cs symmetry (irrep 1 = a', irrep 2 = a"), first-order
+# core-hole potential: the Initial blocks only, one per irrep.
+#
+# Each Initial block needs the FCIDUMP of its own RASSCF run (mcscf_file). The
+# core-hole potential of each core (RAS1) orbital c is applied in turn; the
+# final state then has irrep G_I x G_c, which labels that core's results.
+Calculator:
+  program: molcas
+  method: chp
+
+Initial:
+  - type: caspt2  # a' valence states (LSYM 1)
+    wf_file: ../../../data/molcas/thiophenol/s2p/dz/valence-a-caspt2.caspt2.h5
+    state_file: ../../../data/molcas/thiophenol/s2p/dz/valence-a-caspt2.log
+    mcscf_file: ../../../data/molcas/thiophenol/s2p/dz/valence-dz-a.rasscf.h5
+    fcidump_file: ../../../data/molcas/thiophenol/s2p/dz/valence-dz-a.FciDmp.h5  # written by the RASSCF run of mcscf_file
+  - type: caspt2  # a" valence states (LSYM 2)
+    wf_file: ../../../data/molcas/thiophenol/s2p/dz/valence-ap-caspt2.caspt2.h5
+    state_file: ../../../data/molcas/thiophenol/s2p/dz/valence-ap-caspt2.log
+    mcscf_file: ../../../data/molcas/thiophenol/s2p/dz/valence-dz-ap.rasscf.h5
+    fcidump_file: ../../../data/molcas/thiophenol/s2p/dz/valence-dz-ap.FciDmp.h5

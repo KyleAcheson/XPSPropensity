@@ -1,0 +1,46 @@
+# Thiophenol S 2p XPS, Cs symmetry (irrep 1 = a', irrep 2 = a"), overlaps method.
+#
+# With symmetry each calculation holds the states of one irrep, so Initial and
+# Final are lists with one block per irrep. A block's irrep is read from its
+# files (Molcas LSYM), not written here. No two Initial blocks may share an
+# irrep, and no two Final blocks may share (spin, irrep).
+#
+# Each Initial block is treated on its own: its own orbital order and
+# shake-downs (a -> b within the block). For an initial irrep G_I and a core
+# (RAS1) orbital c of irrep G_c, the final state has irrep G_I x G_c, and the
+# rules use the Final block of that irrep and the channel's spin. Here the S 2p
+# RAS1 orbitals are 2 a' (in-plane) + 1 a" (out-of-plane), so both Initial
+# blocks use both Final blocks.
+#
+# CASPT2 states with the orbitals, energies and populations of the RASSCF run
+# each CASPT2 calculation was built on (mcscf_file).
+Calculator:
+  program: molcas
+  method: overlaps
+
+Initial:
+  - type: caspt2  # a' valence states (LSYM 1)
+    wf_file: ../../../data/molcas/thiophenol/s2p/dz/valence-a-caspt2.caspt2.h5
+    state_file: ../../../data/molcas/thiophenol/s2p/dz/valence-a-caspt2.log
+    mcscf_file: ../../../data/molcas/thiophenol/s2p/dz/valence-dz-a.rasscf.h5
+    # homo: 24_i1  # optional; with symmetry an orbital is <index in irrep>_i<irrep>, given with lumo
+    # lumo: 6_i2
+    # max_state: 3  # optional; states 1..max_state of this block
+  - type: caspt2  # a" valence states (LSYM 2)
+    wf_file: ../../../data/molcas/thiophenol/s2p/dz/valence-ap-caspt2.caspt2.h5
+    state_file: ../../../data/molcas/thiophenol/s2p/dz/valence-ap-caspt2.log
+    mcscf_file: ../../../data/molcas/thiophenol/s2p/dz/valence-dz-ap.rasscf.h5
+
+Final:
+  # A' core-ionised doublets (LSYM 1): left out until core-a-caspt2.caspt2.h5 is
+  # replaced; the current file is from a 20-state run that does not match its
+  # 30-state log. Without it, the cores that lead to A' final states are reported
+  # as having no final calculation.
+  # - type: caspt2
+  #   wf_file: ../../../data/molcas/thiophenol/s2p/dz/core-a-caspt2.caspt2.h5
+  #   state_file: ../../../data/molcas/thiophenol/s2p/dz/core-a-caspt2.log
+  #   mcscf_file: ../../../data/molcas/thiophenol/s2p/dz/core-dz-a.rasscf.h5
+  - type: caspt2  # A" core-ionised doublets (LSYM 2)
+    wf_file: ../../../data/molcas/thiophenol/s2p/dz/core-ap-caspt2.caspt2.h5
+    state_file: ../../../data/molcas/thiophenol/s2p/dz/core-ap-caspt2.log
+    mcscf_file: ../../../data/molcas/thiophenol/s2p/dz/core-dz-ap.rasscf.h5
