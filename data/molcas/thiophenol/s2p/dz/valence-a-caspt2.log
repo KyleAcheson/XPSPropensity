@@ -1,0 +1,3451 @@
+   This run of MOLCAS is using the pymolcas driver
+
+                             OPE
+                             OPE          NMOL  CASOP  ENMOLC A   SO
+                 OPE        NMOLC        AS  OP EN  MO LC     AS  OP
+                OPENM       OL CA        SO  PE NM  OL CA     SOP EN
+                OP EN      MO   LC       AS  OP ENMOL  CASO   PENMOL
+                OP  EN     MO   LC       AS  OP EN     MO     LC ASO
+               OP   E  NMOL  C  AS       OP  EN MO     LC     AS  OP
+               OP  E   NMO   LC AS        OPEN  MO     LCASOP EN   M
+               O  PEN   MO  LCA  SO
+            OPE   NMO   L   CAS    OP
+        OPENMOL  CASOP     ENMOL   CASOPE
+     OPENMOLCA   SOPENMOLCASOPEN   MOLCASOPE
+    OPENMOLCAS   OP           EN   MOL    CAS
+    OPENMOLCAS       OP  ENM        O     LCA
+    OPENMOLCAS    OPEN  MOLCASO     P  E  NMO
+    OPENMOLCAS     OP               E  N  MOL
+    OPENMOLCA   SO           PENM   O  L  CAS    OPEN    MO    LCAS
+    OPENMOLCA   SOP           ENM   O  L  CAS   OP  EN  MOLC  AS   O
+    OPENMOLCA   SOPE           NM      O  LCA   S      OP  EN MO
+    OPENMOLC                AS         O  PEN   M      OL  CA  SOPE
+    OPENMO        LCASOPE  NMOL        C  ASO   P      ENMOLC     AS
+    OPE     NMO      LCA  SO     P     E   NM   OL  CA SO  PE N   MO
+          OPENMOLCA            SOPE   NMO        LCAS  O    P  ENMO
+     OPENMOLCASOPENMOLCASOPENMOLCASOPENMOLCA
+        OPENMOLCASOPENMOLCASOPENMOLCASOPE
+            OPENMOLCASOPENMOLCASOPENM
+               OPENMOLCASOPENMOLCA        version: 26.02
+                   OPENMOLCASO
+                       OPE                tag: 39-gb108b4fb4-dirty
+
+ OpenMolcas is free software; you can redistribute it and/or modify it
+ under the terms of the GNU Lesser General Public License version 2.1.
+ OpenMolcas is distributed in the hope that it will be useful, but it
+ is provided "as is" and without any express or implied warranties.
+ For more details see the full text of the license in the file
+ LICENSE or in <http://www.gnu.org/licenses/>.
+
+                 Copyright (C) The OpenMolcas Authors
+           For the author list and the recommended citation,
+                   consult the file CONTRIBUTORS.md
+
+           *************************************************
+           * pymolcas version py2.30                       *
+           *   build 32e04b2d929c5171d3f97b50d75b0e6d      *
+           *   (after the EMIL interpreter by V. Veryazov) *
+           *************************************************
+
+configuration info
+------------------
+Host name: login6002 (Linux)
+C Compiler ID: Intel
+C flags: -std=gnu99 -gcc-sys -qopenmp
+Fortran Compiler ID: Intel
+Fortran flags: -fpp -i8 -heap-arrays -qopenmp
+Definitions: _MOLCAS_;_I8_;_LINUX_
+Parallel: OFF (GA=OFF)
+
+
+   --------------------------------------------------------------------------------------------
+  |
+  |              Project: valence-a
+  |       Submitted from: /iridisfs/home/ka3f26/thiophenol/symm/s2p/AS1/caspt2_dz
+  |         Scratch area: /tmp/valence-a.1923540
+  |      Save outputs to: /iridisfs/home/ka3f26/thiophenol/symm/s2p/AS1/caspt2_dz
+  |               Molcas: /home/ka3f26/OpenMolcas/builds/intel_normal_omp_mkl
+  |
+  | Scratch area is empty
+  |
+  |       MOLCAS_DRIVER = /iridisfs/home/ka3f26/OpenMolcas/builds/intel_normal_omp_mkl/pymolcas
+  | MOLCAS_KEEP_WORKDIR = NO
+  | MOLCAS_NEW_DEFAULTS = YES
+  |  MOLCAS_NEW_WORKDIR = NO
+  |       MOLCAS_NPROCS = 1
+  |         MOLCAS_SAVE = INCR
+  |       MOLCAS_SOURCE = /iridisfs/home/ka3f26/OpenMolcas
+  |    MOLCAS_STRUCTURE = 0
+  |
+   --------------------------------------------------------------------------------------------
+
+++ ---------   Input file   ---------
+
+&GATEWAY
+COORD = $CurrDir/../../../../thiophenol_gs.xyz
+GROUP = Z
+BASIS = ANO-RCC-VDZP
+Douglas-Kroll
+Verbose
+RICD
+
+&SEWARD
+
+>>> COPY $CurrDir/../dz/valence-dz-a.JobIph JOBIPH
+
+&CASPT2
+Multistate = all
+IMAG = 0.3
+
+>>> COPY $Project.JobMix $CurrDir/$Project.JobMix
+
+-- ----------------------------------
+
+--- Start Module: gateway at Wed May 13 17:01:11 2026 ---
+ 
+()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()
+
+                                              &GATEWAY
+
+                                   only a single process is used
+                       available to each process: 2.0 GB of memory, 1 thread
+                                            pid: 1923711
+()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()
+ 
+ 
+ 
+ Basis Set     1 Label: H.ANO-RCC-VDZP
+ Basis set is read from library:basis_library 
+ Basis Set Reference(s):
+     P.-O. Widmark, P.-A. Malmqvist, B.O. Roos. Theor. Chim. Acta 77 (1990) 291-306. doi:10.1007/bf01120130
+     HYDROGEN (8s,4p,3d,1f) -> [6s,4p,3d,1f]
+ 
+ 
+ 
+ 
+ Basis Set     2 Label: C.ANO-RCC-VDZP
+ Basis set is read from library:basis_library 
+ Basis Set Reference(s):
+     B.O. Roos, R. Lindh, P.-A. Malmqvist, V. Veryazov, P.-O. Widmark. J. Phys. Chem. A 108 (2004) 2851-2858. doi:10.1021/jp031064+
+     CARBON (14s,9p,4d,3f,2g) -> [8s,8p,4d,3f,2g]
+ 
+ 
+ 
+ 
+ Basis Set     3 Label: H.ANO-RCC-VDZP
+ Basis set is read from library:basis_library 
+ Basis Set Reference(s):
+     P.-O. Widmark, P.-A. Malmqvist, B.O. Roos. Theor. Chim. Acta 77 (1990) 291-306. doi:10.1007/bf01120130
+     HYDROGEN (8s,4p,3d,1f) -> [6s,4p,3d,1f]
+ 
+ 
+ 
+ 
+ Basis Set     4 Label: C.ANO-RCC-VDZP
+ Basis set is read from library:basis_library 
+ Basis Set Reference(s):
+     B.O. Roos, R. Lindh, P.-A. Malmqvist, V. Veryazov, P.-O. Widmark. J. Phys. Chem. A 108 (2004) 2851-2858. doi:10.1021/jp031064+
+     CARBON (14s,9p,4d,3f,2g) -> [8s,8p,4d,3f,2g]
+ 
+ 
+ 
+ 
+ Basis Set     5 Label: H.ANO-RCC-VDZP
+ Basis set is read from library:basis_library 
+ Basis Set Reference(s):
+     P.-O. Widmark, P.-A. Malmqvist, B.O. Roos. Theor. Chim. Acta 77 (1990) 291-306. doi:10.1007/bf01120130
+     HYDROGEN (8s,4p,3d,1f) -> [6s,4p,3d,1f]
+ 
+ 
+ 
+ 
+ Basis Set     6 Label: C.ANO-RCC-VDZP
+ Basis set is read from library:basis_library 
+ Basis Set Reference(s):
+     B.O. Roos, R. Lindh, P.-A. Malmqvist, V. Veryazov, P.-O. Widmark. J. Phys. Chem. A 108 (2004) 2851-2858. doi:10.1021/jp031064+
+     CARBON (14s,9p,4d,3f,2g) -> [8s,8p,4d,3f,2g]
+ 
+ 
+ 
+ 
+ Basis Set     7 Label: H.ANO-RCC-VDZP
+ Basis set is read from library:basis_library 
+ Basis Set Reference(s):
+     P.-O. Widmark, P.-A. Malmqvist, B.O. Roos. Theor. Chim. Acta 77 (1990) 291-306. doi:10.1007/bf01120130
+     HYDROGEN (8s,4p,3d,1f) -> [6s,4p,3d,1f]
+ 
+ 
+ 
+ 
+ Basis Set     8 Label: C.ANO-RCC-VDZP
+ Basis set is read from library:basis_library 
+ Basis Set Reference(s):
+     B.O. Roos, R. Lindh, P.-A. Malmqvist, V. Veryazov, P.-O. Widmark. J. Phys. Chem. A 108 (2004) 2851-2858. doi:10.1021/jp031064+
+     CARBON (14s,9p,4d,3f,2g) -> [8s,8p,4d,3f,2g]
+ 
+ 
+ 
+ 
+ Basis Set     9 Label: H.ANO-RCC-VDZP
+ Basis set is read from library:basis_library 
+ Basis Set Reference(s):
+     P.-O. Widmark, P.-A. Malmqvist, B.O. Roos. Theor. Chim. Acta 77 (1990) 291-306. doi:10.1007/bf01120130
+     HYDROGEN (8s,4p,3d,1f) -> [6s,4p,3d,1f]
+ 
+ 
+ 
+ 
+ Basis Set    10 Label: S.ANO-RCC-VDZP
+ Basis set is read from library:basis_library 
+ Basis Set Reference(s):
+     B.O. Roos, R. Lindh, P.-A. Malmqvist, V. Veryazov, P.-O. Widmark. J. Phys. Chem. A 108 (2004) 2851-2858. doi:10.1021/jp031064+
+     SULFUR (17s,12p,5d,4f,2g) -> [8s,7p,5d,4f,2g]
+ 
+ 
+ 
+ 
+ Basis Set    11 Label: H.ANO-RCC-VDZP
+ Basis set is read from library:basis_library 
+ Basis Set Reference(s):
+     P.-O. Widmark, P.-A. Malmqvist, B.O. Roos. Theor. Chim. Acta 77 (1990) 291-306. doi:10.1007/bf01120130
+     HYDROGEN (8s,4p,3d,1f) -> [6s,4p,3d,1f]
+ 
+ 
+ 
+ 
+ Basis Set    13 Label: H.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    14 Label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    15 Label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    16 Label: H.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    17 Label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    18 Label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    19 Label: H.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    20 Label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    21 Label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    22 Label: H.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    23 Label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    24 Label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    25 Label: H.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    26 Label: S.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    27 Label: S.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+ 
+ Basis Set    28 Label: H.ANO-RCC-VDZP....acCD-aux-basis.
+ On-the-fly basis set generation
+ 
+++    Symmetry information:
+      ---------------------
+ 
+                    --- Group Generators ---
+                    Reflection in the xy-plane  
+ 
+                    Character Table for Cs 
+ 
+                             E   s(xy)
+                    a'       1     1  x, y, xy, Rz
+                    a"       1    -1  z, xz, Ry, yz, Rx, I
+--
+ 
+ 
+++    Basis set information:
+      ----------------------
+ 
+ 
+      Basis set label: H.ANO-RCC...2S1P.
+ 
+      Electronic valence basis set:
+      ------------------
+      Associated Effective Charge   1.000000 au
+      Associated Actual Charge      1.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s       8       2        X                  
+         p       4       1        X                  
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ H1                 4.1578953035        4.0831443361        0.0000000000
+ 
+ 
+      Basis set label: C.ANO-RCC...3S2P1D.
+ 
+      Electronic valence basis set:
+      ------------------
+      Associated Effective Charge   6.000000 au
+      Associated Actual Charge      6.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      14       3        X                  
+         p       9       2        X                  
+         d       4       1                 X         
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ C2                 2.3477806225        3.0825619681        0.0000000000
+ C3                 0.0683091199        4.4475650809        0.0000000000
+ 
+ 
+      Basis set label: H.ANO-RCC...2S1P.
+ 
+      Electronic valence basis set:
+      ------------------
+      Associated Effective Charge   1.000000 au
+      Associated Actual Charge      1.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s       8       2        X                  
+         p       4       1        X                  
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ H4                 0.0900422369        6.5143473713        0.0000000000
+ 
+ 
+      Basis set label: C.ANO-RCC...3S2P1D.
+ 
+      Electronic valence basis set:
+      ------------------
+      Associated Effective Charge   6.000000 au
+      Associated Actual Charge      6.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      14       3        X                  
+         p       9       2        X                  
+         d       4       1                 X         
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ C5                -2.2403351893        3.1294082648        0.0000000000
+ 
+ 
+      Basis set label: H.ANO-RCC...2S1P.
+ 
+      Electronic valence basis set:
+      ------------------
+      Associated Effective Charge   1.000000 au
+      Associated Actual Charge      1.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s       8       2        X                  
+         p       4       1        X                  
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ H6                -4.0288979358        4.1677844418        0.0000000000
+ 
+ 
+      Basis set label: C.ANO-RCC...3S2P1D.
+ 
+      Electronic valence basis set:
+      ------------------
+      Associated Effective Charge   6.000000 au
+      Associated Actual Charge      6.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      14       3        X                  
+         p       9       2        X                  
+         d       4       1                 X         
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ C7                -2.2734915676        0.4743862023        0.0000000000
+ 
+ 
+      Basis set label: H.ANO-RCC...2S1P.
+ 
+      Electronic valence basis set:
+      ------------------
+      Associated Effective Charge   1.000000 au
+      Associated Actual Charge      1.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s       8       2        X                  
+         p       4       1        X                  
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ H8                -4.0781037423       -0.5369266304        0.0000000000
+ 
+ 
+      Basis set label: C.ANO-RCC...3S2P1D.
+ 
+      Electronic valence basis set:
+      ------------------
+      Associated Effective Charge   6.000000 au
+      Associated Actual Charge      6.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      14       3        X                  
+         p       9       2        X                  
+         d       4       1                 X         
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ C9                 0.0151192214       -0.8908380058        0.0000000000
+ C10                2.3286821559        0.4253733098        0.0000000000
+ 
+ 
+      Basis set label: H.ANO-RCC...2S1P.
+ 
+      Electronic valence basis set:
+      ------------------
+      Associated Effective Charge   1.000000 au
+      Associated Actual Charge      1.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s       8       2        X                  
+         p       4       1        X                  
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ H11                4.1170406677       -0.6129957419        0.0000000000
+ 
+ 
+      Basis set label: S.ANO-RCC...4S3P1D.
+ 
+      Electronic valence basis set:
+      ------------------
+      Associated Effective Charge  16.000000 au
+      Associated Actual Charge     16.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      17       4        X                  
+         p      12       3        X                  
+         d       5       1                 X         
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ S12               -0.1740079372       -4.2767189090        0.0000000000
+ 
+ 
+      Basis set label: H.ANO-RCC...2S1P.
+ 
+      Electronic valence basis set:
+      ------------------
+      Associated Effective Charge   1.000000 au
+      Associated Actual Charge      1.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s       8       2        X                  
+         p       4       1        X                  
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ H13                2.3444197049       -4.7137929072        0.0000000000
+ 
+ 
+      Basis set label: H.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      12       3        X                  
+         p       9       2        X                  
+         d       7       1                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ H1                 4.1578953035        4.0831443361        0.0000000000
+ 
+ 
+      Basis set label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      21       2        X                  
+         p      17       4        X                  
+         d       9       2                 X         
+         f      10       2                 X        X
+         g       7       1                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ C2                 2.3477806225        3.0825619681        0.0000000000
+ C3                 0.0683091199        4.4475650809        0.0000000000
+ 
+ 
+      Basis set label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         d      14       3                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ C2                 2.3477806225        3.0825619681        0.0000000000
+ C3                 0.0683091199        4.4475650809        0.0000000000
+ 
+ 
+      Basis set label: H.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      12       3        X                  
+         p       9       2        X                  
+         d       7       1                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ H4                 0.0900422369        6.5143473713        0.0000000000
+ 
+ 
+      Basis set label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      21       2        X                  
+         p      17       4        X                  
+         d       9       2                 X         
+         f      10       2                 X        X
+         g       7       1                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ C5                -2.2403351893        3.1294082648        0.0000000000
+ 
+ 
+      Basis set label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         d      14       3                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ C5                -2.2403351893        3.1294082648        0.0000000000
+ 
+ 
+      Basis set label: H.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      12       3        X                  
+         p       9       2        X                  
+         d       7       1                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ H6                -4.0288979358        4.1677844418        0.0000000000
+ 
+ 
+      Basis set label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      21       2        X                  
+         p      17       4        X                  
+         d       9       2                 X         
+         f      10       2                 X        X
+         g       7       1                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ C7                -2.2734915676        0.4743862023        0.0000000000
+ 
+ 
+      Basis set label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         d      14       3                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ C7                -2.2734915676        0.4743862023        0.0000000000
+ 
+ 
+      Basis set label: H.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      12       3        X                  
+         p       9       2        X                  
+         d       7       1                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ H8                -4.0781037423       -0.5369266304        0.0000000000
+ 
+ 
+      Basis set label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      21       2        X                  
+         p      17       4        X                  
+         d       9       2                 X         
+         f      10       2                 X        X
+         g       7       1                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ C9                 0.0151192214       -0.8908380058        0.0000000000
+ C10                2.3286821559        0.4253733098        0.0000000000
+ 
+ 
+      Basis set label: C.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         d      14       3                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ C9                 0.0151192214       -0.8908380058        0.0000000000
+ C10                2.3286821559        0.4253733098        0.0000000000
+ 
+ 
+      Basis set label: H.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      12       3        X                  
+         p       9       2        X                  
+         d       7       1                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ H11                4.1170406677       -0.6129957419        0.0000000000
+ 
+ 
+      Basis set label: S.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      25       5        X                  
+         p      21       6        X                  
+         d      10       3                 X         
+         f      11       3                 X        X
+         g       8       1                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ S12               -0.1740079372       -4.2767189090        0.0000000000
+ 
+ 
+      Basis set label: S.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         d      19       5                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ S12               -0.1740079372       -4.2767189090        0.0000000000
+ 
+ 
+      Basis set label: H.ANO-RCC-VDZP....acCD-aux-basis.
+ 
+      Auxiliary basis set:
+      ==================
+      Associated Effective Charge   0.000000 au
+      Associated Actual Charge      0.000000 au
+      Nuclear Model: Point charge
+ 
+      Shell  nPrim  nBasis  Cartesian Spherical Contaminant
+         s      12       3        X                  
+         p       9       2        X                  
+         d       7       1                 X        X
+ 
+       Label   Cartesian Coordinates / bohr
+ 
+ H13                2.3444197049       -4.7137929072        0.0000000000
+--
+ 
+ 
+++    Molecular structure info:
+      -------------------------
+ 
+                    ************************************************ 
+                    **** Cartesian Coordinates / bohr, angstrom **** 
+                    ************************************************ 
+ 
+     Center  Label                x              y              z                     x              y              z
+        1      H1               4.157895       4.083144       0.000000              2.200263       2.160707       0.000000
+        2      C2               2.347781       3.082562       0.000000              1.242392       1.631222       0.000000
+        3      C3               0.068309       4.447565       0.000000              0.036148       2.353550       0.000000
+        4      H4               0.090042       6.514347       0.000000              0.047648       3.447244       0.000000
+        5      C5              -2.240335       3.129408       0.000000             -1.185534       1.656012       0.000000
+        6      H6              -4.028898       4.167784       0.000000             -2.132001       2.205497       0.000000
+        7      C7              -2.273492       0.474386       0.000000             -1.203080       0.251034       0.000000
+        8      H8              -4.078104      -0.536927       0.000000             -2.158040      -0.284129       0.000000
+        9      C9               0.015119      -0.890838       0.000000              0.008001      -0.471411       0.000000
+       10      C10              2.328682       0.425373       0.000000              1.232286       0.225098       0.000000
+       11      H11              4.117041      -0.612996       0.000000              2.178644      -0.324383       0.000000
+       12      S12             -0.174008      -4.276719       0.000000             -0.092081      -2.263142       0.000000
+       13      H13              2.344420      -4.713793       0.000000              1.240613      -2.494432       0.000000
+ 
+                    *************************************** 
+                    *    InterNuclear Distances / bohr    * 
+                    *************************************** 
+ 
+               1 H1            2 C2            3 C3            4 H4            5 C5            6 H6    
+    1 H1       0.000000
+    2 C2       2.068255        0.000000
+    3 C3       4.105791        2.656920        0.000000
+    4 H4       4.739006        4.107862        2.066897        0.000000
+    5 C5       6.468923        4.588355        2.658454        4.109559        0.000000
+    6 H6       8.187231        6.468364        4.106748        4.740467        2.068135        0.000000
+    7 C7       7.374678        5.306481        4.611961        6.485940        2.655229        4.089333
+    8 H8       9.443343        7.375140        6.483664        8.191087        4.101147        4.704968
+    9 C9       6.473260        4.607517        5.338668        7.405564        4.609713        6.476398
+   10 C10      4.089659        2.657257        4.613818        6.487458        5.309211        7.377294
+   11 H11      4.696318        4.097246        6.480857        8.186314        7.377114        9.445220
+   12 S12      9.415556        7.779359        8.727649       10.794296        7.688981        9.282770
+   13 H13      8.981915        7.796356        9.439871       11.452220        9.084921       10.931678
+ 
+               7 C7            8 H8            9 C9           10 C10          11 H11          12 S12   
+    7 C7       0.000000
+    8 H8       2.068666        0.000000
+    9 C9       2.664878        4.108495        0.000000
+   10 C10      4.602435        6.478652        2.661764        0.000000
+   11 H11      6.482384        8.195497        4.111320        2.067955        0.000000
+   12 S12      5.194308        5.406294        3.391159        5.326643        5.642337        0.000000
+   13 H13      6.945668        7.661267        4.476676        5.139190        4.467519        2.556073
+ 
+              13 H13   
+   13 H13      0.000000
+ 
+                    ******************************************* 
+                    *    InterNuclear Distances / angstrom    * 
+                    ******************************************* 
+ 
+               1 H1            2 C2            3 C3            4 H4            5 C5            6 H6    
+    1 H1       0.000000
+    2 C2       1.094474        0.000000
+    3 C3       2.172691        1.405982        0.000000
+    4 H4       2.507774        2.173787        1.093755        0.000000
+    5 C5       3.423207        2.428053        1.406793        2.174685        0.000000
+    6 H6       4.332496        3.422911        2.173198        2.508547        1.094410        0.000000
+    7 C7       3.902511        2.808069        2.440544        3.432212        1.405087        2.163982
+    8 H8       4.997202        3.902756        3.431007        4.334537        2.170233        2.489762
+    9 C9       3.425502        2.438193        2.825101        3.918856        2.439355        3.427162
+   10 C10      2.164154        1.406160        2.441527        3.433015        2.809514        3.903896
+   11 H11      2.485184        2.168169        3.429522        4.332011        3.903801        4.998195
+   12 S12      4.982498        4.116660        4.618473        5.712096        4.068833        4.912230
+   13 H13      4.753025        4.125654        4.995364        6.060254        4.807533        5.784795
+ 
+               7 C7            8 H8            9 C9           10 C10          11 H11          12 S12   
+    7 C7       0.000000
+    8 H8       1.094691        0.000000
+    9 C9       1.410193        2.174122        0.000000
+   10 C10      2.435504        3.428355        1.408545        0.000000
+   11 H11      3.430330        4.336870        2.175617        1.094314        0.000000
+   12 S12      2.748709        2.860887        1.794524        2.818738        2.985796        0.000000
+   13 H13      3.675489        4.054168        2.368955        2.719542        2.364109        1.352616
+ 
+              13 H13   
+   13 H13      0.000000
+ 
+                    ************************************** 
+                    *    Valence Bond Angles / degree    * 
+                    ************************************** 
+                          Atom centers                 Phi
+                      1 H1       2 C2       3 C3       120.15
+                      1 H1       2 C2      10 C10      119.34
+                      3 C3       2 C2      10 C10      120.50
+                      2 C2       3 C3       4 H4       120.31
+                      2 C2       3 C3       5 C5       119.36
+                      4 H4       3 C3       5 C5       120.33
+                      3 C3       5 C5       6 H6       120.14
+                      3 C3       5 C5       7 C7       120.44
+                      6 H6       5 C5       7 C7       119.42
+                      5 C5       7 C7       8 H8       119.98
+                      5 C5       7 C7       9 C9       120.10
+                      8 H8       7 C7       9 C9       119.92
+                      7 C7       9 C9      10 C10      119.55
+                      2 C2      10 C10      9 C9       120.05
+                      2 C2      10 C10     11 H11      119.73
+                      9 C9      10 C10     11 H11      120.22
+ 
+           ***************************************************************
+           *              Valence Dihedral Angles / degree               *
+           ***************************************************************
+                    Atom centers                       Phi1     Phi2     Theta 
+           1 H1       2 C2       3 C3       4 H4        120.15   120.31     0.00
+           1 H1       2 C2       3 C3       5 C5        120.15   119.36  -180.00
+           1 H1       2 C2      10 C10      9 C9        119.34   120.05  -180.00
+           1 H1       2 C2      10 C10     11 H11       119.34   119.73     0.00
+           3 C3       2 C2      10 C10      9 C9        120.50   120.05     0.00
+           3 C3       2 C2      10 C10     11 H11       120.50   119.73  -180.00
+           4 H4       3 C3       2 C2      10 C10       120.31   120.50  -180.00
+           5 C5       3 C3       2 C2      10 C10       119.36   120.50     0.00
+           2 C2       3 C3       5 C5       6 H6        119.36   120.14  -180.00
+           2 C2       3 C3       5 C5       7 C7        119.36   120.44     0.00
+           4 H4       3 C3       5 C5       6 H6        120.33   120.14     0.00
+           4 H4       3 C3       5 C5       7 C7        120.33   120.44  -180.00
+           3 C3       5 C5       7 C7       8 H8        120.44   119.98  -180.00
+           3 C3       5 C5       7 C7       9 C9        120.44   120.10     0.00
+           6 H6       5 C5       7 C7       8 H8        119.42   119.98     0.00
+           6 H6       5 C5       7 C7       9 C9        119.42   120.10  -180.00
+           5 C5       7 C7       9 C9      10 C10       120.10   119.55     0.00
+           8 H8       7 C7       9 C9      10 C10       119.92   119.55  -180.00
+           7 C7       9 C9      10 C10     11 H11       119.55   120.22  -180.00
+           2 C2      10 C10      9 C9       7 C7        120.05   119.55     0.00
+--
+ 
+ 
+++    Isotope specification:
+      ----------------------
+ 
+ Center
+ Type   Z    A    mass (Da)
+ --------------------------
+    1   1    1     1.007825
+    2   6   12    12.000000
+    3   1    1     1.007825
+    4   6   12    12.000000
+    5   1    1     1.007825
+    6   6   12    12.000000
+    7   1    1     1.007825
+    8   6   12    12.000000
+    9   1    1     1.007825
+   10  16   32    31.972071
+   11   1    1     1.007825
+--
+ 
+ 
+++    Primitive basis info:
+      ---------------------
+ 
+ 
+                    *****************************************************
+                    ******** Primitive Basis Functions (Valence) ********
+                    *****************************************************
+ 
+ 
+ Basis set:H.ANO-RCC...2S1P.                                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+            1  1.886144500E+02   0.000964  -0.001312
+            2  2.827659600E+01   0.007492  -0.010345
+            3  6.424830000E+00   0.037595  -0.050495
+            4  1.815041000E+00   0.143395  -0.207386
+            5  5.910630000E-01   0.348636  -0.435088
+            6  2.121490000E-01   0.438297  -0.024730
+            7  7.989100000E-02   0.165107   0.322526
+            8  2.796200000E-02   0.021023   0.707275
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+            9  2.305000000E+00   0.112790
+           10  8.067500000E-01   0.418508
+           11  2.823620000E-01   0.470008
+           12  9.882700000E-02   0.182626
+ 
+ 
+ Basis set:C.ANO-RCC...3S2P1D.                                                             
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+           13  5.055750100E+04   0.000113  -0.000025   0.000016
+           14  7.524785600E+03   0.000530  -0.000118   0.000075
+           15  1.694327600E+03   0.002450  -0.000546   0.000357
+           16  4.728227900E+02   0.010054  -0.002245   0.001435
+           17  1.517107500E+02   0.035454  -0.008043   0.005509
+           18  5.391874600E+01   0.104407  -0.024426   0.016915
+           19  2.065931100E+01   0.241289  -0.061368   0.051417
+           20  8.383976000E+00   0.383423  -0.117777   0.113734
+           21  3.577015000E+00   0.307851  -0.155049   0.233718
+           22  1.547118000E+00   0.068724  -0.019333  -0.071838
+           23  6.130130000E-01   0.000222   0.399693  -1.049091
+           24  2.460680000E-01   0.001977   0.558942  -0.066627
+           25  9.908700000E-02   0.002058   0.171120   1.011999
+           26  3.468000000E-02   0.000418   0.007456   0.165605
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+           27  8.333315500E+01   0.001345  -0.001772
+           28  1.955761100E+01   0.010236  -0.014562
+           29  6.080365000E+00   0.045201  -0.057457
+           30  2.179317000E+00   0.141076  -0.212658
+           31  8.651500000E-01   0.304739  -0.527171
+           32  3.619440000E-01   0.399528  -0.092970
+           33  1.547400000E-01   0.271916   0.663003
+           34  6.542900000E-02   0.058577   0.336088
+           35  2.290000000E-02  -0.000126   0.005470
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+           36  1.900000000E+00   0.142452
+           37  6.650000000E-01   0.559197
+           38  2.327500000E-01   0.443000
+           39  8.146300000E-02   0.041067
+ 
+ 
+ Basis set:H.ANO-RCC...2S1P.                                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+           67  1.886144500E+02   0.000964  -0.001312
+           68  2.827659600E+01   0.007492  -0.010345
+           69  6.424830000E+00   0.037595  -0.050495
+           70  1.815041000E+00   0.143395  -0.207386
+           71  5.910630000E-01   0.348636  -0.435088
+           72  2.121490000E-01   0.438297  -0.024730
+           73  7.989100000E-02   0.165107   0.322526
+           74  2.796200000E-02   0.021023   0.707275
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+           75  2.305000000E+00   0.112790
+           76  8.067500000E-01   0.418508
+           77  2.823620000E-01   0.470008
+           78  9.882700000E-02   0.182626
+ 
+ 
+ Basis set:C.ANO-RCC...3S2P1D.                                                             
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+           79  5.055750100E+04   0.000113  -0.000025   0.000016
+           80  7.524785600E+03   0.000530  -0.000118   0.000075
+           81  1.694327600E+03   0.002450  -0.000546   0.000357
+           82  4.728227900E+02   0.010054  -0.002245   0.001435
+           83  1.517107500E+02   0.035454  -0.008043   0.005509
+           84  5.391874600E+01   0.104407  -0.024426   0.016915
+           85  2.065931100E+01   0.241289  -0.061368   0.051417
+           86  8.383976000E+00   0.383423  -0.117777   0.113734
+           87  3.577015000E+00   0.307851  -0.155049   0.233718
+           88  1.547118000E+00   0.068724  -0.019333  -0.071838
+           89  6.130130000E-01   0.000222   0.399693  -1.049091
+           90  2.460680000E-01   0.001977   0.558942  -0.066627
+           91  9.908700000E-02   0.002058   0.171120   1.011999
+           92  3.468000000E-02   0.000418   0.007456   0.165605
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+           93  8.333315500E+01   0.001345  -0.001772
+           94  1.955761100E+01   0.010236  -0.014562
+           95  6.080365000E+00   0.045201  -0.057457
+           96  2.179317000E+00   0.141076  -0.212658
+           97  8.651500000E-01   0.304739  -0.527171
+           98  3.619440000E-01   0.399528  -0.092970
+           99  1.547400000E-01   0.271916   0.663003
+          100  6.542900000E-02   0.058577   0.336088
+          101  2.290000000E-02  -0.000126   0.005470
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          102  1.900000000E+00   0.142452
+          103  6.650000000E-01   0.559197
+          104  2.327500000E-01   0.443000
+          105  8.146300000E-02   0.041067
+ 
+ 
+ Basis set:H.ANO-RCC...2S1P.                                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          106  1.886144500E+02   0.000964  -0.001312
+          107  2.827659600E+01   0.007492  -0.010345
+          108  6.424830000E+00   0.037595  -0.050495
+          109  1.815041000E+00   0.143395  -0.207386
+          110  5.910630000E-01   0.348636  -0.435088
+          111  2.121490000E-01   0.438297  -0.024730
+          112  7.989100000E-02   0.165107   0.322526
+          113  2.796200000E-02   0.021023   0.707275
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          114  2.305000000E+00   0.112790
+          115  8.067500000E-01   0.418508
+          116  2.823620000E-01   0.470008
+          117  9.882700000E-02   0.182626
+ 
+ 
+ Basis set:C.ANO-RCC...3S2P1D.                                                             
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          118  5.055750100E+04   0.000113  -0.000025   0.000016
+          119  7.524785600E+03   0.000530  -0.000118   0.000075
+          120  1.694327600E+03   0.002450  -0.000546   0.000357
+          121  4.728227900E+02   0.010054  -0.002245   0.001435
+          122  1.517107500E+02   0.035454  -0.008043   0.005509
+          123  5.391874600E+01   0.104407  -0.024426   0.016915
+          124  2.065931100E+01   0.241289  -0.061368   0.051417
+          125  8.383976000E+00   0.383423  -0.117777   0.113734
+          126  3.577015000E+00   0.307851  -0.155049   0.233718
+          127  1.547118000E+00   0.068724  -0.019333  -0.071838
+          128  6.130130000E-01   0.000222   0.399693  -1.049091
+          129  2.460680000E-01   0.001977   0.558942  -0.066627
+          130  9.908700000E-02   0.002058   0.171120   1.011999
+          131  3.468000000E-02   0.000418   0.007456   0.165605
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          132  8.333315500E+01   0.001345  -0.001772
+          133  1.955761100E+01   0.010236  -0.014562
+          134  6.080365000E+00   0.045201  -0.057457
+          135  2.179317000E+00   0.141076  -0.212658
+          136  8.651500000E-01   0.304739  -0.527171
+          137  3.619440000E-01   0.399528  -0.092970
+          138  1.547400000E-01   0.271916   0.663003
+          139  6.542900000E-02   0.058577   0.336088
+          140  2.290000000E-02  -0.000126   0.005470
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          141  1.900000000E+00   0.142452
+          142  6.650000000E-01   0.559197
+          143  2.327500000E-01   0.443000
+          144  8.146300000E-02   0.041067
+ 
+ 
+ Basis set:H.ANO-RCC...2S1P.                                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          145  1.886144500E+02   0.000964  -0.001312
+          146  2.827659600E+01   0.007492  -0.010345
+          147  6.424830000E+00   0.037595  -0.050495
+          148  1.815041000E+00   0.143395  -0.207386
+          149  5.910630000E-01   0.348636  -0.435088
+          150  2.121490000E-01   0.438297  -0.024730
+          151  7.989100000E-02   0.165107   0.322526
+          152  2.796200000E-02   0.021023   0.707275
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          153  2.305000000E+00   0.112790
+          154  8.067500000E-01   0.418508
+          155  2.823620000E-01   0.470008
+          156  9.882700000E-02   0.182626
+ 
+ 
+ Basis set:C.ANO-RCC...3S2P1D.                                                             
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          157  5.055750100E+04   0.000113  -0.000025   0.000016
+          158  7.524785600E+03   0.000530  -0.000118   0.000075
+          159  1.694327600E+03   0.002450  -0.000546   0.000357
+          160  4.728227900E+02   0.010054  -0.002245   0.001435
+          161  1.517107500E+02   0.035454  -0.008043   0.005509
+          162  5.391874600E+01   0.104407  -0.024426   0.016915
+          163  2.065931100E+01   0.241289  -0.061368   0.051417
+          164  8.383976000E+00   0.383423  -0.117777   0.113734
+          165  3.577015000E+00   0.307851  -0.155049   0.233718
+          166  1.547118000E+00   0.068724  -0.019333  -0.071838
+          167  6.130130000E-01   0.000222   0.399693  -1.049091
+          168  2.460680000E-01   0.001977   0.558942  -0.066627
+          169  9.908700000E-02   0.002058   0.171120   1.011999
+          170  3.468000000E-02   0.000418   0.007456   0.165605
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          171  8.333315500E+01   0.001345  -0.001772
+          172  1.955761100E+01   0.010236  -0.014562
+          173  6.080365000E+00   0.045201  -0.057457
+          174  2.179317000E+00   0.141076  -0.212658
+          175  8.651500000E-01   0.304739  -0.527171
+          176  3.619440000E-01   0.399528  -0.092970
+          177  1.547400000E-01   0.271916   0.663003
+          178  6.542900000E-02   0.058577   0.336088
+          179  2.290000000E-02  -0.000126   0.005470
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          180  1.900000000E+00   0.142452
+          181  6.650000000E-01   0.559197
+          182  2.327500000E-01   0.443000
+          183  8.146300000E-02   0.041067
+ 
+ 
+ Basis set:H.ANO-RCC...2S1P.                                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          211  1.886144500E+02   0.000964  -0.001312
+          212  2.827659600E+01   0.007492  -0.010345
+          213  6.424830000E+00   0.037595  -0.050495
+          214  1.815041000E+00   0.143395  -0.207386
+          215  5.910630000E-01   0.348636  -0.435088
+          216  2.121490000E-01   0.438297  -0.024730
+          217  7.989100000E-02   0.165107   0.322526
+          218  2.796200000E-02   0.021023   0.707275
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          219  2.305000000E+00   0.112790
+          220  8.067500000E-01   0.418508
+          221  2.823620000E-01   0.470008
+          222  9.882700000E-02   0.182626
+ 
+ 
+ Basis set:S.ANO-RCC...4S3P1D.                                                             
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          223  3.463482300E+05   0.000291  -0.000081   0.000023  -0.000023
+          224  4.939114600E+04   0.000947  -0.000264   0.000074  -0.000076
+          225  1.461099000E+04   0.002119  -0.000593   0.000167  -0.000171
+          226  5.187209500E+03   0.006022  -0.001688   0.000474  -0.000490
+          227  1.980967600E+03   0.016597  -0.004704   0.001331  -0.001353
+          228  7.846313900E+02   0.046840  -0.013506   0.003798  -0.003928
+          229  3.173277900E+02   0.122426  -0.037120   0.010581  -0.010676
+          230  1.300197600E+02   0.270224  -0.091147   0.026020  -0.026618
+          231  5.373820800E+01   0.405417  -0.177804   0.052790  -0.051830
+          232  2.234589600E+01   0.255715  -0.170696   0.051919  -0.053622
+          233  9.333251200E+00   0.026717   0.174232  -0.056928   0.070806
+          234  3.911186800E+00   0.003903   0.632837  -0.290952   0.286250
+          235  1.643206600E+00  -0.002042   0.358866  -0.316328   0.496263
+          236  6.917456000E-01   0.001490  -0.000964   0.293099  -1.071093
+          237  2.916736000E-01  -0.000621   0.006599   0.667874  -0.792075
+          238  1.231441000E-01   0.000442  -0.005223   0.287252   1.198819
+          239  4.925760000E-02  -0.000003   0.000294   0.015169   0.324757
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          240  1.129126900E+03   0.000906  -0.000225   0.000215
+          241  2.740351500E+02   0.006000  -0.001489   0.001379
+          242  9.740258400E+01   0.025312  -0.006349   0.006127
+          243  3.808551800E+01   0.091989  -0.023443   0.021705
+          244  1.547103300E+01   0.241650  -0.063703   0.062437
+          245  6.405659000E+00   0.410291  -0.111971   0.101086
+          246  2.681282800E+00   0.352193  -0.103473   0.117082
+          247  1.130005000E+00   0.082816   0.109039  -0.162618
+          248  4.783995000E-01   0.000093   0.418387  -0.664613
+          249  2.031805000E-01  -0.002239   0.436941  -0.002567
+          250  8.649230000E-02  -0.001311   0.186197   0.710282
+          251  3.459690000E-02  -0.000221   0.028371   0.321344
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          252  3.005367900E+00   0.035815
+          253  1.217297600E+00   0.167342
+          254  4.930556000E-01   0.576053
+          255  1.997078000E-01   0.350141
+          256  7.988310000E-02   0.044675
+ 
+ 
+ Basis set:H.ANO-RCC...2S1P.                                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          257  1.886144500E+02   0.000964  -0.001312
+          258  2.827659600E+01   0.007492  -0.010345
+          259  6.424830000E+00   0.037595  -0.050495
+          260  1.815041000E+00   0.143395  -0.207386
+          261  5.910630000E-01   0.348636  -0.435088
+          262  2.121490000E-01   0.438297  -0.024730
+          263  7.989100000E-02   0.165107   0.322526
+          264  2.796200000E-02   0.021023   0.707275
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          265  2.305000000E+00   0.112790
+          266  8.067500000E-01   0.418508
+          267  2.823620000E-01   0.470008
+          268  9.882700000E-02   0.182626
+ 
+ 
+ Basis set:H.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          269  3.772289000E+02   0.001114   0.049182  -0.049031
+          270  2.168910460E+02  -0.000667  -0.079607   0.074982
+          271  5.655319200E+01   0.005637   0.203285  -0.207285
+          272  3.470142600E+01  -0.000378  -0.256680   0.235985
+          273  1.284966000E+01   0.024222   0.425556  -0.485495
+          274  8.239871000E+00   0.000006  -0.364415   0.340696
+          275  3.630082000E+00   0.081110   0.365193  -0.646818
+          276  1.182126000E+00   0.137793  -0.162162  -0.263798
+          277  4.242980000E-01   0.070509  -0.318447   0.397897
+          278  1.597820000E-01   0.001546   0.081769   0.083787
+          279  1.078530000E-01   0.001963   0.037786  -0.044262
+          280  5.592400000E-02  -0.000263   0.068039  -0.039485
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          281  1.909194500E+02  -0.003022   0.004772
+          282  3.058159600E+01   0.009886  -0.019337
+          283  8.729830000E+00  -0.019360   0.002438
+          284  4.120041000E+00   0.162608  -0.284330
+          285  2.896063000E+00  -0.055517  -0.064485
+          286  1.397813000E+00   0.315889  -0.440836
+          287  4.945110000E-01   0.142492   0.220467
+          288  1.787180000E-01   0.006116   0.131526
+          289  1.267890000E-01   0.001006  -0.001853
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          290  4.610000000E+00   0.019211
+          291  3.111750000E+00   0.160402
+          292  1.613500000E+00   0.189729
+          293  1.089112000E+00   0.234958
+          294  5.647240000E-01   0.112863
+          295  3.811890000E-01   0.038410
+          296  1.976540000E-01   0.007284
+ 
+ 
+ Basis set:C.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          297  1.011150020E+05  -0.000213   0.042275
+          298  5.808228660E+04   0.001944  -0.432697
+          299  5.225182860E+04  -0.000918   0.418974
+          300  1.504957120E+04  -0.000005  -0.102803
+          301  9.219113200E+03   0.003261   0.111221
+          302  3.388655200E+03   0.002310  -0.166635
+          303  2.167150390E+03   0.009073   0.183412
+          304  9.456455800E+02   0.022226  -0.272542
+          305  6.245335400E+02   0.013555   0.211882
+          306  3.034215000E+02   0.110241  -0.296242
+          307  1.078374920E+02   0.325870  -0.341854
+          308  7.457805700E+01  -0.017952  -0.216704
+          309  4.131862200E+01   0.567961  -0.884686
+          310  1.676795200E+01   0.494928  -0.929505
+          311  7.154030000E+00   0.125026   0.423195
+          312  3.094236000E+00   0.000270   0.555838
+          313  1.226026000E+00   0.000834   0.025108
+          314  4.921360000E-01  -0.000359   0.004041
+          315  1.981740000E-01   0.000267  -0.001232
+          316  1.337670000E-01  -0.000165   0.001110
+          317  6.936000000E-02   0.000021  -0.000151
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          318  5.064083415E+04  -0.023460   0.000372  -0.002346  -0.004547
+          319  7.608118755E+03   0.043285  -0.000692   0.004365   0.008322
+          320  1.777660755E+03  -0.090399   0.001370  -0.008630  -0.018139
+          321  5.561559450E+02   0.263234  -0.004369   0.027501   0.048384
+          322  2.350439050E+02  -1.080858   0.014756  -0.092018  -0.229592
+          323  1.372519010E+02   3.260544  -0.045468   0.281232   0.672279
+          324  1.039924660E+02  -3.120633   0.033607  -0.202617  -0.738668
+          325  4.021692200E+01   2.591069  -0.044751   0.270156   0.393150
+          326  2.794158700E+01  -3.397350   0.006671  -0.013148  -0.979494
+          327  1.446434100E+01   2.470084  -0.042016   0.237598   0.254034
+          328  9.657380000E+00  -2.453033  -0.066269   0.443638  -1.094419
+          329  3.726435000E+00   0.702501  -0.007573   0.171798  -0.350198
+          330  1.478163000E+00   1.131963   0.274849  -0.915416   0.145805
+          331  6.080120000E-01  -1.348201   0.203739   0.121446   0.097565
+          332  2.538270000E-01   0.403931   0.021085   0.262965   0.013097
+          333  1.001090000E-01   0.077703   0.000151  -0.008496  -0.000383
+          334  5.758000000E-02  -0.011263  -0.000059   0.004218   0.000139
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          335  2.255931100E+01  -0.017426  -0.000886
+          336  1.028397600E+01   0.011878   0.070163
+          337  5.477015000E+00  -0.106630   0.074870
+          338  2.513013000E+00   0.178057  -0.207419
+          339  1.278013000E+00   0.054658  -1.022402
+          340  9.110680000E-01   0.402529   0.476262
+          341  3.318370000E-01   0.086023   0.325235
+          342  1.805500000E-01  -0.017649   0.003535
+          343  1.161430000E-01   0.005014   0.005094
+ 
+                  Type         
+                   f
+           No.      Exponent    Contraction Coefficients
+          344  8.523315500E+01   0.003770   0.004305
+          345  2.145761100E+01  -0.015951  -0.009797
+          346  7.980365000E+00  -0.000083   0.061135
+          347  4.079317000E+00  -0.305985  -0.094003
+          348  2.765150000E+00  -0.116019   0.399566
+          349  1.530150000E+00  -0.866590  -0.021161
+          350  1.026944000E+00   0.393122   0.498708
+          351  3.874900000E-01   0.350797   0.107053
+          352  1.468920000E-01   0.022774  -0.006733
+          353  1.043630000E-01  -0.005693   0.003722
+ 
+                  Type         
+                   g
+           No.      Exponent    Contraction Coefficients
+          354  3.800000000E+00   0.045541
+          355  2.565000000E+00   0.231775
+          356  1.330000000E+00   0.384185
+          357  8.977500000E-01   0.273550
+          358  4.655000000E-01   0.109778
+          359  3.142130000E-01   0.007500
+          360  1.629260000E-01   0.000581
+ 
+ 
+ Basis set:C.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          425  1.666663100E+02  -0.023036   0.004476   0.036235
+          426  1.028907660E+02   0.042640  -0.007441  -0.067030
+          427  3.911522200E+01  -0.121184   0.024922   0.190319
+          428  2.563797600E+01   0.151016  -0.023090  -0.234391
+          429  1.216073000E+01  -0.318210   0.081447   0.494734
+          430  8.259682000E+00   0.236764  -0.028991  -0.370172
+          431  4.358634000E+00  -0.491949   0.198430   0.775382
+          432  1.730300000E+00  -0.350198   0.312777   0.560125
+          433  1.227094000E+00  -0.245400   0.027264  -0.304047
+          434  7.238880000E-01   0.276746   0.231024  -0.798002
+          435  3.094800000E-01   0.239762   0.049197   0.309072
+          436  1.308580000E-01   0.005788  -0.001907   0.155904
+          437  8.832900000E-02   0.003499   0.001592  -0.049658
+          438  4.580000000E-02  -0.000612  -0.000201   0.005246
+ 
+ 
+ Basis set:H.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          453  3.772289000E+02   0.001114   0.049182  -0.049031
+          454  2.168910460E+02  -0.000667  -0.079607   0.074982
+          455  5.655319200E+01   0.005637   0.203285  -0.207285
+          456  3.470142600E+01  -0.000378  -0.256680   0.235985
+          457  1.284966000E+01   0.024222   0.425556  -0.485495
+          458  8.239871000E+00   0.000006  -0.364415   0.340696
+          459  3.630082000E+00   0.081110   0.365193  -0.646818
+          460  1.182126000E+00   0.137793  -0.162162  -0.263798
+          461  4.242980000E-01   0.070509  -0.318447   0.397897
+          462  1.597820000E-01   0.001546   0.081769   0.083787
+          463  1.078530000E-01   0.001963   0.037786  -0.044262
+          464  5.592400000E-02  -0.000263   0.068039  -0.039485
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          465  1.909194500E+02  -0.003022   0.004772
+          466  3.058159600E+01   0.009886  -0.019337
+          467  8.729830000E+00  -0.019360   0.002438
+          468  4.120041000E+00   0.162608  -0.284330
+          469  2.896063000E+00  -0.055517  -0.064485
+          470  1.397813000E+00   0.315889  -0.440836
+          471  4.945110000E-01   0.142492   0.220467
+          472  1.787180000E-01   0.006116   0.131526
+          473  1.267890000E-01   0.001006  -0.001853
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          474  4.610000000E+00   0.019211
+          475  3.111750000E+00   0.160402
+          476  1.613500000E+00   0.189729
+          477  1.089112000E+00   0.234958
+          478  5.647240000E-01   0.112863
+          479  3.811890000E-01   0.038410
+          480  1.976540000E-01   0.007284
+ 
+ 
+ Basis set:C.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          481  1.011150020E+05  -0.000213   0.042275
+          482  5.808228660E+04   0.001944  -0.432697
+          483  5.225182860E+04  -0.000918   0.418974
+          484  1.504957120E+04  -0.000005  -0.102803
+          485  9.219113200E+03   0.003261   0.111221
+          486  3.388655200E+03   0.002310  -0.166635
+          487  2.167150390E+03   0.009073   0.183412
+          488  9.456455800E+02   0.022226  -0.272542
+          489  6.245335400E+02   0.013555   0.211882
+          490  3.034215000E+02   0.110241  -0.296242
+          491  1.078374920E+02   0.325870  -0.341854
+          492  7.457805700E+01  -0.017952  -0.216704
+          493  4.131862200E+01   0.567961  -0.884686
+          494  1.676795200E+01   0.494928  -0.929505
+          495  7.154030000E+00   0.125026   0.423195
+          496  3.094236000E+00   0.000270   0.555838
+          497  1.226026000E+00   0.000834   0.025108
+          498  4.921360000E-01  -0.000359   0.004041
+          499  1.981740000E-01   0.000267  -0.001232
+          500  1.337670000E-01  -0.000165   0.001110
+          501  6.936000000E-02   0.000021  -0.000151
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          502  5.064083415E+04  -0.023460   0.000372  -0.002346  -0.004547
+          503  7.608118755E+03   0.043285  -0.000692   0.004365   0.008322
+          504  1.777660755E+03  -0.090399   0.001370  -0.008630  -0.018139
+          505  5.561559450E+02   0.263234  -0.004369   0.027501   0.048384
+          506  2.350439050E+02  -1.080858   0.014756  -0.092018  -0.229592
+          507  1.372519010E+02   3.260544  -0.045468   0.281232   0.672279
+          508  1.039924660E+02  -3.120633   0.033607  -0.202617  -0.738668
+          509  4.021692200E+01   2.591069  -0.044751   0.270156   0.393150
+          510  2.794158700E+01  -3.397350   0.006671  -0.013148  -0.979494
+          511  1.446434100E+01   2.470084  -0.042016   0.237598   0.254034
+          512  9.657380000E+00  -2.453033  -0.066269   0.443638  -1.094419
+          513  3.726435000E+00   0.702501  -0.007573   0.171798  -0.350198
+          514  1.478163000E+00   1.131963   0.274849  -0.915416   0.145805
+          515  6.080120000E-01  -1.348201   0.203739   0.121446   0.097565
+          516  2.538270000E-01   0.403931   0.021085   0.262965   0.013097
+          517  1.001090000E-01   0.077703   0.000151  -0.008496  -0.000383
+          518  5.758000000E-02  -0.011263  -0.000059   0.004218   0.000139
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          519  2.255931100E+01  -0.017426  -0.000886
+          520  1.028397600E+01   0.011878   0.070163
+          521  5.477015000E+00  -0.106630   0.074870
+          522  2.513013000E+00   0.178057  -0.207419
+          523  1.278013000E+00   0.054658  -1.022402
+          524  9.110680000E-01   0.402529   0.476262
+          525  3.318370000E-01   0.086023   0.325235
+          526  1.805500000E-01  -0.017649   0.003535
+          527  1.161430000E-01   0.005014   0.005094
+ 
+                  Type         
+                   f
+           No.      Exponent    Contraction Coefficients
+          528  8.523315500E+01   0.003770   0.004305
+          529  2.145761100E+01  -0.015951  -0.009797
+          530  7.980365000E+00  -0.000083   0.061135
+          531  4.079317000E+00  -0.305985  -0.094003
+          532  2.765150000E+00  -0.116019   0.399566
+          533  1.530150000E+00  -0.866590  -0.021161
+          534  1.026944000E+00   0.393122   0.498708
+          535  3.874900000E-01   0.350797   0.107053
+          536  1.468920000E-01   0.022774  -0.006733
+          537  1.043630000E-01  -0.005693   0.003722
+ 
+                  Type         
+                   g
+           No.      Exponent    Contraction Coefficients
+          538  3.800000000E+00   0.045541
+          539  2.565000000E+00   0.231775
+          540  1.330000000E+00   0.384185
+          541  8.977500000E-01   0.273550
+          542  4.655000000E-01   0.109778
+          543  3.142130000E-01   0.007500
+          544  1.629260000E-01   0.000581
+ 
+ 
+ Basis set:C.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          545  1.666663100E+02  -0.023036   0.004476   0.036235
+          546  1.028907660E+02   0.042640  -0.007441  -0.067030
+          547  3.911522200E+01  -0.121184   0.024922   0.190319
+          548  2.563797600E+01   0.151016  -0.023090  -0.234391
+          549  1.216073000E+01  -0.318210   0.081447   0.494734
+          550  8.259682000E+00   0.236764  -0.028991  -0.370172
+          551  4.358634000E+00  -0.491949   0.198430   0.775382
+          552  1.730300000E+00  -0.350198   0.312777   0.560125
+          553  1.227094000E+00  -0.245400   0.027264  -0.304047
+          554  7.238880000E-01   0.276746   0.231024  -0.798002
+          555  3.094800000E-01   0.239762   0.049197   0.309072
+          556  1.308580000E-01   0.005788  -0.001907   0.155904
+          557  8.832900000E-02   0.003499   0.001592  -0.049658
+          558  4.580000000E-02  -0.000612  -0.000201   0.005246
+ 
+ 
+ Basis set:H.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          559  3.772289000E+02   0.001114   0.049182  -0.049031
+          560  2.168910460E+02  -0.000667  -0.079607   0.074982
+          561  5.655319200E+01   0.005637   0.203285  -0.207285
+          562  3.470142600E+01  -0.000378  -0.256680   0.235985
+          563  1.284966000E+01   0.024222   0.425556  -0.485495
+          564  8.239871000E+00   0.000006  -0.364415   0.340696
+          565  3.630082000E+00   0.081110   0.365193  -0.646818
+          566  1.182126000E+00   0.137793  -0.162162  -0.263798
+          567  4.242980000E-01   0.070509  -0.318447   0.397897
+          568  1.597820000E-01   0.001546   0.081769   0.083787
+          569  1.078530000E-01   0.001963   0.037786  -0.044262
+          570  5.592400000E-02  -0.000263   0.068039  -0.039485
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          571  1.909194500E+02  -0.003022   0.004772
+          572  3.058159600E+01   0.009886  -0.019337
+          573  8.729830000E+00  -0.019360   0.002438
+          574  4.120041000E+00   0.162608  -0.284330
+          575  2.896063000E+00  -0.055517  -0.064485
+          576  1.397813000E+00   0.315889  -0.440836
+          577  4.945110000E-01   0.142492   0.220467
+          578  1.787180000E-01   0.006116   0.131526
+          579  1.267890000E-01   0.001006  -0.001853
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          580  4.610000000E+00   0.019211
+          581  3.111750000E+00   0.160402
+          582  1.613500000E+00   0.189729
+          583  1.089112000E+00   0.234958
+          584  5.647240000E-01   0.112863
+          585  3.811890000E-01   0.038410
+          586  1.976540000E-01   0.007284
+ 
+ 
+ Basis set:C.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          587  1.011150020E+05  -0.000213   0.042275
+          588  5.808228660E+04   0.001944  -0.432697
+          589  5.225182860E+04  -0.000918   0.418974
+          590  1.504957120E+04  -0.000005  -0.102803
+          591  9.219113200E+03   0.003261   0.111221
+          592  3.388655200E+03   0.002310  -0.166635
+          593  2.167150390E+03   0.009073   0.183412
+          594  9.456455800E+02   0.022226  -0.272542
+          595  6.245335400E+02   0.013555   0.211882
+          596  3.034215000E+02   0.110241  -0.296242
+          597  1.078374920E+02   0.325870  -0.341854
+          598  7.457805700E+01  -0.017952  -0.216704
+          599  4.131862200E+01   0.567961  -0.884686
+          600  1.676795200E+01   0.494928  -0.929505
+          601  7.154030000E+00   0.125026   0.423195
+          602  3.094236000E+00   0.000270   0.555838
+          603  1.226026000E+00   0.000834   0.025108
+          604  4.921360000E-01  -0.000359   0.004041
+          605  1.981740000E-01   0.000267  -0.001232
+          606  1.337670000E-01  -0.000165   0.001110
+          607  6.936000000E-02   0.000021  -0.000151
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          608  5.064083415E+04  -0.023460   0.000372  -0.002346  -0.004547
+          609  7.608118755E+03   0.043285  -0.000692   0.004365   0.008322
+          610  1.777660755E+03  -0.090399   0.001370  -0.008630  -0.018139
+          611  5.561559450E+02   0.263234  -0.004369   0.027501   0.048384
+          612  2.350439050E+02  -1.080858   0.014756  -0.092018  -0.229592
+          613  1.372519010E+02   3.260544  -0.045468   0.281232   0.672279
+          614  1.039924660E+02  -3.120633   0.033607  -0.202617  -0.738668
+          615  4.021692200E+01   2.591069  -0.044751   0.270156   0.393150
+          616  2.794158700E+01  -3.397350   0.006671  -0.013148  -0.979494
+          617  1.446434100E+01   2.470084  -0.042016   0.237598   0.254034
+          618  9.657380000E+00  -2.453033  -0.066269   0.443638  -1.094419
+          619  3.726435000E+00   0.702501  -0.007573   0.171798  -0.350198
+          620  1.478163000E+00   1.131963   0.274849  -0.915416   0.145805
+          621  6.080120000E-01  -1.348201   0.203739   0.121446   0.097565
+          622  2.538270000E-01   0.403931   0.021085   0.262965   0.013097
+          623  1.001090000E-01   0.077703   0.000151  -0.008496  -0.000383
+          624  5.758000000E-02  -0.011263  -0.000059   0.004218   0.000139
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          625  2.255931100E+01  -0.017426  -0.000886
+          626  1.028397600E+01   0.011878   0.070163
+          627  5.477015000E+00  -0.106630   0.074870
+          628  2.513013000E+00   0.178057  -0.207419
+          629  1.278013000E+00   0.054658  -1.022402
+          630  9.110680000E-01   0.402529   0.476262
+          631  3.318370000E-01   0.086023   0.325235
+          632  1.805500000E-01  -0.017649   0.003535
+          633  1.161430000E-01   0.005014   0.005094
+ 
+                  Type         
+                   f
+           No.      Exponent    Contraction Coefficients
+          634  8.523315500E+01   0.003770   0.004305
+          635  2.145761100E+01  -0.015951  -0.009797
+          636  7.980365000E+00  -0.000083   0.061135
+          637  4.079317000E+00  -0.305985  -0.094003
+          638  2.765150000E+00  -0.116019   0.399566
+          639  1.530150000E+00  -0.866590  -0.021161
+          640  1.026944000E+00   0.393122   0.498708
+          641  3.874900000E-01   0.350797   0.107053
+          642  1.468920000E-01   0.022774  -0.006733
+          643  1.043630000E-01  -0.005693   0.003722
+ 
+                  Type         
+                   g
+           No.      Exponent    Contraction Coefficients
+          644  3.800000000E+00   0.045541
+          645  2.565000000E+00   0.231775
+          646  1.330000000E+00   0.384185
+          647  8.977500000E-01   0.273550
+          648  4.655000000E-01   0.109778
+          649  3.142130000E-01   0.007500
+          650  1.629260000E-01   0.000581
+ 
+ 
+ Basis set:C.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          651  1.666663100E+02  -0.023036   0.004476   0.036235
+          652  1.028907660E+02   0.042640  -0.007441  -0.067030
+          653  3.911522200E+01  -0.121184   0.024922   0.190319
+          654  2.563797600E+01   0.151016  -0.023090  -0.234391
+          655  1.216073000E+01  -0.318210   0.081447   0.494734
+          656  8.259682000E+00   0.236764  -0.028991  -0.370172
+          657  4.358634000E+00  -0.491949   0.198430   0.775382
+          658  1.730300000E+00  -0.350198   0.312777   0.560125
+          659  1.227094000E+00  -0.245400   0.027264  -0.304047
+          660  7.238880000E-01   0.276746   0.231024  -0.798002
+          661  3.094800000E-01   0.239762   0.049197   0.309072
+          662  1.308580000E-01   0.005788  -0.001907   0.155904
+          663  8.832900000E-02   0.003499   0.001592  -0.049658
+          664  4.580000000E-02  -0.000612  -0.000201   0.005246
+ 
+ 
+ Basis set:H.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          665  3.772289000E+02   0.001114   0.049182  -0.049031
+          666  2.168910460E+02  -0.000667  -0.079607   0.074982
+          667  5.655319200E+01   0.005637   0.203285  -0.207285
+          668  3.470142600E+01  -0.000378  -0.256680   0.235985
+          669  1.284966000E+01   0.024222   0.425556  -0.485495
+          670  8.239871000E+00   0.000006  -0.364415   0.340696
+          671  3.630082000E+00   0.081110   0.365193  -0.646818
+          672  1.182126000E+00   0.137793  -0.162162  -0.263798
+          673  4.242980000E-01   0.070509  -0.318447   0.397897
+          674  1.597820000E-01   0.001546   0.081769   0.083787
+          675  1.078530000E-01   0.001963   0.037786  -0.044262
+          676  5.592400000E-02  -0.000263   0.068039  -0.039485
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          677  1.909194500E+02  -0.003022   0.004772
+          678  3.058159600E+01   0.009886  -0.019337
+          679  8.729830000E+00  -0.019360   0.002438
+          680  4.120041000E+00   0.162608  -0.284330
+          681  2.896063000E+00  -0.055517  -0.064485
+          682  1.397813000E+00   0.315889  -0.440836
+          683  4.945110000E-01   0.142492   0.220467
+          684  1.787180000E-01   0.006116   0.131526
+          685  1.267890000E-01   0.001006  -0.001853
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          686  4.610000000E+00   0.019211
+          687  3.111750000E+00   0.160402
+          688  1.613500000E+00   0.189729
+          689  1.089112000E+00   0.234958
+          690  5.647240000E-01   0.112863
+          691  3.811890000E-01   0.038410
+          692  1.976540000E-01   0.007284
+ 
+ 
+ Basis set:C.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          693  1.011150020E+05  -0.000213   0.042275
+          694  5.808228660E+04   0.001944  -0.432697
+          695  5.225182860E+04  -0.000918   0.418974
+          696  1.504957120E+04  -0.000005  -0.102803
+          697  9.219113200E+03   0.003261   0.111221
+          698  3.388655200E+03   0.002310  -0.166635
+          699  2.167150390E+03   0.009073   0.183412
+          700  9.456455800E+02   0.022226  -0.272542
+          701  6.245335400E+02   0.013555   0.211882
+          702  3.034215000E+02   0.110241  -0.296242
+          703  1.078374920E+02   0.325870  -0.341854
+          704  7.457805700E+01  -0.017952  -0.216704
+          705  4.131862200E+01   0.567961  -0.884686
+          706  1.676795200E+01   0.494928  -0.929505
+          707  7.154030000E+00   0.125026   0.423195
+          708  3.094236000E+00   0.000270   0.555838
+          709  1.226026000E+00   0.000834   0.025108
+          710  4.921360000E-01  -0.000359   0.004041
+          711  1.981740000E-01   0.000267  -0.001232
+          712  1.337670000E-01  -0.000165   0.001110
+          713  6.936000000E-02   0.000021  -0.000151
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          714  5.064083415E+04  -0.023460   0.000372  -0.002346  -0.004547
+          715  7.608118755E+03   0.043285  -0.000692   0.004365   0.008322
+          716  1.777660755E+03  -0.090399   0.001370  -0.008630  -0.018139
+          717  5.561559450E+02   0.263234  -0.004369   0.027501   0.048384
+          718  2.350439050E+02  -1.080858   0.014756  -0.092018  -0.229592
+          719  1.372519010E+02   3.260544  -0.045468   0.281232   0.672279
+          720  1.039924660E+02  -3.120633   0.033607  -0.202617  -0.738668
+          721  4.021692200E+01   2.591069  -0.044751   0.270156   0.393150
+          722  2.794158700E+01  -3.397350   0.006671  -0.013148  -0.979494
+          723  1.446434100E+01   2.470084  -0.042016   0.237598   0.254034
+          724  9.657380000E+00  -2.453033  -0.066269   0.443638  -1.094419
+          725  3.726435000E+00   0.702501  -0.007573   0.171798  -0.350198
+          726  1.478163000E+00   1.131963   0.274849  -0.915416   0.145805
+          727  6.080120000E-01  -1.348201   0.203739   0.121446   0.097565
+          728  2.538270000E-01   0.403931   0.021085   0.262965   0.013097
+          729  1.001090000E-01   0.077703   0.000151  -0.008496  -0.000383
+          730  5.758000000E-02  -0.011263  -0.000059   0.004218   0.000139
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          731  2.255931100E+01  -0.017426  -0.000886
+          732  1.028397600E+01   0.011878   0.070163
+          733  5.477015000E+00  -0.106630   0.074870
+          734  2.513013000E+00   0.178057  -0.207419
+          735  1.278013000E+00   0.054658  -1.022402
+          736  9.110680000E-01   0.402529   0.476262
+          737  3.318370000E-01   0.086023   0.325235
+          738  1.805500000E-01  -0.017649   0.003535
+          739  1.161430000E-01   0.005014   0.005094
+ 
+                  Type         
+                   f
+           No.      Exponent    Contraction Coefficients
+          740  8.523315500E+01   0.003770   0.004305
+          741  2.145761100E+01  -0.015951  -0.009797
+          742  7.980365000E+00  -0.000083   0.061135
+          743  4.079317000E+00  -0.305985  -0.094003
+          744  2.765150000E+00  -0.116019   0.399566
+          745  1.530150000E+00  -0.866590  -0.021161
+          746  1.026944000E+00   0.393122   0.498708
+          747  3.874900000E-01   0.350797   0.107053
+          748  1.468920000E-01   0.022774  -0.006733
+          749  1.043630000E-01  -0.005693   0.003722
+ 
+                  Type         
+                   g
+           No.      Exponent    Contraction Coefficients
+          750  3.800000000E+00   0.045541
+          751  2.565000000E+00   0.231775
+          752  1.330000000E+00   0.384185
+          753  8.977500000E-01   0.273550
+          754  4.655000000E-01   0.109778
+          755  3.142130000E-01   0.007500
+          756  1.629260000E-01   0.000581
+ 
+ 
+ Basis set:C.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          821  1.666663100E+02  -0.023036   0.004476   0.036235
+          822  1.028907660E+02   0.042640  -0.007441  -0.067030
+          823  3.911522200E+01  -0.121184   0.024922   0.190319
+          824  2.563797600E+01   0.151016  -0.023090  -0.234391
+          825  1.216073000E+01  -0.318210   0.081447   0.494734
+          826  8.259682000E+00   0.236764  -0.028991  -0.370172
+          827  4.358634000E+00  -0.491949   0.198430   0.775382
+          828  1.730300000E+00  -0.350198   0.312777   0.560125
+          829  1.227094000E+00  -0.245400   0.027264  -0.304047
+          830  7.238880000E-01   0.276746   0.231024  -0.798002
+          831  3.094800000E-01   0.239762   0.049197   0.309072
+          832  1.308580000E-01   0.005788  -0.001907   0.155904
+          833  8.832900000E-02   0.003499   0.001592  -0.049658
+          834  4.580000000E-02  -0.000612  -0.000201   0.005246
+ 
+ 
+ Basis set:H.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          849  3.772289000E+02   0.001114   0.049182  -0.049031
+          850  2.168910460E+02  -0.000667  -0.079607   0.074982
+          851  5.655319200E+01   0.005637   0.203285  -0.207285
+          852  3.470142600E+01  -0.000378  -0.256680   0.235985
+          853  1.284966000E+01   0.024222   0.425556  -0.485495
+          854  8.239871000E+00   0.000006  -0.364415   0.340696
+          855  3.630082000E+00   0.081110   0.365193  -0.646818
+          856  1.182126000E+00   0.137793  -0.162162  -0.263798
+          857  4.242980000E-01   0.070509  -0.318447   0.397897
+          858  1.597820000E-01   0.001546   0.081769   0.083787
+          859  1.078530000E-01   0.001963   0.037786  -0.044262
+          860  5.592400000E-02  -0.000263   0.068039  -0.039485
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          861  1.909194500E+02  -0.003022   0.004772
+          862  3.058159600E+01   0.009886  -0.019337
+          863  8.729830000E+00  -0.019360   0.002438
+          864  4.120041000E+00   0.162608  -0.284330
+          865  2.896063000E+00  -0.055517  -0.064485
+          866  1.397813000E+00   0.315889  -0.440836
+          867  4.945110000E-01   0.142492   0.220467
+          868  1.787180000E-01   0.006116   0.131526
+          869  1.267890000E-01   0.001006  -0.001853
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          870  4.610000000E+00   0.019211
+          871  3.111750000E+00   0.160402
+          872  1.613500000E+00   0.189729
+          873  1.089112000E+00   0.234958
+          874  5.647240000E-01   0.112863
+          875  3.811890000E-01   0.038410
+          876  1.976540000E-01   0.007284
+ 
+ 
+ Basis set:S.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          877  6.926964600E+05  -0.621812  -0.295559  -0.004553   0.024313  -0.523694
+          878  3.957393760E+05   7.636007   3.630240   0.056052  -0.298853   6.430718
+          879  3.609592200E+05  -7.521536  -3.589264  -0.059214   0.301326  -6.328868
+          880  9.878229200E+04   2.652966   1.263997   0.020122  -0.105062   2.232821
+          881  6.400213600E+04  -4.103151  -1.979418  -0.038221   0.174939  -3.443121
+          882  2.922198000E+04   8.048643   3.797066   0.048159  -0.297398   6.786511
+          883  1.979819950E+04 -11.209670  -5.348924  -0.083546   0.443768  -9.424820
+          884  1.037441900E+04  15.964977   7.498414   0.077791  -0.564071  13.461782
+          885  7.168177100E+03 -18.048144  -8.626213  -0.125725   0.707373 -15.147117
+          886  3.961935200E+03  17.513341   8.074334   0.020346  -0.518871  14.794706
+          887  2.765598990E+03 -14.577122  -7.017976  -0.090479   0.568453 -12.171282
+          888  1.569262780E+03   6.086734   2.102481  -0.205201   0.182915   5.411730
+          889  6.346555800E+02  -6.562140  -5.389341  -0.555523   1.224967  -4.383445
+          890  4.473475500E+02   7.315032   3.753330   0.009895  -0.291309   5.831541
+          891  2.600395200E+02  -3.326076  -5.566760  -0.829775   1.713117  -0.727882
+          892  1.074764160E+02   1.912539  -1.118712  -0.759401   1.159316   2.085488
+          893  4.469179200E+01  -3.847963   2.226171  -0.557158   0.228551  -6.878889
+          894  3.167914720E+01   5.157395   2.509856  -0.391659  -0.036942   2.664403
+          895  1.866650240E+01  -2.376618   0.536934   0.114468   0.006205  -1.795078
+          896  7.822373600E+00   0.711897  -1.012699   0.938995  -0.000206   5.663318
+          897  3.286413200E+00  -1.556463  -0.447081   0.157248   0.000001  -3.063137
+          898  1.383491200E+00   1.246488   0.223767  -0.012992   0.000008   0.483351
+          899  5.833472000E-01  -0.641942  -0.111719   0.003438  -0.000004  -0.383309
+          900  2.462882000E-01   0.252996   0.043521  -0.000840   0.000001   0.167682
+          901  9.851520000E-02   0.042812   0.007132   0.000116  -0.000000   0.034290
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          902  3.474773569E+05   0.070210  -0.018506   0.002593  -0.000934   0.001638   0.078721
+          903  5.052027290E+04  -0.182255   0.047917  -0.006784   0.002931  -0.004185  -0.203950
+          904  1.574011690E+04   0.511990  -0.135348   0.018737  -0.005165   0.012164   0.575346
+          905  6.316336400E+03  -1.571031   0.413533  -0.058262   0.023267  -0.036350  -1.759558
+          906  3.110094500E+03   5.104444  -1.355742   0.184025  -0.025528   0.124767   5.756305
+          907  1.913758290E+03 -12.082447   3.214467  -0.433329   0.038232  -0.298325 -13.641885
+          908  1.446454690E+03  10.068416  -2.717019   0.344238   0.126846   0.269697  11.492425
+          909  5.913629400E+02  -5.939059   1.568341  -0.217931   0.068426  -0.140330  -6.664205
+          910  4.040549100E+02   4.780598  -1.446911   0.090537   0.695485   0.213989   5.966261
+          911  1.511407920E+02  -6.310903   1.178962  -0.465701   2.029250   0.116638  -5.472659
+          912  9.182372600E+01   8.075435  -2.189696   0.254162   0.062635   0.220748   9.228763
+          913  6.043141400E+01  -8.195981   1.590963  -0.570343   2.488856   0.123992  -7.308316
+          914  2.480428420E+01   6.948714  -1.731062   0.535671   0.544282   0.164450   7.083148
+          915  1.573891020E+01  -7.619606   2.278600  -0.054114  -0.152851  -0.289261  -9.391892
+          916  1.031684580E+01   7.613431  -1.387960   1.098425  -0.611025  -0.080089   5.963060
+          917  4.324489400E+00  -3.957516   1.130655   0.261491  -0.174126  -0.356982  -3.112140
+          918  1.821750600E+00   0.332336  -0.407914  -0.010498   0.008719  -0.029853   2.141142
+          919  7.700731000E-01   0.850673  -0.770323   0.004062  -0.003266   0.366209  -0.174218
+          920  3.263246000E-01  -0.598203   0.460619  -0.001496   0.001207   0.099395  -0.827785
+          921  1.357499000E-01   0.217577   0.051493   0.000623  -0.000504  -0.001465   0.528071
+          922  8.385450000E-02  -0.037153  -0.001367  -0.000218   0.000176   0.001048  -0.076363
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          923  5.674357590E+01   0.047057  -0.009528   0.087947
+          924  2.535126390E+01  -0.323676   0.040910  -0.289475
+          925  1.233861910E+01   0.714017  -0.094619   0.670047
+          926  6.916554700E+00  -0.877042   0.143066  -1.166470
+          927  4.648574500E+00   2.052055  -0.244284   1.229500
+          928  1.909043200E+00  -0.072646   0.138198  -0.808817
+          929  7.847292000E-01  -0.525054   0.432283  -0.384027
+          930  3.228519000E-01   0.366825   0.087995   0.734197
+          931  2.489654000E-01  -0.149002  -0.020400  -0.257228
+          932  1.291407000E-01   0.019888   0.001263   0.034231
+ 
+                  Type         
+                   f
+           No.      Exponent    Contraction Coefficients
+          933  1.004079519E+02   0.001204  -0.008635   0.028412
+          934  4.109088590E+01   0.001432   0.019282  -0.023590
+          935  1.847640090E+01   0.023236  -0.056715   0.332917
+          936  9.411026900E+00   0.039204   0.054884   0.198684
+          937  5.686650700E+00   0.074619  -0.142282   1.167882
+          938  2.347302600E+00   0.017550   0.210624   0.736573
+          939  1.695697100E+00  -0.425539  -0.118091  -0.324600
+          940  9.714551000E-01  -0.453719   0.529250  -0.437177
+          941  4.028883000E-01   0.433183   0.164003   0.104603
+          942  1.663754000E-01   0.109123  -0.003770   0.059293
+          943  1.144800000E-01  -0.019541   0.003696  -0.013523
+ 
+                  Type         
+                   g
+           No.      Exponent    Contraction Coefficients
+          944  6.010735800E+00   0.045964
+          945  4.222665500E+00  -0.064557
+          946  2.434595200E+00   0.295870
+          947  1.710353200E+00  -0.047859
+          948  9.861112000E-01   0.603792
+          949  3.994156000E-01   0.169965
+          950  2.795909000E-01  -0.042327
+          951  1.597662000E-01   0.006694
+ 
+ 
+ Basis set:S.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          952  2.258253800E+03  -0.058307  -0.031930   0.019823   0.009278  -0.008764
+          953  1.403162050E+03   0.119704   0.067532  -0.039221  -0.019763   0.018491
+          954  5.480703000E+02  -0.428187  -0.230350   0.148425   0.066711  -0.063447
+          955  3.714377340E+02   0.707684   0.396505  -0.233308  -0.116039   0.109138
+          956  1.948051680E+02  -1.391860  -0.709837   0.509945   0.203235  -0.197144
+          957  1.354881020E+02   1.593832   0.893547  -0.525661  -0.261636   0.245730
+          958  7.617103600E+01  -2.253232  -0.965496   0.952928   0.265042  -0.276923
+          959  5.355655100E+01   1.489383   0.868065  -0.466196  -0.257667   0.243796
+          960  3.094206600E+01  -2.053278  -0.364689   1.244623   0.057620  -0.128529
+          961  1.281131800E+01  -0.465854   0.519002   1.035970  -0.268697   0.244931
+          962  9.086941800E+00  -0.659776  -0.649703   0.119978   0.196364  -0.169536
+          963  5.362565600E+00   1.554176   0.243081   0.307559  -0.288039   0.509562
+          964  2.260010000E+00   1.299954  -0.800054  -0.004585   0.054135   0.338244
+          965  1.608404500E+00  -0.745528   1.300619   0.012548  -0.067546  -0.784273
+          966  9.567990000E-01  -0.587195  -0.340848  -0.004137   0.390595  -0.661886
+          967  4.063610000E-01   0.286559  -0.505949   0.000870   0.186620   0.632572
+          968  1.729846000E-01   0.043560   0.290268  -0.000570   0.010007   0.079617
+          969  1.210892000E-01  -0.081327   0.073560   0.000372   0.003655  -0.105268
+          970  6.919380000E-02  -0.004647   0.029587  -0.000055  -0.000500  -0.007181
+ 
+ 
+ Basis set:H.ANO-RCC-VDZP....acCD-aux-basis.                                               
+ 
+                  Type         
+                   s
+           No.      Exponent    Contraction Coefficients
+          971  3.772289000E+02   0.001114   0.049182  -0.049031
+          972  2.168910460E+02  -0.000667  -0.079607   0.074982
+          973  5.655319200E+01   0.005637   0.203285  -0.207285
+          974  3.470142600E+01  -0.000378  -0.256680   0.235985
+          975  1.284966000E+01   0.024222   0.425556  -0.485495
+          976  8.239871000E+00   0.000006  -0.364415   0.340696
+          977  3.630082000E+00   0.081110   0.365193  -0.646818
+          978  1.182126000E+00   0.137793  -0.162162  -0.263798
+          979  4.242980000E-01   0.070509  -0.318447   0.397897
+          980  1.597820000E-01   0.001546   0.081769   0.083787
+          981  1.078530000E-01   0.001963   0.037786  -0.044262
+          982  5.592400000E-02  -0.000263   0.068039  -0.039485
+ 
+                  Type         
+                   p
+           No.      Exponent    Contraction Coefficients
+          983  1.909194500E+02  -0.003022   0.004772
+          984  3.058159600E+01   0.009886  -0.019337
+          985  8.729830000E+00  -0.019360   0.002438
+          986  4.120041000E+00   0.162608  -0.284330
+          987  2.896063000E+00  -0.055517  -0.064485
+          988  1.397813000E+00   0.315889  -0.440836
+          989  4.945110000E-01   0.142492   0.220467
+          990  1.787180000E-01   0.006116   0.131526
+          991  1.267890000E-01   0.001006  -0.001853
+ 
+                  Type         
+                   d
+           No.      Exponent    Contraction Coefficients
+          992  4.610000000E+00   0.019211
+          993  3.111750000E+00   0.160402
+          994  1.613500000E+00   0.189729
+          995  1.089112000E+00   0.234958
+          996  5.647240000E-01   0.112863
+          997  3.811890000E-01   0.038410
+          998  1.976540000E-01   0.007284
+ 
+  Number of primitives                                   564
+  Number of basis functions                              132
+  Number of primitive aux. functions                    3404
+  Number of auxiliary basis functions                    665
+ 
+--
+ 
+ 
+++    SO/AO info:
+      -----------
+ 
+                    **************************************************
+                    ******** Symmetry adapted Basis Functions ********
+                    **************************************************
+ 
+ 
+           Irreducible representation : a' 
+           Basis function(s) of irrep: x, y, xy, Rz                                                                    
+ 
+ Basis Label        Type   Center Phase
+    1   H1           1s       1     1
+    2   H1           2s       1     1
+    3   H1           2px      1     1
+    4   H1           2py      1     1
+    5   C2           1s       2     1
+    6   C2           2s       2     1
+    7   C2           3s       2     1
+    8   C2           2px      2     1
+    9   C2           3px      2     1
+   10   C2           2py      2     1
+   11   C2           3py      2     1
+   12   C2           3d2-     2     1
+   13   C2           3d0      2     1
+   14   C2           3d2+     2     1
+   15   C3           1s       3     1
+   16   C3           2s       3     1
+   17   C3           3s       3     1
+   18   C3           2px      3     1
+   19   C3           3px      3     1
+   20   C3           2py      3     1
+   21   C3           3py      3     1
+   22   C3           3d2-     3     1
+   23   C3           3d0      3     1
+   24   C3           3d2+     3     1
+   25   H4           1s       4     1
+   26   H4           2s       4     1
+   27   H4           2px      4     1
+   28   H4           2py      4     1
+   29   C5           1s       5     1
+   30   C5           2s       5     1
+   31   C5           3s       5     1
+   32   C5           2px      5     1
+   33   C5           3px      5     1
+   34   C5           2py      5     1
+   35   C5           3py      5     1
+   36   C5           3d2-     5     1
+   37   C5           3d0      5     1
+   38   C5           3d2+     5     1
+   39   H6           1s       6     1
+   40   H6           2s       6     1
+   41   H6           2px      6     1
+   42   H6           2py      6     1
+   43   C7           1s       7     1
+   44   C7           2s       7     1
+   45   C7           3s       7     1
+   46   C7           2px      7     1
+   47   C7           3px      7     1
+   48   C7           2py      7     1
+   49   C7           3py      7     1
+   50   C7           3d2-     7     1
+   51   C7           3d0      7     1
+   52   C7           3d2+     7     1
+   53   H8           1s       8     1
+   54   H8           2s       8     1
+   55   H8           2px      8     1
+   56   H8           2py      8     1
+   57   C9           1s       9     1
+   58   C9           2s       9     1
+   59   C9           3s       9     1
+   60   C9           2px      9     1
+   61   C9           3px      9     1
+   62   C9           2py      9     1
+   63   C9           3py      9     1
+   64   C9           3d2-     9     1
+   65   C9           3d0      9     1
+   66   C9           3d2+     9     1
+   67   C10          1s      10     1
+   68   C10          2s      10     1
+   69   C10          3s      10     1
+   70   C10          2px     10     1
+   71   C10          3px     10     1
+   72   C10          2py     10     1
+   73   C10          3py     10     1
+   74   C10          3d2-    10     1
+   75   C10          3d0     10     1
+   76   C10          3d2+    10     1
+   77   H11          1s      11     1
+   78   H11          2s      11     1
+   79   H11          2px     11     1
+   80   H11          2py     11     1
+   81   S12          1s      12     1
+   82   S12          2s      12     1
+   83   S12          3s      12     1
+   84   S12          4s      12     1
+   85   S12          2px     12     1
+   86   S12          3px     12     1
+   87   S12          4px     12     1
+   88   S12          2py     12     1
+   89   S12          3py     12     1
+   90   S12          4py     12     1
+   91   S12          3d2-    12     1
+   92   S12          3d0     12     1
+   93   S12          3d2+    12     1
+   94   H13          1s      13     1
+   95   H13          2s      13     1
+   96   H13          2px     13     1
+   97   H13          2py     13     1
+  133   H1           1s      14     1
+  134   H1           2s      14     1
+  135   H1           3s      14     1
+  136   H1           2px     14     1
+  137   H1           3px     14     1
+  138   H1           2py     14     1
+  139   H1           3py     14     1
+  140   H1           3d2-    14     1
+  141   H1           3d0     14     1
+  142   H1           3d2+    14     1
+  143   H1           3s0     14     1
+  144   C2           1s      15     1
+  145   C2           2s      15     1
+  146   C2           2px     15     1
+  147   C2           3px     15     1
+  148   C2           4px     15     1
+  149   C2           5px     15     1
+  150   C2           2py     15     1
+  151   C2           3py     15     1
+  152   C2           4py     15     1
+  153   C2           5py     15     1
+  154   C2           3d2-    15     1
+  155   C2           4d2-    15     1
+  156   C2           3d0     15     1
+  157   C2           4d0     15     1
+  158   C2           3d2+    15     1
+  159   C2           4d2+    15     1
+  160   C2           4f3-    15     1
+  161   C2           5f3-    15     1
+  162   C2           4f1-    15     1
+  163   C2           5f1-    15     1
+  164   C2           4f1+    15     1
+  165   C2           5f1+    15     1
+  166   C2           4f3+    15     1
+  167   C2           5f3+    15     1
+  168   C2           4p1-    15     1
+  169   C2           5p1-    15     1
+  170   C2           4p1+    15     1
+  171   C2           5p1+    15     1
+  172   C2           5g4-    15     1
+  173   C2           5g2-    15     1
+  174   C2           5g0     15     1
+  175   C2           5g2+    15     1
+  176   C2           5g4+    15     1
+  177   C2           5d2-    15     1
+  178   C2           5d0     15     1
+  179   C2           5d2+    15     1
+  180   C2           5s0     15     1
+  181   C3           1s      16     1
+  182   C3           2s      16     1
+  183   C3           2px     16     1
+  184   C3           3px     16     1
+  185   C3           4px     16     1
+  186   C3           5px     16     1
+  187   C3           2py     16     1
+  188   C3           3py     16     1
+  189   C3           4py     16     1
+  190   C3           5py     16     1
+  191   C3           3d2-    16     1
+  192   C3           4d2-    16     1
+  193   C3           3d0     16     1
+  194   C3           4d0     16     1
+  195   C3           3d2+    16     1
+  196   C3           4d2+    16     1
+  197   C3           4f3-    16     1
+  198   C3           5f3-    16     1
+  199   C3           4f1-    16     1
+  200   C3           5f1-    16     1
+  201   C3           4f1+    16     1
+  202   C3           5f1+    16     1
+  203   C3           4f3+    16     1
+  204   C3           5f3+    16     1
+  205   C3           4p1-    16     1
+  206   C3           5p1-    16     1
+  207   C3           4p1+    16     1
+  208   C3           5p1+    16     1
+  209   C3           5g4-    16     1
+  210   C3           5g2-    16     1
+  211   C3           5g0     16     1
+  212   C3           5g2+    16     1
+  213   C3           5g4+    16     1
+  214   C3           5d2-    16     1
+  215   C3           5d0     16     1
+  216   C3           5d2+    16     1
+  217   C3           5s0     16     1
+  218   C2           3d2-    17     1
+  219   C2           4d2-    17     1
+  220   C2           5d2-    17     1
+  221   C2           3d0     17     1
+  222   C2           4d0     17     1
+  223   C2           5d0     17     1
+  224   C2           3d2+    17     1
+  225   C2           4d2+    17     1
+  226   C2           5d2+    17     1
+  227   C2           3s0     17     1
+  228   C2           4s0     17     1
+  229   C2           5s0     17     1
+  230   C3           3d2-    18     1
+  231   C3           4d2-    18     1
+  232   C3           5d2-    18     1
+  233   C3           3d0     18     1
+  234   C3           4d0     18     1
+  235   C3           5d0     18     1
+  236   C3           3d2+    18     1
+  237   C3           4d2+    18     1
+  238   C3           5d2+    18     1
+  239   C3           3s0     18     1
+  240   C3           4s0     18     1
+  241   C3           5s0     18     1
+  242   H4           1s      19     1
+  243   H4           2s      19     1
+  244   H4           3s      19     1
+  245   H4           2px     19     1
+  246   H4           3px     19     1
+  247   H4           2py     19     1
+  248   H4           3py     19     1
+  249   H4           3d2-    19     1
+  250   H4           3d0     19     1
+  251   H4           3d2+    19     1
+  252   H4           3s0     19     1
+  253   C5           1s      20     1
+  254   C5           2s      20     1
+  255   C5           2px     20     1
+  256   C5           3px     20     1
+  257   C5           4px     20     1
+  258   C5           5px     20     1
+  259   C5           2py     20     1
+  260   C5           3py     20     1
+  261   C5           4py     20     1
+  262   C5           5py     20     1
+  263   C5           3d2-    20     1
+  264   C5           4d2-    20     1
+  265   C5           3d0     20     1
+  266   C5           4d0     20     1
+  267   C5           3d2+    20     1
+  268   C5           4d2+    20     1
+  269   C5           4f3-    20     1
+  270   C5           5f3-    20     1
+  271   C5           4f1-    20     1
+  272   C5           5f1-    20     1
+  273   C5           4f1+    20     1
+  274   C5           5f1+    20     1
+  275   C5           4f3+    20     1
+  276   C5           5f3+    20     1
+  277   C5           4p1-    20     1
+  278   C5           5p1-    20     1
+  279   C5           4p1+    20     1
+  280   C5           5p1+    20     1
+  281   C5           5g4-    20     1
+  282   C5           5g2-    20     1
+  283   C5           5g0     20     1
+  284   C5           5g2+    20     1
+  285   C5           5g4+    20     1
+  286   C5           5d2-    20     1
+  287   C5           5d0     20     1
+  288   C5           5d2+    20     1
+  289   C5           5s0     20     1
+  290   C5           3d2-    21     1
+  291   C5           4d2-    21     1
+  292   C5           5d2-    21     1
+  293   C5           3d0     21     1
+  294   C5           4d0     21     1
+  295   C5           5d0     21     1
+  296   C5           3d2+    21     1
+  297   C5           4d2+    21     1
+  298   C5           5d2+    21     1
+  299   C5           3s0     21     1
+  300   C5           4s0     21     1
+  301   C5           5s0     21     1
+  302   H6           1s      22     1
+  303   H6           2s      22     1
+  304   H6           3s      22     1
+  305   H6           2px     22     1
+  306   H6           3px     22     1
+  307   H6           2py     22     1
+  308   H6           3py     22     1
+  309   H6           3d2-    22     1
+  310   H6           3d0     22     1
+  311   H6           3d2+    22     1
+  312   H6           3s0     22     1
+  313   C7           1s      23     1
+  314   C7           2s      23     1
+  315   C7           2px     23     1
+  316   C7           3px     23     1
+  317   C7           4px     23     1
+  318   C7           5px     23     1
+  319   C7           2py     23     1
+  320   C7           3py     23     1
+  321   C7           4py     23     1
+  322   C7           5py     23     1
+  323   C7           3d2-    23     1
+  324   C7           4d2-    23     1
+  325   C7           3d0     23     1
+  326   C7           4d0     23     1
+  327   C7           3d2+    23     1
+  328   C7           4d2+    23     1
+  329   C7           4f3-    23     1
+  330   C7           5f3-    23     1
+  331   C7           4f1-    23     1
+  332   C7           5f1-    23     1
+  333   C7           4f1+    23     1
+  334   C7           5f1+    23     1
+  335   C7           4f3+    23     1
+  336   C7           5f3+    23     1
+  337   C7           4p1-    23     1
+  338   C7           5p1-    23     1
+  339   C7           4p1+    23     1
+  340   C7           5p1+    23     1
+  341   C7           5g4-    23     1
+  342   C7           5g2-    23     1
+  343   C7           5g0     23     1
+  344   C7           5g2+    23     1
+  345   C7           5g4+    23     1
+  346   C7           5d2-    23     1
+  347   C7           5d0     23     1
+  348   C7           5d2+    23     1
+  349   C7           5s0     23     1
+  350   C7           3d2-    24     1
+  351   C7           4d2-    24     1
+  352   C7           5d2-    24     1
+  353   C7           3d0     24     1
+  354   C7           4d0     24     1
+  355   C7           5d0     24     1
+  356   C7           3d2+    24     1
+  357   C7           4d2+    24     1
+  358   C7           5d2+    24     1
+  359   C7           3s0     24     1
+  360   C7           4s0     24     1
+  361   C7           5s0     24     1
+  362   H8           1s      25     1
+  363   H8           2s      25     1
+  364   H8           3s      25     1
+  365   H8           2px     25     1
+  366   H8           3px     25     1
+  367   H8           2py     25     1
+  368   H8           3py     25     1
+  369   H8           3d2-    25     1
+  370   H8           3d0     25     1
+  371   H8           3d2+    25     1
+  372   H8           3s0     25     1
+  373   C9           1s      26     1
+  374   C9           2s      26     1
+  375   C9           2px     26     1
+  376   C9           3px     26     1
+  377   C9           4px     26     1
+  378   C9           5px     26     1
+  379   C9           2py     26     1
+  380   C9           3py     26     1
+  381   C9           4py     26     1
+  382   C9           5py     26     1
+  383   C9           3d2-    26     1
+  384   C9           4d2-    26     1
+  385   C9           3d0     26     1
+  386   C9           4d0     26     1
+  387   C9           3d2+    26     1
+  388   C9           4d2+    26     1
+  389   C9           4f3-    26     1
+  390   C9           5f3-    26     1
+  391   C9           4f1-    26     1
+  392   C9           5f1-    26     1
+  393   C9           4f1+    26     1
+  394   C9           5f1+    26     1
+  395   C9           4f3+    26     1
+  396   C9           5f3+    26     1
+  397   C9           4p1-    26     1
+  398   C9           5p1-    26     1
+  399   C9           4p1+    26     1
+  400   C9           5p1+    26     1
+  401   C9           5g4-    26     1
+  402   C9           5g2-    26     1
+  403   C9           5g0     26     1
+  404   C9           5g2+    26     1
+  405   C9           5g4+    26     1
+  406   C9           5d2-    26     1
+  407   C9           5d0     26     1
+  408   C9           5d2+    26     1
+  409   C9           5s0     26     1
+  410   C10          1s      27     1
+  411   C10          2s      27     1
+  412   C10          2px     27     1
+  413   C10          3px     27     1
+  414   C10          4px     27     1
+  415   C10          5px     27     1
+  416   C10          2py     27     1
+  417   C10          3py     27     1
+  418   C10          4py     27     1
+  419   C10          5py     27     1
+  420   C10          3d2-    27     1
+  421   C10          4d2-    27     1
+  422   C10          3d0     27     1
+  423   C10          4d0     27     1
+  424   C10          3d2+    27     1
+  425   C10          4d2+    27     1
+  426   C10          4f3-    27     1
+  427   C10          5f3-    27     1
+  428   C10          4f1-    27     1
+  429   C10          5f1-    27     1
+  430   C10          4f1+    27     1
+  431   C10          5f1+    27     1
+  432   C10          4f3+    27     1
+  433   C10          5f3+    27     1
+  434   C10          4p1-    27     1
+  435   C10          5p1-    27     1
+  436   C10          4p1+    27     1
+  437   C10          5p1+    27     1
+  438   C10          5g4-    27     1
+  439   C10          5g2-    27     1
+  440   C10          5g0     27     1
+  441   C10          5g2+    27     1
+  442   C10          5g4+    27     1
+  443   C10          5d2-    27     1
+  444   C10          5d0     27     1
+  445   C10          5d2+    27     1
+  446   C10          5s0     27     1
+  447   C9           3d2-    28     1
+  448   C9           4d2-    28     1
+  449   C9           5d2-    28     1
+  450   C9           3d0     28     1
+  451   C9           4d0     28     1
+  452   C9           5d0     28     1
+  453   C9           3d2+    28     1
+  454   C9           4d2+    28     1
+  455   C9           5d2+    28     1
+  456   C9           3s0     28     1
+  457   C9           4s0     28     1
+  458   C9           5s0     28     1
+  459   C10          3d2-    29     1
+  460   C10          4d2-    29     1
+  461   C10          5d2-    29     1
+  462   C10          3d0     29     1
+  463   C10          4d0     29     1
+  464   C10          5d0     29     1
+  465   C10          3d2+    29     1
+  466   C10          4d2+    29     1
+  467   C10          5d2+    29     1
+  468   C10          3s0     29     1
+  469   C10          4s0     29     1
+  470   C10          5s0     29     1
+  471   H11          1s      30     1
+  472   H11          2s      30     1
+  473   H11          3s      30     1
+  474   H11          2px     30     1
+  475   H11          3px     30     1
+  476   H11          2py     30     1
+  477   H11          3py     30     1
+  478   H11          3d2-    30     1
+  479   H11          3d0     30     1
+  480   H11          3d2+    30     1
+  481   H11          3s0     30     1
+  482   S12          1s      31     1
+  483   S12          2s      31     1
+  484   S12          3s      31     1
+  485   S12          4s      31     1
+  486   S12          5s      31     1
+  487   S12          2px     31     1
+  488   S12          3px     31     1
+  489   S12          4px     31     1
+  490   S12          5px     31     1
+  491   S12          6px     31     1
+  492   S12          7px     31     1
+  493   S12          2py     31     1
+  494   S12          3py     31     1
+  495   S12          4py     31     1
+  496   S12          5py     31     1
+  497   S12          6py     31     1
+  498   S12          7py     31     1
+  499   S12          3d2-    31     1
+  500   S12          4d2-    31     1
+  501   S12          5d2-    31     1
+  502   S12          3d0     31     1
+  503   S12          4d0     31     1
+  504   S12          5d0     31     1
+  505   S12          3d2+    31     1
+  506   S12          4d2+    31     1
+  507   S12          5d2+    31     1
+  508   S12          4f3-    31     1
+  509   S12          5f3-    31     1
+  510   S12          6f3-    31     1
+  511   S12          4f1-    31     1
+  512   S12          5f1-    31     1
+  513   S12          6f1-    31     1
+  514   S12          4f1+    31     1
+  515   S12          5f1+    31     1
+  516   S12          6f1+    31     1
+  517   S12          4f3+    31     1
+  518   S12          5f3+    31     1
+  519   S12          6f3+    31     1
+  520   S12          4p1-    31     1
+  521   S12          5p1-    31     1
+  522   S12          6p1-    31     1
+  523   S12          4p1+    31     1
+  524   S12          5p1+    31     1
+  525   S12          6p1+    31     1
+  526   S12          5g4-    31     1
+  527   S12          5g2-    31     1
+  528   S12          5g0     31     1
+  529   S12          5g2+    31     1
+  530   S12          5g4+    31     1
+  531   S12          5d2-    31     1
+  532   S12          5d0     31     1
+  533   S12          5d2+    31     1
+  534   S12          5s0     31     1
+  535   S12          3d2-    32     1
+  536   S12          4d2-    32     1
+  537   S12          5d2-    32     1
+  538   S12          6d2-    32     1
+  539   S12          7d2-    32     1
+  540   S12          3d0     32     1
+  541   S12          4d0     32     1
+  542   S12          5d0     32     1
+  543   S12          6d0     32     1
+  544   S12          7d0     32     1
+  545   S12          3d2+    32     1
+  546   S12          4d2+    32     1
+  547   S12          5d2+    32     1
+  548   S12          6d2+    32     1
+  549   S12          7d2+    32     1
+  550   S12          3s0     32     1
+  551   S12          4s0     32     1
+  552   S12          5s0     32     1
+  553   S12          6s0     32     1
+  554   S12          7s0     32     1
+  555   H13          1s      33     1
+  556   H13          2s      33     1
+  557   H13          3s      33     1
+  558   H13          2px     33     1
+  559   H13          3px     33     1
+  560   H13          2py     33     1
+  561   H13          3py     33     1
+  562   H13          3d2-    33     1
+  563   H13          3d0     33     1
+  564   H13          3d2+    33     1
+  565   H13          3s0     33     1
+ 
+           Irreducible representation : a" 
+           Basis function(s) of irrep: z, xz, Ry, yz, Rx, I                                                            
+ 
+ Basis Label        Type   Center Phase
+   98   H1           2pz      1     1
+   99   C2           2pz      2     1
+  100   C2           3pz      2     1
+  101   C2           3d1-     2     1
+  102   C2           3d1+     2     1
+  103   C3           2pz      3     1
+  104   C3           3pz      3     1
+  105   C3           3d1-     3     1
+  106   C3           3d1+     3     1
+  107   H4           2pz      4     1
+  108   C5           2pz      5     1
+  109   C5           3pz      5     1
+  110   C5           3d1-     5     1
+  111   C5           3d1+     5     1
+  112   H6           2pz      6     1
+  113   C7           2pz      7     1
+  114   C7           3pz      7     1
+  115   C7           3d1-     7     1
+  116   C7           3d1+     7     1
+  117   H8           2pz      8     1
+  118   C9           2pz      9     1
+  119   C9           3pz      9     1
+  120   C9           3d1-     9     1
+  121   C9           3d1+     9     1
+  122   C10          2pz     10     1
+  123   C10          3pz     10     1
+  124   C10          3d1-    10     1
+  125   C10          3d1+    10     1
+  126   H11          2pz     11     1
+  127   S12          2pz     12     1
+  128   S12          3pz     12     1
+  129   S12          4pz     12     1
+  130   S12          3d1-    12     1
+  131   S12          3d1+    12     1
+  132   H13          2pz     13     1
+  567   H1           2pz     14     1
+  568   H1           3pz     14     1
+  569   H1           3d1-    14     1
+  570   H1           3d1+    14     1
+  571   C2           2pz     15     1
+  572   C2           3pz     15     1
+  573   C2           4pz     15     1
+  574   C2           5pz     15     1
+  575   C2           3d1-    15     1
+  576   C2           4d1-    15     1
+  577   C2           3d1+    15     1
+  578   C2           4d1+    15     1
+  579   C2           4f2-    15     1
+  580   C2           5f2-    15     1
+  581   C2           4f0     15     1
+  582   C2           5f0     15     1
+  583   C2           4f2+    15     1
+  584   C2           5f2+    15     1
+  585   C2           4p0     15     1
+  586   C2           5p0     15     1
+  587   C2           5g3-    15     1
+  588   C2           5g1-    15     1
+  589   C2           5g1+    15     1
+  590   C2           5g3+    15     1
+  591   C2           5d1-    15     1
+  592   C2           5d1+    15     1
+  593   C3           2pz     16     1
+  594   C3           3pz     16     1
+  595   C3           4pz     16     1
+  596   C3           5pz     16     1
+  597   C3           3d1-    16     1
+  598   C3           4d1-    16     1
+  599   C3           3d1+    16     1
+  600   C3           4d1+    16     1
+  601   C3           4f2-    16     1
+  602   C3           5f2-    16     1
+  603   C3           4f0     16     1
+  604   C3           5f0     16     1
+  605   C3           4f2+    16     1
+  606   C3           5f2+    16     1
+  607   C3           4p0     16     1
+  608   C3           5p0     16     1
+  609   C3           5g3-    16     1
+  610   C3           5g1-    16     1
+  611   C3           5g1+    16     1
+  612   C3           5g3+    16     1
+  613   C3           5d1-    16     1
+  614   C3           5d1+    16     1
+  615   C2           3d1-    17     1
+  616   C2           4d1-    17     1
+  617   C2           5d1-    17     1
+  618   C2           3d1+    17     1
+  619   C2           4d1+    17     1
+  620   C2           5d1+    17     1
+  621   C3           3d1-    18     1
+  622   C3           4d1-    18     1
+  623   C3           5d1-    18     1
+  624   C3           3d1+    18     1
+  625   C3           4d1+    18     1
+  626   C3           5d1+    18     1
+  627   H4           2pz     19     1
+  628   H4           3pz     19     1
+  629   H4           3d1-    19     1
+  630   H4           3d1+    19     1
+  631   C5           2pz     20     1
+  632   C5           3pz     20     1
+  633   C5           4pz     20     1
+  634   C5           5pz     20     1
+  635   C5           3d1-    20     1
+  636   C5           4d1-    20     1
+  637   C5           3d1+    20     1
+  638   C5           4d1+    20     1
+  639   C5           4f2-    20     1
+  640   C5           5f2-    20     1
+  641   C5           4f0     20     1
+  642   C5           5f0     20     1
+  643   C5           4f2+    20     1
+  644   C5           5f2+    20     1
+  645   C5           4p0     20     1
+  646   C5           5p0     20     1
+  647   C5           5g3-    20     1
+  648   C5           5g1-    20     1
+  649   C5           5g1+    20     1
+  650   C5           5g3+    20     1
+  651   C5           5d1-    20     1
+  652   C5           5d1+    20     1
+  653   C5           3d1-    21     1
+  654   C5           4d1-    21     1
+  655   C5           5d1-    21     1
+  656   C5           3d1+    21     1
+  657   C5           4d1+    21     1
+  658   C5           5d1+    21     1
+  659   H6           2pz     22     1
+  660   H6           3pz     22     1
+  661   H6           3d1-    22     1
+  662   H6           3d1+    22     1
+  663   C7           2pz     23     1
+  664   C7           3pz     23     1
+  665   C7           4pz     23     1
+  666   C7           5pz     23     1
+  667   C7           3d1-    23     1
+  668   C7           4d1-    23     1
+  669   C7           3d1+    23     1
+  670   C7           4d1+    23     1
+  671   C7           4f2-    23     1
+  672   C7           5f2-    23     1
+  673   C7           4f0     23     1
+  674   C7           5f0     23     1
+  675   C7           4f2+    23     1
+  676   C7           5f2+    23     1
+  677   C7           4p0     23     1
+  678   C7           5p0     23     1
+  679   C7           5g3-    23     1
+  680   C7           5g1-    23     1
+  681   C7           5g1+    23     1
+  682   C7           5g3+    23     1
+  683   C7           5d1-    23     1
+  684   C7           5d1+    23     1
+  685   C7           3d1-    24     1
+  686   C7           4d1-    24     1
+  687   C7           5d1-    24     1
+  688   C7           3d1+    24     1
+  689   C7           4d1+    24     1
+  690   C7           5d1+    24     1
+  691   H8           2pz     25     1
+  692   H8           3pz     25     1
+  693   H8           3d1-    25     1
+  694   H8           3d1+    25     1
+  695   C9           2pz     26     1
+  696   C9           3pz     26     1
+  697   C9           4pz     26     1
+  698   C9           5pz     26     1
+  699   C9           3d1-    26     1
+  700   C9           4d1-    26     1
+  701   C9           3d1+    26     1
+  702   C9           4d1+    26     1
+  703   C9           4f2-    26     1
+  704   C9           5f2-    26     1
+  705   C9           4f0     26     1
+  706   C9           5f0     26     1
+  707   C9           4f2+    26     1
+  708   C9           5f2+    26     1
+  709   C9           4p0     26     1
+  710   C9           5p0     26     1
+  711   C9           5g3-    26     1
+  712   C9           5g1-    26     1
+  713   C9           5g1+    26     1
+  714   C9           5g3+    26     1
+  715   C9           5d1-    26     1
+  716   C9           5d1+    26     1
+  717   C10          2pz     27     1
+  718   C10          3pz     27     1
+  719   C10          4pz     27     1
+  720   C10          5pz     27     1
+  721   C10          3d1-    27     1
+  722   C10          4d1-    27     1
+  723   C10          3d1+    27     1
+  724   C10          4d1+    27     1
+  725   C10          4f2-    27     1
+  726   C10          5f2-    27     1
+  727   C10          4f0     27     1
+  728   C10          5f0     27     1
+  729   C10          4f2+    27     1
+  730   C10          5f2+    27     1
+  731   C10          4p0     27     1
+  732   C10          5p0     27     1
+  733   C10          5g3-    27     1
+  734   C10          5g1-    27     1
+  735   C10          5g1+    27     1
+  736   C10          5g3+    27     1
+  737   C10          5d1-    27     1
+  738   C10          5d1+    27     1
+  739   C9           3d1-    28     1
+  740   C9           4d1-    28     1
+  741   C9           5d1-    28     1
+  742   C9           3d1+    28     1
+  743   C9           4d1+    28     1
+  744   C9           5d1+    28     1
+  745   C10          3d1-    29     1
+  746   C10          4d1-    29     1
+  747   C10          5d1-    29     1
+  748   C10          3d1+    29     1
+  749   C10          4d1+    29     1
+  750   C10          5d1+    29     1
+  751   H11          2pz     30     1
+  752   H11          3pz     30     1
+  753   H11          3d1-    30     1
+  754   H11          3d1+    30     1
+  755   S12          2pz     31     1
+  756   S12          3pz     31     1
+  757   S12          4pz     31     1
+  758   S12          5pz     31     1
+  759   S12          6pz     31     1
+  760   S12          7pz     31     1
+  761   S12          3d1-    31     1
+  762   S12          4d1-    31     1
+  763   S12          5d1-    31     1
+  764   S12          3d1+    31     1
+  765   S12          4d1+    31     1
+  766   S12          5d1+    31     1
+  767   S12          4f2-    31     1
+  768   S12          5f2-    31     1
+  769   S12          6f2-    31     1
+  770   S12          4f0     31     1
+  771   S12          5f0     31     1
+  772   S12          6f0     31     1
+  773   S12          4f2+    31     1
+  774   S12          5f2+    31     1
+  775   S12          6f2+    31     1
+  776   S12          4p0     31     1
+  777   S12          5p0     31     1
+  778   S12          6p0     31     1
+  779   S12          5g3-    31     1
+  780   S12          5g1-    31     1
+  781   S12          5g1+    31     1
+  782   S12          5g3+    31     1
+  783   S12          5d1-    31     1
+  784   S12          5d1+    31     1
+  785   S12          3d1-    32     1
+  786   S12          4d1-    32     1
+  787   S12          5d1-    32     1
+  788   S12          6d1-    32     1
+  789   S12          7d1-    32     1
+  790   S12          3d1+    32     1
+  791   S12          4d1+    32     1
+  792   S12          5d1+    32     1
+  793   S12          6d1+    32     1
+  794   S12          7d1+    32     1
+  795   H13          2pz     33     1
+  796   H13          3pz     33     1
+  797   H13          3d1-    33     1
+  798   H13          3d1+    33     1
+ 
+      Basis set specifications :
+      Symmetry species        a'  a" 
+      Basis functions          97  35
+--
+ 
+ 
+            Nuclear Potential Energy            316.12304777 au
+ 
+--- Stop Module: gateway at Wed May 13 17:01:12 2026 /rc=_RC_ALL_IS_WELL_ ---
+*** files: valence-a.RICDLib xmldump
+    saved to directory /iridisfs/home/ka3f26/thiophenol/symm/s2p/AS1/caspt2_dz
+
+--- Start Module: seward at Wed May 13 17:01:12 2026 ---
+ 
+()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()
+
+                                              &SEWARD
+
+                                   only a single process is used
+                       available to each process: 2.0 GB of memory, 1 thread
+                                            pid: 1924615
+()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()
+ 
+               SEWARD will generate:
+                  Multipole Moment integrals up to order  2
+                  Kinetic Energy integrals
+                  Nuclear Attraction integrals (point charge)
+                  One-Electron Hamiltonian integrals
+                  Velocity integrals
+                  Relativistic Douglas-Kroll integrals
+                  Orbital angular momentum around (  0.0001   0.0023   0.0000 )
+                  Velocity quadrupole around (  0.0001   0.0023   0.0000 )
+                  Atomic mean-field integrals
+                  RI decomposed two-electron repulsion integrals stored Cholesky style
+                   - acCD auxiliary basis
+                   - CD Threshold:   1.00E-04
+ 
+                   Integrals are discarded if absolute value <: 1.00E-14
+                   Integral cutoff threshold is set to       <: 1.00E-16
+ 
+                    Unitary symmetry adaptation
+ 
+ 
+            Nuclear Potential Energy            316.12304777 au
+ 
+ 
+      Basis set specifications :
+      Symmetry species         a'   a" 
+      Basis functions           97   35
+ 
+ 
+      Input file to MOLDEN was generated!
+ 
+--- Stop Module: seward at Wed May 13 17:01:16 2026 /rc=_RC_ALL_IS_WELL_ ---
+*** files: valence-a.GssOrb valence-a.guessorb.h5 valence-a.guessorb.molden xmldump
+    saved to directory /iridisfs/home/ka3f26/thiophenol/symm/s2p/AS1/caspt2_dz
+--- Module seward spent 4 seconds ---
+
+>>> COPY /iridisfs/home/ka3f26/thiophenol/symm/s2p/AS1/caspt2_dz/../dz/valence-dz-a.JobIph JOBIPH
+
+*** symbolic link created: INPORB -> valence-a.GssOrb
+--- Start Module: caspt2 at Wed May 13 17:01:16 2026 ---
+ 
+()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()
+
+                                              &CASPT2
+
+                                   only a single process is used
+                       available to each process: 2.0 GB of memory, 1 thread
+                                            pid: 1929676
+()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()
+ 
+ 
+++    Wave function specifications:
+      -----------------------------
+ 
+      Number of closed shell electrons          20
+      Number of electrons in active shells      18
+      Max number of holes in RAS1 space          1
+      Max number of electrons in RAS3 space      0
+      Number of inactive orbitals               10
+      Number of active orbitals                 14
+      Number of secondary orbitals              98
+      Spin quantum number                      0.0
+      State symmetry                             1
+      Number of CSFs                        144942
+      Number of CASSCF root(s) available         3
+      CASPT2 state passed to geometry opt.       3
+      A file JOBMIX will be created
+      This is a MULTI-STATE CASSCF reference
+      Number of CI roots used                    3
+      These are:                                 1   2   3
+      Off-diagonal elements of Heff are computed
+--
+ 
+++    Orbital specifications:
+      -----------------------
+ 
+      Symmetry species                           1   2
+                                                a'  a"
+      Frozen orbitals                           10   0
+      Inactive orbitals                         10   0
+      Active orbitals                            6   8
+      Secondary orbitals                        71  27
+      Deleted orbitals                           0   0
+      Number of basis functions                 97  35
+--
+ 
+++    CASPT2 specifications:
+      ----------------------
+ 
+      Type of calculation                        MS-CASPT2
+      Fock operator                              state-specific
+      IPEA shift                                 0.00
+      Real shift                                 0.00
+      Imaginary shift                            0.30
+      The input orbitals will be transformed to quasi-canonical
+--
+ 
+--------------------------------------------------------------------------------
+ Estimated memory requirements:
+  POLY3 :                 46642790
+  RHS:                      632356
+  SIGMA :                   954160
+  PRPCTL:                        0
+ Available workspace:    255662619
+ 
+++ CASPT2 computation for group   1
+ 
+********************************************************************************
+ Multi-State initialization phase begins for group   1
+--------------------------------------------------------------------------------
+********************************************************************************
+ Compute H0 matrices for state    1
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+ H0 matrices have been computed.
+ 
+********************************************************************************
+  CASPT2 EQUATION SOLUTION
+--------------------------------------------------------------------------------
+ 
+  Total nr of CASPT2 parameters:
+   Before reduction:     1826198
+   After  reduction:     1823901
+ 
+ Variance of |WF0>:       2.2920714017
+ 
+ The contributions to the second order correlation energy in atomic units.
+-----------------------------------------------------------------------------------------------------------------------------
+  IT.      VJTU        VJTI        ATVX        AIVX        VJAI        BVAT        BJAT        BJAI        TOTAL       RNORM  
+-----------------------------------------------------------------------------------------------------------------------------
+   1    -0.001503   -0.003361   -0.038639   -0.112835   -0.021173   -0.085428   -0.153490   -0.308395   -0.724824    0.011537
+   2    -0.001557   -0.003399   -0.039244   -0.113462   -0.021276   -0.085749   -0.153658   -0.308596   -0.726941    0.001830
+   3    -0.001559   -0.003399   -0.039250   -0.113489   -0.021271   -0.085752   -0.153672   -0.308583   -0.726975    0.000353
+   4    -0.001560   -0.003399   -0.039242   -0.113472   -0.021268   -0.085745   -0.153666   -0.308574   -0.726926    0.000075
+   5    -0.001560   -0.003399   -0.039242   -0.113472   -0.021268   -0.085745   -0.153666   -0.308575   -0.726925    0.000015
+   6    -0.001560   -0.003399   -0.039242   -0.113473   -0.021268   -0.085745   -0.153666   -0.308575   -0.726928    0.000003
+-----------------------------------------------------------------------------------------------------------------------------
+ 
+  FINAL CASPT2 RESULT:
+ 
+      Reference energy:        -629.5902023127
+      E2 (Non-variational):      -0.7269276591
+      Shift correction:          -0.0102521141
+      E2 (Variational):          -0.7371797732
+      Total energy:            -630.3273820859
+      Residual norm:              0.0000005614
+      Reference weight:           0.78818
+ 
+      Contributions to the CASPT2 correlation energy
+      Active & Virtual Only:         -0.1249867753
+      One Inactive Excited:          -0.2686989185
+      Two Inactive Excited:          -0.3332419653
+ 
+ 
+++ Denominators, etc.
+--------------------------------------------------------------------------------------------------------------
+ Report on small energy denominators, large coefficients, and large energy contributions.
+CASE  SYMM ACTIVE-MIX  NON-ACTIVE INDICES          DENOMINATOR     RHS VALUE       COEFFICIENT     CONTRIBUTION
+--
+ 
+   (Skipping property calculation,
+    use PROP keyword to activate)
+--
+ 
+++ CASPT2 computation for group   2
+ 
+********************************************************************************
+ Multi-State initialization phase begins for group   2
+--------------------------------------------------------------------------------
+********************************************************************************
+ Compute H0 matrices for state    2
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+ H0 matrices have been computed.
+ 
+********************************************************************************
+  CASPT2 EQUATION SOLUTION
+--------------------------------------------------------------------------------
+ 
+  Total nr of CASPT2 parameters:
+   Before reduction:     1826198
+   After  reduction:     1823911
+ 
+ Variance of |WF0>:       2.2685786365
+ 
+ The contributions to the second order correlation energy in atomic units.
+-----------------------------------------------------------------------------------------------------------------------------
+  IT.      VJTU        VJTI        ATVX        AIVX        VJAI        BVAT        BJAT        BJAI        TOTAL       RNORM  
+-----------------------------------------------------------------------------------------------------------------------------
+   1    -0.001617   -0.003283   -0.039849   -0.106344   -0.021997   -0.083380   -0.165321   -0.308430   -0.730221    0.011863
+   2    -0.001688   -0.003321   -0.040488   -0.106979   -0.022099   -0.083706   -0.165508   -0.308627   -0.732415    0.001907
+   3    -0.001691   -0.003321   -0.040491   -0.107003   -0.022093   -0.083706   -0.165516   -0.308613   -0.732435    0.000381
+   4    -0.001693   -0.003321   -0.040481   -0.106986   -0.022090   -0.083698   -0.165509   -0.308604   -0.732381    0.000084
+   5    -0.001693   -0.003321   -0.040481   -0.106985   -0.022090   -0.083698   -0.165508   -0.308605   -0.732381    0.000018
+   6    -0.001693   -0.003321   -0.040481   -0.106986   -0.022090   -0.083698   -0.165509   -0.308605   -0.732383    0.000005
+   7    -0.001693   -0.003321   -0.040481   -0.106986   -0.022090   -0.083698   -0.165509   -0.308605   -0.732383    0.000001
+-----------------------------------------------------------------------------------------------------------------------------
+ 
+  FINAL CASPT2 RESULT:
+ 
+      Reference energy:        -629.4180327650
+      E2 (Non-variational):      -0.7323833098
+      Shift correction:          -0.0118396003
+      E2 (Variational):          -0.7442229101
+      Total energy:            -630.1622556751
+      Residual norm:              0.0000004186
+      Reference weight:           0.78013
+ 
+      Contributions to the CASPT2 correlation energy
+      Active & Virtual Only:         -0.1241792396
+      One Inactive Excited:          -0.2741877909
+      Two Inactive Excited:          -0.3340162793
+ 
+ 
+++ Denominators, etc.
+--------------------------------------------------------------------------------------------------------------
+ Report on small energy denominators, large coefficients, and large energy contributions.
+CASE  SYMM ACTIVE-MIX  NON-ACTIVE INDICES          DENOMINATOR     RHS VALUE       COEFFICIENT     CONTRIBUTION
+VJTU     1  Mu1.0001  In1.011                      -0.24216709     -0.00000242     -0.00000477      0.00000000
+VJTU     1  Mu1.0001  In1.012                      -0.25137204     -0.00000054     -0.00000188      0.00000000
+ATVX     1  Mu1.0001  Se1.027                       0.20352397      0.00036988     -0.00031268     -0.00000012
+ATVX     1  Mu1.0002  Se1.027                       0.25127641     -0.00014544      0.00012627     -0.00000002
+ATVX     1  Mu1.0001  Se1.028                       0.29297513      0.00011129     -0.00024961     -0.00000003
+ATVX     1  Mu1.0001  Se1.029                       0.27371809     -0.00014628      0.00008675     -0.00000001
+ATVX     1  Mu1.0001  Se1.031                       0.22036121     -0.00002851     -0.00002939      0.00000000
+ATVX     1  Mu1.0002  Se1.031                       0.26811365      0.00058142     -0.00134182     -0.00000078
+ATVX     1  Mu1.0001  Se1.038                       0.17822987      0.00009273     -0.00021259     -0.00000002
+ATVX     1  Mu1.0002  Se1.038                       0.22598231      0.00035713     -0.00086448     -0.00000031
+ATVX     2  Mu2.0001  Se2.021                       0.62499167      0.03152553     -0.04121806     -0.00129942
+ATVX     2  Mu2.0001  Se2.032                       0.10317742      0.00004573     -0.00005438     -0.00000000
+ATVX     2  Mu2.0002  Se2.032                       0.14127680     -0.00112900      0.00144588     -0.00000163
+ATVX     2  Mu2.0003  Se2.032                       0.28055897     -0.00016263      0.00026524     -0.00000004
+ATVX     2  Mu2.0001  Se2.034                       0.25767977     -0.00770341      0.01290914     -0.00009944
+ATVX     2  Mu2.0002  Se2.034                       0.29577915     -0.00017246      0.00023268     -0.00000004
+AIVX     1  Mu1.0001  In1.016 Se1.027               0.17503343      0.00160668     -0.00230548     -0.00000370
+AIVX     1  Mu1.0001  In1.017 Se1.027               0.26828473      0.00006960     -0.00013358     -0.00000001
+AIVX     1  Mu1.0001  In1.018 Se1.027               0.14295327      0.00007622     -0.00008388     -0.00000001
+AIVX     1  Mu1.0001  In1.019 Se1.027               0.26483738     -0.00025412      0.00039996     -0.00000010
+AIVX     1  Mu1.0001  In1.020 Se1.027               0.23184471      0.00016405     -0.00026379     -0.00000004
+AIVX     1  Mu1.0001  In1.016 Se1.028               0.26448459      0.00005388     -0.00007959     -0.00000000
+AIVX     1  Mu1.0001  In1.018 Se1.028               0.23240443      0.00002488     -0.00016244     -0.00000000
+AIVX     1  Mu1.0001  In1.016 Se1.029               0.24522755     -0.00018972      0.00033442     -0.00000006
+AIVX     1  Mu1.0001  In1.018 Se1.029               0.21314739     -0.00002010      0.00009214     -0.00000000
+AIVX     1  Mu1.0001  In1.016 Se1.031               0.19187067     -0.00006889      0.00011142     -0.00000001
+AIVX     1  Mu1.0001  In1.017 Se1.031               0.28512197     -0.00097882      0.00165914     -0.00000162
+AIVX     1  Mu1.0001  In1.018 Se1.031               0.15979051      0.00026388     -0.00035873     -0.00000009
+AIVX     1  Mu1.0001  In1.019 Se1.031               0.28167462     -0.00021316      0.00043377     -0.00000009
+AIVX     1  Mu1.0001  In1.020 Se1.031               0.24868195      0.00106824     -0.00175492     -0.00000187
+AIVX     1  Mu1.0001  In1.016 Se1.038               0.14973933      0.00003406     -0.00003315     -0.00000000
+AIVX     1  Mu1.0001  In1.017 Se1.038               0.24299063     -0.00294810      0.00492739     -0.00001453
+AIVX     1  Mu1.0001  In1.018 Se1.038               0.11765917     -0.00041996      0.00045542     -0.00000019
+AIVX     1  Mu1.0001  In1.019 Se1.038               0.23954328     -0.00045867      0.00080580     -0.00000037
+AIVX     1  Mu1.0001  In1.020 Se1.038               0.20655061      0.00056352     -0.00090285     -0.00000051
+BVATP    1  Mu1.0001  Se1.038 Se1.027               0.29618581     -0.00045145      0.00075570     -0.00000034
+BVATP    1  Mu1.0001  Se1.038 Se1.038               0.27089171     -0.00003658      0.00005601     -0.00000000
+BVATP    1  Mu1.0002  Se1.038 Se1.038               0.29968493      0.00023853     -0.00039521     -0.00000009
+BVATM    1  Mu1.0001  Se1.038 Se1.027               0.29569612     -0.00000381      0.00000475     -0.00000000
+--
+ 
+   (Skipping property calculation,
+    use PROP keyword to activate)
+--
+ 
+++ CASPT2 computation for group   3
+ 
+********************************************************************************
+ Multi-State initialization phase begins for group   3
+--------------------------------------------------------------------------------
+********************************************************************************
+ Compute H0 matrices for state    3
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+ H0 matrices have been computed.
+ 
+********************************************************************************
+  CASPT2 EQUATION SOLUTION
+--------------------------------------------------------------------------------
+ 
+  Total nr of CASPT2 parameters:
+   Before reduction:     1826198
+   After  reduction:     1823911
+ 
+ Variance of |WF0>:       2.3510635381
+ 
+ The contributions to the second order correlation energy in atomic units.
+-----------------------------------------------------------------------------------------------------------------------------
+  IT.      VJTU        VJTI        ATVX        AIVX        VJAI        BVAT        BJAT        BJAI        TOTAL       RNORM  
+-----------------------------------------------------------------------------------------------------------------------------
+   1    -0.002682   -0.003118   -0.052936   -0.124337   -0.020756   -0.085874   -0.167333   -0.308236   -0.765272    0.012979
+   2    -0.002840   -0.003164   -0.053676   -0.125140   -0.020882   -0.086257   -0.167596   -0.308494   -0.768048    0.002549
+   3    -0.002847   -0.003164   -0.053684   -0.125186   -0.020874   -0.086264   -0.167623   -0.308478   -0.768119    0.000663
+   4    -0.002850   -0.003163   -0.053658   -0.125150   -0.020868   -0.086247   -0.167607   -0.308461   -0.768003    0.000196
+   5    -0.002850   -0.003163   -0.053657   -0.125148   -0.020868   -0.086246   -0.167605   -0.308462   -0.767999    0.000060
+   6    -0.002850   -0.003163   -0.053658   -0.125151   -0.020869   -0.086247   -0.167607   -0.308463   -0.768009    0.000017
+   7    -0.002850   -0.003163   -0.053658   -0.125151   -0.020869   -0.086247   -0.167607   -0.308463   -0.768009    0.000005
+   8    -0.002850   -0.003163   -0.053658   -0.125151   -0.020869   -0.086247   -0.167607   -0.308463   -0.768008    0.000001
+-----------------------------------------------------------------------------------------------------------------------------
+ 
+  FINAL CASPT2 RESULT:
+ 
+      Reference energy:        -629.3359987603
+      E2 (Non-variational):      -0.7680084133
+      Shift correction:          -0.0141440739
+      E2 (Variational):          -0.7821524873
+      Total energy:            -630.1181512475
+      Residual norm:              0.0000003775
+      Reference weight:           0.76672
+ 
+      Contributions to the CASPT2 correlation energy
+      Active & Virtual Only:         -0.1399056015
+      One Inactive Excited:          -0.2956081401
+      Two Inactive Excited:          -0.3324946717
+ 
+ 
+++ Denominators, etc.
+--------------------------------------------------------------------------------------------------------------
+ Report on small energy denominators, large coefficients, and large energy contributions.
+CASE  SYMM ACTIVE-MIX  NON-ACTIVE INDICES          DENOMINATOR     RHS VALUE       COEFFICIENT     CONTRIBUTION
+ATVX     1  Mu1.0001  Se1.038                       0.29194450     -0.00374698      0.00639983     -0.00002398
+ATVX     2  Mu2.0001  Se2.010                       0.29982171     -0.00183584      0.00114926     -0.00000211
+ATVX     2  Mu2.0017  Se2.010                       0.87903927     -0.02562302      0.02619558     -0.00067121
+ATVX     2  Mu2.0007  Se2.011                       1.17673689      0.03190224     -0.02540425     -0.00081045
+ATVX     2  Mu2.0001  Se2.032                       0.08362344      0.01076265     -0.00914369     -0.00009841
+ATVX     2  Mu2.0002  Se2.032                       0.17219282      0.00007361     -0.00010941     -0.00000001
+ATVX     2  Mu2.0003  Se2.032                       0.25624168     -0.01453203      0.02404533     -0.00034943
+ATVX     2  Mu2.0001  Se2.034                       0.21234471      0.00025834     -0.00012026     -0.00000003
+AIVX     1  Mu1.0001  In1.016 Se1.027               0.17650112      0.00041179     -0.00094743     -0.00000039
+AIVX     1  Mu1.0001  In1.017 Se1.027               0.28283034      0.00066778     -0.00103893     -0.00000069
+AIVX     1  Mu1.0001  In1.018 Se1.027               0.15804299     -0.00239231      0.00330172     -0.00000790
+AIVX     1  Mu1.0001  In1.019 Se1.027               0.28075762      0.00109413     -0.00168538     -0.00000184
+AIVX     1  Mu1.0001  In1.020 Se1.027               0.25466951      0.00467853     -0.00824261     -0.00003856
+AIVX     1  Mu1.0001  In1.016 Se1.028               0.25983761      0.00433192     -0.00614087     -0.00002660
+AIVX     1  Mu1.0001  In1.018 Se1.028               0.24137948     -0.00163018      0.00244760     -0.00000399
+AIVX     1  Mu1.0001  In1.016 Se1.029               0.24197964     -0.00230378      0.00314291     -0.00000724
+AIVX     1  Mu1.0001  In1.018 Se1.029               0.22352151     -0.00344463      0.00584523     -0.00002013
+AIVX     1  Mu1.0001  In1.016 Se1.031               0.18900789      0.00640208     -0.01052423     -0.00006738
+AIVX     1  Mu1.0001  In1.017 Se1.031               0.29533711      0.00175858     -0.00332451     -0.00000585
+AIVX     1  Mu1.0001  In1.018 Se1.031               0.17054976      0.00050886     -0.00043616     -0.00000022
+AIVX     1  Mu1.0001  In1.019 Se1.031               0.29326438     -0.00136076      0.00218256     -0.00000297
+AIVX     1  Mu1.0001  In1.020 Se1.031               0.26717627     -0.00052250      0.00080633     -0.00000042
+AIVX     1  Mu1.0001  In1.016 Se1.038               0.15478033      0.00045742     -0.00080728     -0.00000037
+AIVX     1  Mu1.0001  In1.017 Se1.038               0.26110954      0.00080133     -0.00191227     -0.00000153
+AIVX     1  Mu1.0001  In1.018 Se1.038               0.13632220     -0.00007687      0.00033527     -0.00000003
+AIVX     1  Mu1.0001  In1.019 Se1.038               0.25903682     -0.00058493      0.00092383     -0.00000054
+AIVX     1  Mu1.0001  In1.020 Se1.038               0.23294871      0.00040568     -0.00077055     -0.00000031
+BVATP    1  Mu1.0001  Se1.038 Se1.027               0.29538152     -0.00006298      0.00009806     -0.00000001
+BVATP    1  Mu1.0001  Se1.038 Se1.038               0.27366073     -0.00003295      0.00007155     -0.00000000
+--
+ 
+   (Skipping property calculation,
+    use PROP keyword to activate)
+--
+ 
+  Total CASPT2 energies:
+::    CASPT2 Root  1     Total energy:   -630.32738209
+::    CASPT2 Root  2     Total energy:   -630.16225568
+::    CASPT2 Root  3     Total energy:   -630.11815125
+ 
+++ Multi-State CASPT2 section:
+********************************************************************************
+  MULTI-STATE CASPT2 SECTION
+--------------------------------------------------------------------------------
+ 
+  Output diagonal energies have been shifted. Add   -630.000000000000     
+ 
+  Effective Hamiltonian matrix (Symmetric):
+ 
+                1               2               3
+   1        -0.32738209
+   2         0.00001449     -0.16225568
+   3        -0.00177770      0.00018195     -0.11815125
+ 
+       Total MS-CASPT2 energies:
+::    MS-CASPT2 Root  1     Total energy:   -630.32739719
+::    MS-CASPT2 Root  2     Total energy:   -630.16225642
+::    MS-CASPT2 Root  3     Total energy:   -630.11813540
+ 
+       Eigenvectors:
+            0.99996391      0.00013209     -0.00849504
+           -0.00009708      0.99999150      0.00412098
+            0.00849551     -0.00412000      0.99995542
+ 
+--
+ 
+  THE ORIGINAL CI ARRAYS ARE NOW MIXED AS LINEAR
+  COMBINATIONS, GIVEN BY THE EIGENVECTORS.
+  A NEW JOBIPH FILE NAMED 'JOBMIX' IS PREPARED.
+********************************************************************************
+ 
+++ Mixed CI coefficients:
+  The CI coefficients for the MIXED state nr.   1
+--------------------------------------------------------------------------------
+ CI COEFFICIENTS LARGER THAN  5.00E-02
+  Occupation of active orbitals, and spin coupling
+  of open shells. (u,d: Spin up or down).
+  SGUGA info is (Midvert:IsyUp:UpperWalk/LowerWalk)
+        Conf  SGUGA info        Occupation            Coefficient         Weight
+       20077  ( 6:1:   1/  35)   22 2 2200 2222000      -0.916895       0.840696
+       20084  ( 6:1:   8/  35)   22 2 2200 2202200       0.055681       0.003100
+       20089  ( 6:1:  13/  35)   22 2 2200 2u220d0       0.050560       0.002556
+       20094  ( 6:1:  18/  35)   22 2 2200 2ud2ud0      -0.055407       0.003070
+       20098  ( 6:1:  22/  35)   22 2 2200 2uu2dd0       0.066111       0.004371
+       20112  ( 6:1:  36/  35)   22 2 2200 2022020       0.145363       0.021130
+       20149  ( 6:1:  73/  35)   22 2 2200 2u2d0ud      -0.063672       0.004054
+       20151  ( 6:1:  75/  35)   22 2 2200 2ud20ud       0.081505       0.006643
+       21652  ( 6:1:   1/  44)   22 2 0220 2222000       0.084377       0.007119
+       22178  ( 6:1:   2/  47)   22 2 2u0d 222ud00       0.050124       0.002512
+       26727  ( 6:1:   1/  73)   22 2 2002 2222000       0.089759       0.008057
+       54328  ( 9:2:   1/  17)   22 2 2200 u222d00       0.116062       0.013470
+       54330  ( 9:2:   3/  17)   22 2 2200 u2d2200       0.075405       0.005686
+       54335  ( 9:2:   8/  17)   22 2 2200 ud22ud0      -0.096294       0.009273
+       54338  ( 9:2:  11/  17)   22 2 2200 uu22dd0      -0.112015       0.012547
+       54369  ( 9:2:  42/  17)   22 2 2200 u22du0d       0.060687       0.003683
+       54370  ( 9:2:  43/  17)   22 2 2200 u2d2u0d      -0.051234       0.002625
+       87508  (10:1:   1/   1)   22 2 2200 0222200       0.102389       0.010484
+ 
+  The CI coefficients for the MIXED state nr.   2
+--------------------------------------------------------------------------------
+ CI COEFFICIENTS LARGER THAN  5.00E-02
+  Occupation of active orbitals, and spin coupling
+  of open shells. (u,d: Spin up or down).
+  SGUGA info is (Midvert:IsyUp:UpperWalk/LowerWalk)
+        Conf  SGUGA info        Occupation            Coefficient         Weight
+       20080  ( 6:1:   4/  35)   22 2 2200 2u22d00       0.575719       0.331453
+       20083  ( 6:1:   7/  35)   22 2 2200 2u2d200      -0.075659       0.005724
+       20085  ( 6:1:   9/  35)   22 2 2200 2ud2200       0.104818       0.010987
+       20087  ( 6:1:  11/  35)   22 2 2200 222u0d0       0.058351       0.003405
+       20088  ( 6:1:  12/  35)   22 2 2200 22u20d0       0.203755       0.041516
+       20093  ( 6:1:  17/  35)   22 2 2200 2202ud0      -0.094643       0.008957
+       20109  ( 6:1:  33/  35)   22 2 2200 2u2d020       0.083496       0.006972
+       20111  ( 6:1:  35/  35)   22 2 2200 2ud2020      -0.117649       0.013841
+       20134  ( 6:1:  58/  35)   22 2 2200 2ud2u0d      -0.082319       0.006776
+       20152  ( 6:1:  76/  35)   22 2 2200 20220ud      -0.130022       0.016906
+       21655  ( 6:1:   4/  44)   22 2 0220 2u22d00      -0.053034       0.002813
+       26730  ( 6:1:   4/  73)   22 2 2002 2u22d00      -0.056839       0.003231
+       54331  ( 9:2:   4/  17)   22 2 2200 ud22200      -0.079941       0.006391
+       54332  ( 9:2:   5/  17)   22 2 2200 u2220d0       0.622090       0.386996
+       54333  ( 9:2:   6/  17)   22 2 2200 u22dud0       0.119404       0.014257
+       54334  ( 9:2:   7/  17)   22 2 2200 u2d2ud0      -0.145500       0.021170
+       54344  ( 9:2:  17/  17)   22 2 2200 u2022d0      -0.062254       0.003876
+       54371  ( 9:2:  44/  17)   22 2 2200 ud22u0d      -0.172178       0.029645
+       54385  ( 9:2:  58/  17)   22 2 2200 u2d20ud       0.076178       0.005803
+       54491  ( 9:2: 164/  17)   22 2 2200 u0220d2       0.060382       0.003646
+       56222  ( 9:2:   5/  26)   22 2 0220 u2220d0      -0.056987       0.003247
+       62312  ( 9:2:   5/  55)   22 2 2002 u2220d0      -0.058398       0.003410
+       87527  (10:1:  20/   1)   22 2 2200 02220ud       0.111010       0.012323
+ 
+  The CI coefficients for the MIXED state nr.   3
+--------------------------------------------------------------------------------
+ CI COEFFICIENTS LARGER THAN  5.00E-02
+  Occupation of active orbitals, and spin coupling
+  of open shells. (u,d: Spin up or down).
+  SGUGA info is (Midvert:IsyUp:UpperWalk/LowerWalk)
+        Conf  SGUGA info        Occupation            Coefficient         Weight
+       20077  ( 6:1:   1/  35)   22 2 2200 2222000       0.075862       0.005755
+       20078  ( 6:1:   2/  35)   22 2 2200 222ud00      -0.121717       0.014815
+       20079  ( 6:1:   3/  35)   22 2 2200 22u2d00      -0.236467       0.055917
+       20084  ( 6:1:   8/  35)   22 2 2200 2202200      -0.059175       0.003502
+       20086  ( 6:1:  10/  35)   22 2 2200 2022200      -0.074245       0.005512
+       20089  ( 6:1:  13/  35)   22 2 2200 2u220d0      -0.159564       0.025461
+       20092  ( 6:1:  16/  35)   22 2 2200 2u2dud0       0.073716       0.005434
+       20127  ( 6:1:  51/  35)   22 2 2200 222u00d      -0.064470       0.004156
+       20128  ( 6:1:  52/  35)   22 2 2200 22u200d      -0.081544       0.006649
+       22178  ( 6:1:   2/  47)   22 2 2u0d 222ud00       0.084601       0.007157
+       54328  ( 9:2:   1/  17)   22 2 2200 u222d00       0.844818       0.713718
+       54335  ( 9:2:   8/  17)   22 2 2200 ud22ud0       0.146990       0.021606
+       54349  ( 9:2:  22/  17)   22 2 2200 u2d2020      -0.062555       0.003913
+       54356  ( 9:2:  29/  17)   22 2 2200 u202d20       0.056068       0.003144
+       54359  ( 9:2:  32/  17)   22 2 2200 u022d20       0.094032       0.008842
+       54373  ( 9:2:  46/  17)   22 2 2200 u2u2d0d      -0.057683       0.003327
+       54386  ( 9:2:  59/  17)   22 2 2200 ud220ud      -0.074408       0.005537
+       54394  ( 9:2:  67/  17)   22 2 2200 uud2dud       0.074491       0.005549
+       56218  ( 9:2:   1/  26)   22 2 0220 u222d00      -0.076659       0.005877
+       62308  ( 9:2:   1/  55)   22 2 2002 u222d00      -0.073468       0.005398
+       87508  (10:1:   1/   1)   22 2 2200 0222200       0.089086       0.007936
+       87523  (10:1:  16/   1)   22 2 2200 0222u0d      -0.057669       0.003326
+ 
+--
+ 
+--- Stop Module: caspt2 at Wed May 13 17:10:12 2026 /rc=_RC_ALL_IS_WELL_ ---
+*** files: xmldump
+    saved to directory /iridisfs/home/ka3f26/thiophenol/symm/s2p/AS1/caspt2_dz
+--- Module caspt2 spent 8 minutes 55 seconds ---
+
+>>> COPY valence-a.JobMix /iridisfs/home/ka3f26/thiophenol/symm/s2p/AS1/caspt2_dz/valence-a.JobMix
+
+.##################.
+.# Happy landing! #.
+.##################.
+
+    Timing: Wall=540.74 User=530.39 System=6.61
+*************************************************
+*** WorkDir at /tmp/valence-a.1923540 removed ***
+*************************************************
