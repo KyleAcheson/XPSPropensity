@@ -129,9 +129,8 @@ lack orbital energies and populations, so a CASPT2 calculation reads them from
 the RASSCF HDF5 file it was built on (`mcscf_file`). Calculations run with
 symmetry are read (MOs in the AO basis, an irrep per orbital and state, IDs such
 as `mo:34_i1` for the 34th MO of irrep 1), including FCIDUMP files written
-with symmetry; the overlaps method and the first-order core-hole potential use
-symmetry, the all-orders core-hole potential does not yet. Every file's AO
-overlap is checked against Molcas's own.
+with symmetry; the overlaps method and the core-hole potential (both orders)
+use it. Every file's AO overlap is checked against Molcas's own.
 
 ### Package structure
 

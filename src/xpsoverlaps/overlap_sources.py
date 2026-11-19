@@ -170,6 +170,9 @@ class AllOrdersCoreHoleOverlaps(CoreHoleOverlaps):
 
     The eigenvectors of diag(e) - J_c over the valence (RAS2 and RAS3) orbitals
     are the relaxed orbitals to all orders in v = -J_c (``docs/chp_all_orders.tex``).
+    With point-group symmetry J_c is block-diagonal by irrep, and each irrep's
+    block is diagonalised on its own, so every relaxed orbital keeps its irrep
+    and orbitals of different irreps at the same energy are not a degeneracy.
     They are named ``chp:1``, ``chp:2``, ... by increasing eigenvalue and assigned
     to the initial orbitals by the orbital mapping of the overlaps method
     (largest overlap, contested orbitals by AO composition, the same warnings),
@@ -203,14 +206,9 @@ class AllOrdersCoreHoleOverlaps(CoreHoleOverlaps):
     def __init__(self, coulomb: CoulombMatrix, energies: Mapping[str, float], initial: Calculation) -> None:
         super().__init__(coulomb, energies)
         ids = coulomb.orbital_ids
-        levels, eigenvectors = np.linalg.eigh(np.diag([energies[o] for o in ids]) - coulomb.values)
+        levels, eigenvectors = self._diagonalise_by_irrep(np.diag([energies[o] for o in ids]) - coulomb.values,
+                                                          ids, initial)
         relaxed_ids = [f"chp:{n}" for n in range(1, len(ids) + 1)]
-        degenerate = np.flatnonzero(np.diff(levels) < CHP_DEGENERACY)
-        if degenerate.size:
-            pairs = ", ".join(f"{relaxed_ids[n]} and {relaxed_ids[n + 1]} at E = {levels[n]:+.6f}"
-                              for n in degenerate)
-            raise ValueError(f"diag(e) - J_c of core orbital {coulomb.core} has degenerate eigenvalues ({pairs}): "
-                             "the relaxed orbitals are undefined.")
         coefficients = initial.orbitals.coefficients[:, [initial.orbitals.orbital_ids.index(o) for o in ids]]
         provider = get_overlap_provider(initial.basis, initial.basis)
         compositions = (orbital_compositions_from_coefficients(initial, coefficients, ids, provider),
@@ -224,6 +222,32 @@ class AllOrdersCoreHoleOverlaps(CoreHoleOverlaps):
             eigenvectors[:, column] *= np.sign(eigenvectors[ids.index(match.initial_id), column])
         self.relaxed_energies = dict(zip(relaxed_ids, levels))  # eigenvalue E of each relaxed orbital
         self.mapping = match_active_orbitals(eigenvectors, ids, relaxed_ids, ids, relaxed_ids, *compositions)
+
+    @staticmethod
+    def _diagonalise_by_irrep(matrix: np.ndarray, ids: Sequence[str], initial: Calculation):
+        """Eigenvalues (increasing) and eigenvectors (columns) of ``matrix``, found irrep block by irrep block.
+
+        A degeneracy within an irrep leaves the relaxed orbitals undefined and is an error.
+        """
+        irrep_of = dict(zip(initial.orbitals.orbital_ids, initial.orbitals.irreps))
+        found = []  # (eigenvalue, full eigenvector)
+        for irrep in dict.fromkeys(irrep_of[o] for o in ids):
+            rows = [n for n, o in enumerate(ids) if irrep_of[o] == irrep]
+            if np.any(matrix[np.ix_(rows, [n for n in range(len(ids)) if n not in rows])]):
+                raise ValueError(f"diag(e) - J_c couples orbitals of irrep {irrep} to other irreps; "
+                                 "(pq|cc) must vanish between irreps.")
+            values, vectors = np.linalg.eigh(matrix[np.ix_(rows, rows)])
+            close = np.flatnonzero(np.diff(values) < CHP_DEGENERACY)
+            if close.size:
+                raise ValueError(
+                    "diag(e) - J_c has degenerate eigenvalues in irrep "
+                    f"{irrep} (E = {', '.join(f'{values[n]:+.6f}' for n in close)}): the relaxed orbitals are undefined.")
+            for value, vector in zip(values, vectors.T):
+                full = np.zeros(len(ids))
+                full[rows] = vector
+                found.append((value, full))
+        found.sort(key=lambda pair: pair[0])
+        return np.array([value for value, _ in found]), np.column_stack([vector for _, vector in found])
 
     def overlap(self, a: str, b: str) -> float:
         return self.mapping.overlap(b, self.mapping.final_id(a))

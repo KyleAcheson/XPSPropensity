@@ -201,3 +201,15 @@ def test_chp_rejects_two_initial_blocks_of_the_same_irrep(tmp_path, capsys):
                                           "Initial": [block, block]}), encoding="utf-8")
     assert main_module.main(["-i", str(input_file), "-o", str(tmp_path / "chp.out")]) == 1
     assert "Initial 1 and Initial 2 have the same irrep A'" in capsys.readouterr().err
+
+
+def test_all_orders_chp_runs_every_initial_block_with_the_same_labels(tmp_path):
+    output = tmp_path / "chp_all.out"
+    assert main_module.main(["-i", str(ROOT / "examples" / "thiophenol" / "singlet" / "input_chp_all.yaml"),
+                             "-o", str(output)]) == 0
+    text = output.read_text(encoding="utf-8")
+    for title, core in ((C1, 'mo:1_i2 (a") -> final A"'), (C2, "mo:1_i2 (a\") -> final A'")):
+        part = _part(text, title)
+        assert f"Core hole in {core}" in part
+        assert "Relaxed orbitals chp:n (eigenvectors of diag(e) - J_c" in part
+    assert "Summary over all initial calculations (core-hole potential)" in text

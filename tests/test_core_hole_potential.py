@@ -418,3 +418,37 @@ def test_chp_to_all_orders_warns_once_about_ambiguous_assignments(output_all_ord
     _, warnings = output_all_orders
 
     assert len(warnings) == 1 and warnings[0].startswith("3 mapping warnings for relaxed orbitals")
+
+
+# --- All orders with point-group symmetry ------------------------------------
+
+THIOPHENOL = Path(__file__).parents[1] / "data" / "molcas" / "thiophenol" / "s2p" / "dz"
+
+
+@pytest.fixture(scope="module")
+def thiophenol():
+    return get_calculation("molcas", "rasscf", THIOPHENOL / "valence-dz-a.rasscf.h5", THIOPHENOL / "valence-dz-a.log")
+
+
+def test_all_orders_relaxes_each_irrep_on_its_own(thiophenol):
+    # Orbitals of different irreps at the same energy are no degeneracy with symmetry: diag(e) - J_c is
+    # diagonalised irrep block by irrep block, so they neither mix nor make the relaxed orbitals undefined.
+    ids = ["mo:24_i1", "mo:25_i1", "mo:5_i2", "mo:6_i2"]
+    energies = {"mo:24_i1": -0.6, "mo:25_i1": 0.4, "mo:5_i2": -0.6, "mo:6_i2": 0.4}
+    S = AllOrdersCoreHoleOverlaps(CoulombMatrix("mo:21_i1", ids, np.zeros((4, 4))), energies, thiophenol)
+
+    np.testing.assert_array_equal([[S.overlap(a, b) for b in ids] for a in ids], np.eye(4))
+
+
+def test_all_orders_overlaps_vanish_between_irreps(thiophenol):
+    integrals = StoredIntegrals(get_active_integrals("molcas", THIOPHENOL / "valence-dz-a.FciDmp.h5", thiophenol))
+    valence = [o for o, p in zip(thiophenol.active_space.orbital_ids, thiophenol.active_space.partitions) if p == "2"]
+    energies = dict(zip(thiophenol.orbitals.orbital_ids, thiophenol.orbitals.energies))
+    irrep = dict(zip(thiophenol.orbitals.orbital_ids, thiophenol.orbitals.irreps))
+    for core in ("mo:21_i1", "mo:1_i2"):
+        S = AllOrdersCoreHoleOverlaps(integrals.coulomb([core], valence)[core], energies, thiophenol)
+        for a in valence:
+            assert S.overlap(a, a) > 0.5
+            for b in valence:
+                if irrep[a] != irrep[b]:
+                    assert S.overlap(a, b) == 0.0
