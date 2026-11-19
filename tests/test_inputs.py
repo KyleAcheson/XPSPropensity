@@ -80,6 +80,36 @@ def test_chp_inputs_are_checked(tmp_path, mutate, message):
     assert message in str(excinfo.value)
 
 
+@pytest.mark.parametrize("given,loaded", [(None, 1), (1, 1), ("all", "all"), (" ALL ", "all")])
+def test_chp_order_defaults_to_first_order_and_accepts_all(tmp_path, given, loaded):
+    (tmp_path / "valence.FciDmp.h5").write_bytes(b"")
+    data = _chp_input()
+    if given is not None:
+        data["Calculator"]["order"] = given
+
+    assert load_input(_write(tmp_path, data))["Calculator"]["order"] == loaded
+
+
+@pytest.mark.parametrize("order", [2, 0, "first", "1", True, 1.5])
+def test_chp_order_is_1_or_all(tmp_path, order):
+    (tmp_path / "valence.FciDmp.h5").write_bytes(b"")
+    data = _chp_input()
+    data["Calculator"]["order"] = order
+
+    with pytest.raises(InputError, match="Calculator.order"):
+        load_input(_write(tmp_path, data))
+
+
+def test_order_is_only_used_with_method_chp(tmp_path):
+    data = _valid_input()
+    data["Calculator"]["order"] = 1
+
+    with pytest.raises(InputError, match="Calculator.order: only used with method 'chp'"):
+        load_input(_write(tmp_path, data))
+    del data["Calculator"]["order"]
+    assert "order" not in load_input(_write(tmp_path, data))["Calculator"]
+
+
 def test_choice_values_are_case_insensitive_but_paths_are_not(tmp_path):
     data = _valid_input()
     data["Calculator"] = {"program": "Molcas", "method": "OVERLAPS"}

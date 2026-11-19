@@ -1,0 +1,434 @@
+================================================================================
+                            XPSoverlaps Calculation
+================================================================================
+
+Input:
+Calculator:
+  program: molcas
+  method: chp
+  order: all
+Initial:
+  type: caspt2
+  wf_file: /home/ka3f26/XPSoverlaps/data/molcas/brthph/s2p/mb/valence_caspt2.caspt2.h5
+  state_file: /home/ka3f26/XPSoverlaps/data/molcas/brthph/s2p/mb/valence_caspt2.log
+  mcscf_file: /home/ka3f26/XPSoverlaps/data/molcas/brthph/s2p/mb/valence.rasscf.h5
+  fcidump_file: /home/ka3f26/XPSoverlaps/data/molcas/brthph/s2p/mb/valence.FciDmp.h5
+  max_state: 4
+
+--------------------------------------------------------------------------------
+
+********************************************************************************
+* NOTE: The CI vectors below are printed exactly as read, each in its own
+* calculation's active-orbital order. They are NOT yet mapped onto a common
+* orbital ordering, so Initial and Final occupation strings cannot be
+* compared position by position.
+********************************************************************************
+
+Initial states (CASPT2): 10 states
+CI vector orbital order: mo:31 ... mo:42
+
+State       Energy (Eh)  Spin (S)  Dominant CI vector    Weight
+---------------------------------------------------------------
+    1    -3157.05052010       0.0  222222222000          0.9052
+    2    -3156.86366202       0.0  222u22222d00          0.7977
+    3    -3156.85507376       0.0  2222222u2d00          0.6988
+    4    -3156.85235997       0.0  222u222220d0          0.7672
+    5    -3156.80330238       0.0  2222222u20d0          0.7912
+    6    -3156.79635533       0.0  222222u220d0          0.8786
+    7    -3156.78438326       0.0  222022222200          0.2624
+    8    -3156.77654330       0.0  222222u22d00          0.8335
+    9    -3156.76618510       0.0  22222u222d00          0.4270
+   10    -3156.76484566       0.0  22222u2220d0          0.7321
+
+--------------------------------------------------------------------------------
+
+Orbital order
+
+Initial RAS2 occupied/virtual from the reference state 1; ordered by state-averaged
+population (lowest occupied = HOMO, highest virtual = LUMO). RAS1 orbitals are core and not ranked.
+Populations are state-averaged over each calculation's roots; energies are the stored
+diagonal Fock elements.
+HOMO/LUMO from the populations (not given in the input).
+
+Initial
+Label     MO        Population      Energy
+LUMO+2    mo:42         0.1516      0.2171
+LUMO+1    mo:41         0.4372      0.1017
+LUMO      mo:40         0.5547      0.0556
+HOMO      mo:34         1.5967     -0.2721
+HOMO-1    mo:38         1.7416     -0.3299
+HOMO-2    mo:37         1.7993     -0.4045
+HOMO-3    mo:36         1.8101     -0.4252
+HOMO-4    mo:39         1.9423     -0.5281
+HOMO-5    mo:35         1.9666     -0.6051
+core      mo:31         2.0000     -6.7656
+core      mo:32         2.0000     -7.5674
+core      mo:33         2.0000     -6.6816
+
+--------------------------------------------------------------------------------
+
+Shake-down transitions between initial states
+
+Active orbitals: mo:31 ... mo:42;  HOMO = mo:34, LUMO = mo:40
+Reference (ground) state: 1;  states considered: 1..4 (max_state = 4)
+
+State  Configuration  Excitation from the reference
+    1  222222222000   reference
+    2  222u22222d00   mo:34 -> mo:40
+    3  2222222u2d00   mo:38 -> mo:40
+    4  222u222220d0   mo:34 -> mo:41
+
+  a -> b  Config a       Config b       Electron         Case    i      j      k      d       Status
+  2 -> 1  222u22222d00   222222222000   mo:40 -> mo:34   3e GS   mo:34  -      mo:40  -       ok
+  3 -> 1  2222222u2d00   222222222000   mo:40 -> mo:38   5e GS   mo:38  mo:34  mo:40  -       ok
+  3 -> 2  2222222u2d00   222u22222d00   mo:34 -> mo:38   5e ES   mo:38  mo:34  mo:40  -       ok
+  4 -> 1  222u222220d0   222222222000   mo:41 -> mo:34   3e GS   mo:34  -      mo:41  -       ok
+  4 -> 2  222u222220d0   222u22222d00   mo:41 -> mo:40   3e ES   mo:34  mo:40  mo:41  -       ok
+
+5 transitions: 5 computable, 0 not computable.
+d: HOMO, doubly occupied in both states and left out of the rule.
+
+--------------------------------------------------------------------------------
+
+Core-hole overlaps
+
+S_ab = <phi_a|psi_b> = U_ba, U the eigenvectors of diag(e) - J_c over the valence (RAS2, RAS3)
+orbitals: initial orbital a relaxed to all orders in the core-hole potential -J_c of core orbital c
+(rows), with initial orbital b (columns). Each eigenvector is assigned to an initial orbital by the
+orbital mapping (largest overlap, contested orbitals by AO composition), with the phase S_aa > 0;
+* marks an orbital whose assignment has a mapping warning. S is orthogonal, not antisymmetric.
+Coulomb only, so every final spin has the same overlaps.
+Integrals (pq|cc): integral file /home/ka3f26/XPSoverlaps/data/molcas/brthph/s2p/mb/valence.FciDmp.h5.
+Energies e: initial orbital energies (stored diagonal Fock elements).
+
+Core hole in mo:31
+                      mo:35    mo:39    mo:36    mo:37   mo:38*    mo:34    mo:40    mo:41    mo:42
+HOMO-5    mo:35     +0.9955  +0.0000  -0.0000  -0.0515  +0.0000  +0.0000  -0.0000  -0.0795  -0.0000
+HOMO-4    mo:39     -0.0000  +0.7959  -0.2741  -0.0000  +0.5243  +0.0457  +0.1191  -0.0000  -0.0129
+HOMO-3    mo:36     -0.0000  -0.1396  +0.7336  -0.0000  +0.5455  +0.3687  +0.0718  -0.0000  -0.0609
+HOMO-2    mo:37     +0.0528  -0.0000  -0.0000  +0.9985  +0.0000  +0.0000  +0.0000  +0.0136  -0.0000
+HOMO-1    mo:38*    +0.0000  -0.5873  -0.5193  -0.0000  +0.5947  -0.0961  +0.1495  -0.0000  +0.0114
+HOMO      mo:34     -0.0000  -0.0454  -0.3352  -0.0000  -0.1904  +0.9194  +0.0103  -0.0000  -0.0620
+LUMO      mo:40     +0.0000  +0.0033  +0.0609  +0.0000  -0.1936  -0.0320  +0.9774  -0.0000  -0.0496
+LUMO+1    mo:41     +0.0786  +0.0000  -0.0000  -0.0177  +0.0000  +0.0000  +0.0000  +0.9967  +0.0000
+LUMO+2    mo:42     -0.0000  +0.0058  +0.0294  +0.0000  +0.0118  +0.0800  +0.0536  -0.0000  +0.9948
+
+Relaxed orbitals chp:n (eigenvectors of diag(e) - J_c, by increasing E), assigned to the initial orbitals by MO overlap
+
+Initial  Final           S   Sim   Runner-up     |S|   Sim   Assigned by
+------------------------------------------------------------------------
+mo:35    chp:2      +0.996  0.91   chp:8       0.079  0.83   overlap
+mo:39    chp:1      +0.796  0.42   chp:3       0.587  0.62   overlap
+mo:36    chp:4      +0.734  0.45   chp:3       0.519  0.43   overlap
+mo:37    chp:5      +0.999  1.00   chp:2       0.052  0.53   overlap
+mo:38*   chp:3      +0.595  0.40   chp:4       0.545  0.34   overlap
+mo:34    chp:6      +0.919  0.68   chp:4       0.369  0.67   overlap
+mo:40    chp:7      +0.977  0.86   chp:3       0.150  0.63   overlap
+mo:41    chp:8      +0.997  0.91   chp:2       0.079  0.83   overlap
+mo:42    chp:9      +0.995  0.92   chp:6       0.062  0.43   overlap
+
+Initial           e   Relaxed          E
+mo:35       -0.6051   chp:2      -0.8254
+mo:39       -0.5281   chp:1      -1.0062
+mo:36       -0.4252   chp:4      -0.6086
+mo:37       -0.4045   chp:5      -0.5900
+mo:38*      -0.3299   chp:3      -0.6612
+mo:34       -0.2721   chp:6      -0.5082
+mo:40       +0.0556   chp:7      -0.2201
+mo:41       +0.1017   chp:8      -0.1181
+mo:42       +0.2171   chp:9      -0.0080
+
+Mapping warnings (orbitals marked *):
+  - Close runner-up for mo:38 -> chp:3 (|S| = 0.595, similarity 0.40): chp:4 has |S| = 0.545, similarity 0.34.
+
+Core hole in mo:32
+                      mo:35    mo:39    mo:36    mo:37   mo:38*    mo:34    mo:40    mo:41    mo:42
+HOMO-5    mo:35     +0.9959  +0.0000  -0.0000  -0.0495  +0.0000  +0.0000  -0.0000  -0.0759  -0.0000
+HOMO-4    mo:39     -0.0000  +0.7901  -0.2696  -0.0000  +0.5324  +0.0543  +0.1275  -0.0000  -0.0177
+HOMO-3    mo:36     -0.0000  -0.1650  +0.7349  -0.0000  +0.5643  +0.3252  +0.0732  -0.0000  -0.0560
+HOMO-2    mo:37     +0.0505  -0.0000  +0.0000  +0.9987  +0.0000  +0.0000  +0.0000  +0.0109  -0.0000
+HOMO-1    mo:38*    +0.0000  -0.5883  -0.5436  -0.0000  +0.5720  -0.0943  +0.1490  -0.0000  +0.0108
+HOMO      mo:34     -0.0000  -0.0485  -0.2952  -0.0000  -0.1755  +0.9359  +0.0019  -0.0000  -0.0612
+LUMO      mo:40     +0.0000  -0.0013  +0.0624  +0.0000  -0.1995  -0.0225  +0.9768  -0.0000  -0.0408
+LUMO+1    mo:41     +0.0753  +0.0000  -0.0000  -0.0147  +0.0000  +0.0000  +0.0000  +0.9971  +0.0000
+LUMO+2    mo:42     -0.0000  +0.0081  +0.0269  +0.0000  +0.0161  +0.0769  +0.0449  -0.0000  +0.9955
+
+Relaxed orbitals chp:n (eigenvectors of diag(e) - J_c, by increasing E), assigned to the initial orbitals by MO overlap
+
+Initial  Final           S   Sim   Runner-up     |S|   Sim   Assigned by
+------------------------------------------------------------------------
+mo:35    chp:2      +0.996  0.91   chp:8       0.075  0.83   overlap
+mo:39    chp:1      +0.790  0.41   chp:3       0.588  0.60   overlap
+mo:36    chp:4      +0.735  0.45   chp:3       0.544  0.45   overlap
+mo:37    chp:5      +0.999  1.00   chp:2       0.050  0.53   overlap
+mo:38*   chp:3      +0.572  0.37   chp:4       0.564  0.35   overlap
+mo:34    chp:6      +0.936  0.72   chp:4       0.325  0.66   overlap
+mo:40    chp:7      +0.977  0.86   chp:3       0.149  0.62   overlap
+mo:41    chp:8      +0.997  0.91   chp:2       0.076  0.83   overlap
+mo:42    chp:9      +0.996  0.92   chp:6       0.061  0.43   overlap
+
+Initial           e   Relaxed          E
+mo:35       -0.6051   chp:2      -0.8245
+mo:39       -0.5281   chp:1      -1.0032
+mo:36       -0.4252   chp:4      -0.6029
+mo:37       -0.4045   chp:5      -0.5905
+mo:38*      -0.3299   chp:3      -0.6591
+mo:34       -0.2721   chp:6      -0.5036
+mo:40       +0.0556   chp:7      -0.2157
+mo:41       +0.1017   chp:8      -0.1164
+mo:42       +0.2171   chp:9      -0.0011
+
+Mapping warnings (orbitals marked *):
+  - Close runner-up for mo:38 -> chp:3 (|S| = 0.572, similarity 0.37): chp:4 has |S| = 0.564, similarity 0.35.
+
+Core hole in mo:33
+                      mo:35    mo:39    mo:36    mo:37   mo:38*    mo:34    mo:40    mo:41    mo:42
+HOMO-5    mo:35     +0.9955  +0.0000  -0.0000  -0.0511  +0.0000  +0.0000  -0.0000  -0.0800  -0.0000
+HOMO-4    mo:39     -0.0000  +0.7866  -0.2737  -0.0000  +0.5360  +0.0518  +0.1268  -0.0000  -0.0161
+HOMO-3    mo:36     -0.0000  -0.1433  +0.7436  -0.0000  +0.5373  +0.3600  +0.0685  -0.0000  -0.0600
+HOMO-2    mo:37     +0.0523  -0.0000  -0.0000  +0.9985  +0.0000  +0.0000  +0.0000  +0.0128  -0.0000
+HOMO-1    mo:38*    +0.0000  -0.5984  -0.5097  -0.0000  +0.5914  -0.0953  +0.1522  -0.0000  +0.0105
+HOMO      mo:34     -0.0000  -0.0506  -0.3279  -0.0000  -0.1857  +0.9229  +0.0066  -0.0000  -0.0612
+LUMO      mo:40     +0.0000  +0.0012  +0.0636  +0.0000  -0.1989  -0.0274  +0.9765  -0.0000  -0.0448
+LUMO+1    mo:41     +0.0792  +0.0000  -0.0000  -0.0169  +0.0000  +0.0000  +0.0000  +0.9967  +0.0000
+LUMO+2    mo:42     -0.0000  +0.0073  +0.0284  +0.0000  +0.0144  +0.0791  +0.0489  -0.0000  +0.9951
+
+Relaxed orbitals chp:n (eigenvectors of diag(e) - J_c, by increasing E), assigned to the initial orbitals by MO overlap
+
+Initial  Final           S   Sim   Runner-up     |S|   Sim   Assigned by
+------------------------------------------------------------------------
+mo:35    chp:2      +0.995  0.91   chp:8       0.079  0.83   overlap
+mo:39    chp:1      +0.787  0.41   chp:3       0.598  0.62   overlap
+mo:36    chp:4      +0.744  0.45   chp:3       0.510  0.42   overlap
+mo:37    chp:5      +0.999  1.00   chp:2       0.051  0.53   overlap
+mo:38*   chp:3      +0.591  0.40   chp:4       0.537  0.33   overlap
+mo:34    chp:6      +0.923  0.69   chp:4       0.360  0.67   overlap
+mo:40    chp:7      +0.977  0.86   chp:3       0.152  0.63   overlap
+mo:41    chp:8      +0.997  0.91   chp:2       0.080  0.83   overlap
+mo:42    chp:9      +0.995  0.92   chp:6       0.061  0.43   overlap
+
+Initial           e   Relaxed          E
+mo:35       -0.6051   chp:2      -0.8272
+mo:39       -0.5281   chp:1      -1.0231
+mo:36       -0.4252   chp:4      -0.6089
+mo:37       -0.4045   chp:5      -0.5908
+mo:38*      -0.3299   chp:3      -0.6641
+mo:34       -0.2721   chp:6      -0.5086
+mo:40       +0.0556   chp:7      -0.2215
+mo:41       +0.1017   chp:8      -0.1194
+mo:42       +0.2171   chp:9      -0.0078
+
+Mapping warnings (orbitals marked *):
+  - Close runner-up for mo:38 -> chp:3 (|S| = 0.591, similarity 0.40): chp:4 has |S| = 0.537, similarity 0.33.
+
+--------------------------------------------------------------------------------
+3 mapping warnings for relaxed orbitals (listed under Core-hole overlaps, orbitals marked *): their assignment to an initial orbital is ambiguous.
+
+Propensity rules (core-hole potential)
+
+S_ab = <phi_a|psi_b> = U_ba, all orders, signed (see Core-hole overlaps); * marks a warned assignment.
+Diagonal S_ii, S_jj, S_kk are set to 1; their actual values are reported.
+Non-zero channels: singlet -> GS closed-shell doublet or ES D1; triplet -> ES D2 and Q (GS dark).
+Every channel uses the same overlaps (Coulomb only): Q = 2 D2.
+
+Core hole in mo:31
+------------------
+
+2 -> 1   3e GS   initial S = 0
+  i = mo:34 -> chp:6 (E = -0.5082)   k = mo:40 -> chp:7 (E = -0.2201)
+  S_ik = <phi_mo:34|psi_mo:40> (all orders, phi_mo:34 = chp:6) = 0.0103
+  S_ii = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9194 (set to 1)
+  S_kk = <phi_mo:40|psi_mo:40> (all orders, phi_mo:40 = chp:7) = 0.9774 (set to 1)
+  A = S_ii S_ik = (1)(0.0103) = +0.01026
+  closed-shell doublet: 2 |A|^2 = 2 |S_ii S_ik|^2 = 2 |(+0.01026)|^2 = 0.000211
+
+3 -> 1   5e GS   initial S = 0
+  i = mo:38* -> chp:3 (E = -0.6612)   j = mo:34 -> chp:6 (E = -0.5082)   k = mo:40 -> chp:7 (E = -0.2201)
+  S_ij = <phi_mo:38*|psi_mo:34> (all orders, phi_mo:38* = chp:3) = -0.0961
+  S_ji = <phi_mo:34|psi_mo:38*> (all orders, phi_mo:34 = chp:6) = -0.1904
+  S_jk = <phi_mo:34|psi_mo:40> (all orders, phi_mo:34 = chp:6) = 0.0103
+  S_ik = <phi_mo:38*|psi_mo:40> (all orders, phi_mo:38* = chp:3) = 0.1495
+  S_ii = <phi_mo:38*|psi_mo:38*> (all orders, phi_mo:38* = chp:3) = 0.5947 (set to 1)   below 0.9: weak-relaxation approximation poor
+  S_jj = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9194 (set to 1)
+  S_kk = <phi_mo:40|psi_mo:40> (all orders, phi_mo:40 = chp:7) = 0.9774 (set to 1)
+  M1 = S_ii S_jj - S_ij S_ji = (1)(1) - (-0.0961)(-0.1904) = +0.98170
+  M3 = S_ij S_jk - S_ik S_jj = (-0.0961)(0.0103) - (0.1495)(1) = -0.15051
+  A = M1 M3 = (+0.98170)(-0.15051) = -0.14776
+  closed-shell doublet: 2 |A|^2 = 2 |M1 M3|^2 = 2 |(-0.14776)|^2 = 0.043665
+
+3 -> 2   5e ES   initial S = 0
+  i = mo:38* -> chp:3 (E = -0.6612)   j = mo:34 -> chp:6 (E = -0.5082)   k = mo:40 -> chp:7 (E = -0.2201)
+  S_ij = <phi_mo:38*|psi_mo:34> (all orders, phi_mo:38* = chp:3) = -0.0961
+  S_ji = <phi_mo:34|psi_mo:38*> (all orders, phi_mo:34 = chp:6) = -0.1904
+  S_ik = <phi_mo:38*|psi_mo:40> (all orders, phi_mo:38* = chp:3) = 0.1495
+  S_kj = <phi_mo:40|psi_mo:34> (all orders, phi_mo:40 = chp:7) = -0.0320
+  S_jk = <phi_mo:34|psi_mo:40> (all orders, phi_mo:34 = chp:6) = 0.0103
+  S_ki = <phi_mo:40|psi_mo:38*> (all orders, phi_mo:40 = chp:7) = -0.1936
+  S_ii = <phi_mo:38*|psi_mo:38*> (all orders, phi_mo:38* = chp:3) = 0.5947 (set to 1)   below 0.9: weak-relaxation approximation poor
+  S_jj = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9194 (set to 1)
+  S_kk = <phi_mo:40|psi_mo:40> (all orders, phi_mo:40 = chp:7) = 0.9774 (set to 1)
+  M1 = S_ii S_jj - S_ij S_ji = (1)(1) - (-0.0961)(-0.1904) = +0.98170
+  M2 = S_ij S_kk - S_ik S_kj = (-0.0961)(1) - (0.1495)(-0.0320) = -0.09130
+  M3 = S_ij S_jk - S_ik S_jj = (-0.0961)(0.0103) - (0.1495)(1) = -0.15051
+  M4 = S_ii S_kj - S_ij S_ki = (1)(-0.0320) - (-0.0961)(-0.1936) = -0.05059
+  Pi = M1 M2 = (+0.98170)(-0.09130) = -0.08963
+  Omega = M3 M4 = (-0.15051)(-0.05059) = +0.00761
+  D1: |Pi + Omega|^2 = |M1 M2 + M3 M4|^2 = |(-0.08963) + (+0.00761)|^2 = 0.006726
+
+4 -> 1   3e GS   initial S = 0
+  i = mo:34 -> chp:6 (E = -0.5082)   k = mo:41 -> chp:8 (E = -0.1181)
+  S_ik = <phi_mo:34|psi_mo:41> (all orders, phi_mo:34 = chp:6) = -0.0000
+  S_ii = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9194 (set to 1)
+  S_kk = <phi_mo:41|psi_mo:41> (all orders, phi_mo:41 = chp:8) = 0.9967 (set to 1)
+  A = S_ii S_ik = (1)(-0.0000) = -0.00000
+  closed-shell doublet: 2 |A|^2 = 2 |S_ii S_ik|^2 = 2 |(-0.00000)|^2 = 0.000000
+
+4 -> 2   3e ES   initial S = 0
+  i = mo:34 -> chp:6 (E = -0.5082)   j = mo:40 -> chp:7 (E = -0.2201)   k = mo:41 -> chp:8 (E = -0.1181)
+  S_jk = <phi_mo:40|psi_mo:41> (all orders, phi_mo:40 = chp:7) = -0.0000
+  S_ik = <phi_mo:34|psi_mo:41> (all orders, phi_mo:34 = chp:6) = -0.0000
+  S_ji = <phi_mo:40|psi_mo:34> (all orders, phi_mo:40 = chp:7) = -0.0320
+  S_ii = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9194 (set to 1)
+  S_jj = <phi_mo:40|psi_mo:40> (all orders, phi_mo:40 = chp:7) = 0.9774 (set to 1)
+  S_kk = <phi_mo:41|psi_mo:41> (all orders, phi_mo:41 = chp:8) = 0.9967 (set to 1)
+  Pi = S_ii S_jk = (1)(-0.0000) = -0.00000
+  Omega = S_ik S_ji = (-0.0000)(-0.0320) = +0.00000
+  D1: |Pi + Omega|^2 = |S_ii S_jk + S_ik S_ji|^2 = |(-0.00000) + (+0.00000)|^2 = 0.000000
+
+Core hole in mo:32
+------------------
+
+2 -> 1   3e GS   initial S = 0
+  i = mo:34 -> chp:6 (E = -0.5036)   k = mo:40 -> chp:7 (E = -0.2157)
+  S_ik = <phi_mo:34|psi_mo:40> (all orders, phi_mo:34 = chp:6) = 0.0019
+  S_ii = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9359 (set to 1)
+  S_kk = <phi_mo:40|psi_mo:40> (all orders, phi_mo:40 = chp:7) = 0.9768 (set to 1)
+  A = S_ii S_ik = (1)(0.0019) = +0.00192
+  closed-shell doublet: 2 |A|^2 = 2 |S_ii S_ik|^2 = 2 |(+0.00192)|^2 = 0.000007
+
+3 -> 1   5e GS   initial S = 0
+  i = mo:38* -> chp:3 (E = -0.6591)   j = mo:34 -> chp:6 (E = -0.5036)   k = mo:40 -> chp:7 (E = -0.2157)
+  S_ij = <phi_mo:38*|psi_mo:34> (all orders, phi_mo:38* = chp:3) = -0.0943
+  S_ji = <phi_mo:34|psi_mo:38*> (all orders, phi_mo:34 = chp:6) = -0.1755
+  S_jk = <phi_mo:34|psi_mo:40> (all orders, phi_mo:34 = chp:6) = 0.0019
+  S_ik = <phi_mo:38*|psi_mo:40> (all orders, phi_mo:38* = chp:3) = 0.1490
+  S_ii = <phi_mo:38*|psi_mo:38*> (all orders, phi_mo:38* = chp:3) = 0.5720 (set to 1)   below 0.9: weak-relaxation approximation poor
+  S_jj = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9359 (set to 1)
+  S_kk = <phi_mo:40|psi_mo:40> (all orders, phi_mo:40 = chp:7) = 0.9768 (set to 1)
+  M1 = S_ii S_jj - S_ij S_ji = (1)(1) - (-0.0943)(-0.1755) = +0.98345
+  M3 = S_ij S_jk - S_ik S_jj = (-0.0943)(0.0019) - (0.1490)(1) = -0.14919
+  A = M1 M3 = (+0.98345)(-0.14919) = -0.14672
+  closed-shell doublet: 2 |A|^2 = 2 |M1 M3|^2 = 2 |(-0.14672)|^2 = 0.043054
+
+3 -> 2   5e ES   initial S = 0
+  i = mo:38* -> chp:3 (E = -0.6591)   j = mo:34 -> chp:6 (E = -0.5036)   k = mo:40 -> chp:7 (E = -0.2157)
+  S_ij = <phi_mo:38*|psi_mo:34> (all orders, phi_mo:38* = chp:3) = -0.0943
+  S_ji = <phi_mo:34|psi_mo:38*> (all orders, phi_mo:34 = chp:6) = -0.1755
+  S_ik = <phi_mo:38*|psi_mo:40> (all orders, phi_mo:38* = chp:3) = 0.1490
+  S_kj = <phi_mo:40|psi_mo:34> (all orders, phi_mo:40 = chp:7) = -0.0225
+  S_jk = <phi_mo:34|psi_mo:40> (all orders, phi_mo:34 = chp:6) = 0.0019
+  S_ki = <phi_mo:40|psi_mo:38*> (all orders, phi_mo:40 = chp:7) = -0.1995
+  S_ii = <phi_mo:38*|psi_mo:38*> (all orders, phi_mo:38* = chp:3) = 0.5720 (set to 1)   below 0.9: weak-relaxation approximation poor
+  S_jj = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9359 (set to 1)
+  S_kk = <phi_mo:40|psi_mo:40> (all orders, phi_mo:40 = chp:7) = 0.9768 (set to 1)
+  M1 = S_ii S_jj - S_ij S_ji = (1)(1) - (-0.0943)(-0.1755) = +0.98345
+  M2 = S_ij S_kk - S_ik S_kj = (-0.0943)(1) - (0.1490)(-0.0225) = -0.09099
+  M3 = S_ij S_jk - S_ik S_jj = (-0.0943)(0.0019) - (0.1490)(1) = -0.14919
+  M4 = S_ii S_kj - S_ij S_ki = (1)(-0.0225) - (-0.0943)(-0.1995) = -0.04129
+  Pi = M1 M2 = (+0.98345)(-0.09099) = -0.08949
+  Omega = M3 M4 = (-0.14919)(-0.04129) = +0.00616
+  D1: |Pi + Omega|^2 = |M1 M2 + M3 M4|^2 = |(-0.08949) + (+0.00616)|^2 = 0.006944
+
+4 -> 1   3e GS   initial S = 0
+  i = mo:34 -> chp:6 (E = -0.5036)   k = mo:41 -> chp:8 (E = -0.1164)
+  S_ik = <phi_mo:34|psi_mo:41> (all orders, phi_mo:34 = chp:6) = -0.0000
+  S_ii = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9359 (set to 1)
+  S_kk = <phi_mo:41|psi_mo:41> (all orders, phi_mo:41 = chp:8) = 0.9971 (set to 1)
+  A = S_ii S_ik = (1)(-0.0000) = -0.00000
+  closed-shell doublet: 2 |A|^2 = 2 |S_ii S_ik|^2 = 2 |(-0.00000)|^2 = 0.000000
+
+4 -> 2   3e ES   initial S = 0
+  i = mo:34 -> chp:6 (E = -0.5036)   j = mo:40 -> chp:7 (E = -0.2157)   k = mo:41 -> chp:8 (E = -0.1164)
+  S_jk = <phi_mo:40|psi_mo:41> (all orders, phi_mo:40 = chp:7) = -0.0000
+  S_ik = <phi_mo:34|psi_mo:41> (all orders, phi_mo:34 = chp:6) = -0.0000
+  S_ji = <phi_mo:40|psi_mo:34> (all orders, phi_mo:40 = chp:7) = -0.0225
+  S_ii = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9359 (set to 1)
+  S_jj = <phi_mo:40|psi_mo:40> (all orders, phi_mo:40 = chp:7) = 0.9768 (set to 1)
+  S_kk = <phi_mo:41|psi_mo:41> (all orders, phi_mo:41 = chp:8) = 0.9971 (set to 1)
+  Pi = S_ii S_jk = (1)(-0.0000) = -0.00000
+  Omega = S_ik S_ji = (-0.0000)(-0.0225) = +0.00000
+  D1: |Pi + Omega|^2 = |S_ii S_jk + S_ik S_ji|^2 = |(-0.00000) + (+0.00000)|^2 = 0.000000
+
+Core hole in mo:33
+------------------
+
+2 -> 1   3e GS   initial S = 0
+  i = mo:34 -> chp:6 (E = -0.5086)   k = mo:40 -> chp:7 (E = -0.2215)
+  S_ik = <phi_mo:34|psi_mo:40> (all orders, phi_mo:34 = chp:6) = 0.0066
+  S_ii = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9229 (set to 1)
+  S_kk = <phi_mo:40|psi_mo:40> (all orders, phi_mo:40 = chp:7) = 0.9765 (set to 1)
+  A = S_ii S_ik = (1)(0.0066) = +0.00664
+  closed-shell doublet: 2 |A|^2 = 2 |S_ii S_ik|^2 = 2 |(+0.00664)|^2 = 0.000088
+
+3 -> 1   5e GS   initial S = 0
+  i = mo:38* -> chp:3 (E = -0.6641)   j = mo:34 -> chp:6 (E = -0.5086)   k = mo:40 -> chp:7 (E = -0.2215)
+  S_ij = <phi_mo:38*|psi_mo:34> (all orders, phi_mo:38* = chp:3) = -0.0953
+  S_ji = <phi_mo:34|psi_mo:38*> (all orders, phi_mo:34 = chp:6) = -0.1857
+  S_jk = <phi_mo:34|psi_mo:40> (all orders, phi_mo:34 = chp:6) = 0.0066
+  S_ik = <phi_mo:38*|psi_mo:40> (all orders, phi_mo:38* = chp:3) = 0.1522
+  S_ii = <phi_mo:38*|psi_mo:38*> (all orders, phi_mo:38* = chp:3) = 0.5914 (set to 1)   below 0.9: weak-relaxation approximation poor
+  S_jj = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9229 (set to 1)
+  S_kk = <phi_mo:40|psi_mo:40> (all orders, phi_mo:40 = chp:7) = 0.9765 (set to 1)
+  M1 = S_ii S_jj - S_ij S_ji = (1)(1) - (-0.0953)(-0.1857) = +0.98231
+  M3 = S_ij S_jk - S_ik S_jj = (-0.0953)(0.0066) - (0.1522)(1) = -0.15286
+  A = M1 M3 = (+0.98231)(-0.15286) = -0.15015
+  closed-shell doublet: 2 |A|^2 = 2 |M1 M3|^2 = 2 |(-0.15015)|^2 = 0.045091
+
+3 -> 2   5e ES   initial S = 0
+  i = mo:38* -> chp:3 (E = -0.6641)   j = mo:34 -> chp:6 (E = -0.5086)   k = mo:40 -> chp:7 (E = -0.2215)
+  S_ij = <phi_mo:38*|psi_mo:34> (all orders, phi_mo:38* = chp:3) = -0.0953
+  S_ji = <phi_mo:34|psi_mo:38*> (all orders, phi_mo:34 = chp:6) = -0.1857
+  S_ik = <phi_mo:38*|psi_mo:40> (all orders, phi_mo:38* = chp:3) = 0.1522
+  S_kj = <phi_mo:40|psi_mo:34> (all orders, phi_mo:40 = chp:7) = -0.0274
+  S_jk = <phi_mo:34|psi_mo:40> (all orders, phi_mo:34 = chp:6) = 0.0066
+  S_ki = <phi_mo:40|psi_mo:38*> (all orders, phi_mo:40 = chp:7) = -0.1989
+  S_ii = <phi_mo:38*|psi_mo:38*> (all orders, phi_mo:38* = chp:3) = 0.5914 (set to 1)   below 0.9: weak-relaxation approximation poor
+  S_jj = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9229 (set to 1)
+  S_kk = <phi_mo:40|psi_mo:40> (all orders, phi_mo:40 = chp:7) = 0.9765 (set to 1)
+  M1 = S_ii S_jj - S_ij S_ji = (1)(1) - (-0.0953)(-0.1857) = +0.98231
+  M2 = S_ij S_kk - S_ik S_kj = (-0.0953)(1) - (0.1522)(-0.0274) = -0.09109
+  M3 = S_ij S_jk - S_ik S_jj = (-0.0953)(0.0066) - (0.1522)(1) = -0.15286
+  M4 = S_ii S_kj - S_ij S_ki = (1)(-0.0274) - (-0.0953)(-0.1989) = -0.04632
+  Pi = M1 M2 = (+0.98231)(-0.09109) = -0.08948
+  Omega = M3 M4 = (-0.15286)(-0.04632) = +0.00708
+  D1: |Pi + Omega|^2 = |M1 M2 + M3 M4|^2 = |(-0.08948) + (+0.00708)|^2 = 0.006790
+
+4 -> 1   3e GS   initial S = 0
+  i = mo:34 -> chp:6 (E = -0.5086)   k = mo:41 -> chp:8 (E = -0.1194)
+  S_ik = <phi_mo:34|psi_mo:41> (all orders, phi_mo:34 = chp:6) = -0.0000
+  S_ii = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9229 (set to 1)
+  S_kk = <phi_mo:41|psi_mo:41> (all orders, phi_mo:41 = chp:8) = 0.9967 (set to 1)
+  A = S_ii S_ik = (1)(-0.0000) = -0.00000
+  closed-shell doublet: 2 |A|^2 = 2 |S_ii S_ik|^2 = 2 |(-0.00000)|^2 = 0.000000
+
+4 -> 2   3e ES   initial S = 0
+  i = mo:34 -> chp:6 (E = -0.5086)   j = mo:40 -> chp:7 (E = -0.2215)   k = mo:41 -> chp:8 (E = -0.1194)
+  S_jk = <phi_mo:40|psi_mo:41> (all orders, phi_mo:40 = chp:7) = -0.0000
+  S_ik = <phi_mo:34|psi_mo:41> (all orders, phi_mo:34 = chp:6) = -0.0000
+  S_ji = <phi_mo:40|psi_mo:34> (all orders, phi_mo:40 = chp:7) = -0.0274
+  S_ii = <phi_mo:34|psi_mo:34> (all orders, phi_mo:34 = chp:6) = 0.9229 (set to 1)
+  S_jj = <phi_mo:40|psi_mo:40> (all orders, phi_mo:40 = chp:7) = 0.9765 (set to 1)
+  S_kk = <phi_mo:41|psi_mo:41> (all orders, phi_mo:41 = chp:8) = 0.9967 (set to 1)
+  Pi = S_ii S_jk = (1)(-0.0000) = -0.00000
+  Omega = S_ik S_ji = (-0.0000)(-0.0274) = +0.00000
+  D1: |Pi + Omega|^2 = |S_ii S_jk + S_ik S_ji|^2 = |(-0.00000) + (+0.00000)|^2 = 0.000000
+
+Summary
+  a -> b  Case    Channel                     mo:31       mo:32       mo:33        Mean
+  2 -> 1  3e GS   closed-shell doublet     0.000211    0.000007    0.000088    0.000102
+  3 -> 1  5e GS   closed-shell doublet     0.043665    0.043054    0.045091    0.043936
+  3 -> 2  5e ES   D1                       0.006726    0.006944    0.006790    0.006820
+  4 -> 1  3e GS   closed-shell doublet     0.000000    0.000000    0.000000    0.000000
+  4 -> 2  3e ES   D1                       0.000000    0.000000    0.000000    0.000000
+
+--------------------------------------------------------------------------------

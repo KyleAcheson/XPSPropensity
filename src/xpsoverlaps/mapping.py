@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Literal, Mapping, NamedTuple, Optional, Sequence
+from typing import Dict, List, Literal, Mapping, NamedTuple, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -51,6 +51,7 @@ class OrbitalMatch(NamedTuple):
     runner_up_overlap: Optional[float]  # signed
     runner_up_similarity: Optional[float]
     assigned_by: str  # "overlap" or "composition"
+    warnings: Tuple[str, ...] = ()  # this match's low-overlap and close-runner-up warnings
 
 
 @dataclass(frozen=True, eq=False)
@@ -183,7 +184,8 @@ def match_active_orbitals(
             runner_up_similarity=similarity(row, runner_up) if runner_up is not None else None,
             assigned_by=assigned_by[row],
         )
-        warnings.extend(_match_warnings(match, options))
+        match = match._replace(warnings=tuple(_match_warnings(match, options)))
+        warnings.extend(match.warnings)
         matches.append(match)
 
     return OrbitalMapping(
@@ -257,8 +259,10 @@ def _match_warnings(match: OrbitalMatch, options: MappingOptions) -> List[str]:
     return warnings
 
 
-def format_mapping(mapping: OrbitalMapping) -> List[str]:
-    """Table of matches (warnings are in ``mapping.warnings``)."""
+def format_mapping(mapping: OrbitalMapping, initial_labels: Optional[Mapping[str, str]] = None) -> List[str]:
+    """Table of matches (warnings are in ``mapping.warnings``); ``initial_labels`` shows initial
+    orbitals under other names, e.g. marked."""
+    initial_labels = initial_labels or {}
     header = (
         f"{'Initial':<8} {'Final':<8} {'S':>8} {'Sim':>5}   "
         f"{'Runner-up':<10} {'|S|':>6} {'Sim':>5}   Assigned by"
@@ -272,7 +276,7 @@ def format_mapping(mapping: OrbitalMapping) -> List[str]:
             else f"{'-':<10} {'-':>6} {'-':>5}"
         )
         lines.append(
-            f"{match.initial_id:<8} {match.final_id:<8} {match.overlap:+8.3f} "
+            f"{initial_labels.get(match.initial_id, match.initial_id):<8} {match.final_id:<8} {match.overlap:+8.3f} "
             f"{match.similarity:5.2f}   {runner_up}   {match.assigned_by}"
         )
     return lines

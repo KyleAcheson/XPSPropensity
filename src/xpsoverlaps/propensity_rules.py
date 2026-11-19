@@ -33,7 +33,7 @@ from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple
 
 from xpsoverlaps.mapping import MappedFinal
 from xpsoverlaps.model import Calculation
-from xpsoverlaps.overlap_sources import MappedOverlaps, OrbitalOverlaps
+from xpsoverlaps.overlap_sources import CoreHoleOverlaps, MappedOverlaps, OrbitalOverlaps
 from xpsoverlaps.shakedown_transitions import ShakeDown, ShakeDownOverlaps
 
 DIAGONAL_WARNING = 0.9
@@ -462,21 +462,20 @@ def propensity_report(
 def core_hole_report(
     shake_downs: Sequence[ShakeDown],
     initial: Calculation,
-    evaluations: Sequence[Tuple[str, Sequence[PropensityResult]]],
+    evaluations: Sequence[Tuple[CoreHoleOverlaps, Sequence[PropensityResult]]],
 ) -> List[str]:
     """For each core orbital the rules evaluated with its core-hole overlaps, then one
     summary of every computable shake-down's channels: the intensity per core orbital and their mean."""
-    cores = [core for core, _ in evaluations]
+    cores = [overlap_source.core for overlap_source, _ in evaluations]
     lines = [
         "Propensity rules (core-hole potential)",
         "",
-        "S_ab = <phi_a|psi_b> = (ab|cc) / (e_b - e_a), signed (see Core-hole overlaps).",
-        "Diagonal S_ii, S_jj, S_kk are 1 to first order.",
+        *evaluations[0][0].propensity_notes,
         "Non-zero channels: singlet -> GS closed-shell doublet or ES D1;"
         " triplet -> ES D2 and Q (GS dark).",
         "Every channel uses the same overlaps (Coulomb only): Q = 2 D2.",
     ]
-    for core, results in evaluations:
+    for core, (_, results) in zip(cores, evaluations):
         title = f"Core hole in {core}"
         lines += ["", title, "-" * len(title)]
         if not results:
@@ -484,7 +483,8 @@ def core_hole_report(
         for result in results:
             lines += _result_lines(result)
 
-    results_by_core = {core: {result.shake_down: result for result in results} for core, results in evaluations}
+    results_by_core = {core: {result.shake_down: result for result in results}
+                       for core, (_, results) in zip(cores, evaluations)}
     columns = "".join(f"  {core:>10}" for core in cores)
     lines += ["", "Summary", f"{'a -> b':>8}  {'Case':<6}  {'Channel':<21}{columns}  {'Mean':>10}"]
     for sd in shake_downs:

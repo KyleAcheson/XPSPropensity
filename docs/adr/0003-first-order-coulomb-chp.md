@@ -4,7 +4,7 @@ status: accepted
 
 # CHP is first order in a Coulomb-only core-hole potential
 
-The core-hole potential (CHP) method relaxes the initial orbitals in v_ch = −J_c of the core orbital c, to first order: S_pq = −(pq|cc)/(ε_p − ε_q) for p ≠ q and S_pp = 1, with ε the initial orbital energies and (pq|cc) from an FCIDUMP over the initial active space (`docs/chp.tex`). We chose this as the simplest model that needs only the initial calculation. To be revisited: the all-orders form is planned, after its theory has been worked through.
+The core-hole potential (CHP) method relaxes the initial orbitals in v_ch = −J_c of the core orbital c, to first order: S_pq = −(pq|cc)/(ε_p − ε_q) for p ≠ q and S_pp = 1, with ε the initial orbital energies and (pq|cc) from an FCIDUMP over the initial active space (`docs/chp.tex`). We chose this as the simplest model that needs only the initial calculation. The all-orders form is now an option alongside it (ADR-0004); first order stays the default.
 
 ## Considered Options
 

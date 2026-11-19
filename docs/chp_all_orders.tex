@@ -1,0 +1,138 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=0.8in]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  citecolor=blue
+}
+
+\setlength{\parskip}{2pt}
+\usepackage{titlesec}
+\titlespacing*{\subsection}{0pt}{6pt}{2pt}
+\titlespacing*{\section}{0pt}{0pt}{4pt}
+\setlist{itemsep=1pt,topsep=2pt}
+
+\begin{document}
+
+\section*{All-Orders Core-Hole Potential}
+
+\subsection*{Starting point}
+
+The overlap between the final relaxed orbital $\phi_p$ and the initial orbital $\psi_q$ is approximated in first-order perturbation theory as
+\begin{equation}
+  S_{pq} = \langle\phi_p|\psi_q \rangle \approx
+      \frac{\langle\psi_p|\hat{v}_{\mathrm{ch}}|\psi_q\rangle}{\epsilon_p - \epsilon_q},
+      \qquad p \neq q .
+  \label{eq:first_order}
+\end{equation}
+Here we show that this is the first term of a series whose sum is obtained by diagonalising a matrix, and we state the model this rests on.
+
+\subsection*{The perturbation $\hat{V} = -\hat{J}_c$}
+
+Removing one electron from the core orbital $\psi_c$ removes its Coulomb field,
+$v_{ch}(\mathbf r) = -\int d\mathbf r'\, \rho_c(\mathbf r')/|\mathbf r-\mathbf r'|$, with $\rho_c = |\psi_c|^2$. This is minus the Coulomb operator of $\psi_c$,
+\begin{equation}
+  \hat{V} \equiv \hat{v}_{\mathrm{ch}} = -\hat{J}_c, \qquad
+  \hat{J}_c\, \psi(\mathbf r) = \int d\mathbf r'\, \frac{\psi_c^*(\mathbf r')\psi_c(\mathbf r')}{|\mathbf r-\mathbf r'|}\, \psi(\mathbf r).
+\end{equation}
+Expanding the orbitals in the AO basis, $\psi_p(\mathbf r) = \sum_{\alpha} C_{\alpha p} \chi_\alpha(\mathbf r)$ and $\psi_c(\mathbf r) = \sum_{\gamma} C_{\gamma c}\chi_\gamma(\mathbf r)$, its AO matrix is a contraction of the two-electron integrals with the core density,
+\begin{equation}
+  V_{\alpha\beta} = -(J_c)_{\alpha\beta}
+  = -\sum_{\gamma\delta} C_{\gamma c}^{*} C_{\delta c}\, (\alpha\beta|\gamma\delta),
+  \qquad
+  (\alpha\beta|\gamma\delta)
+  = \iint d\mathbf r\,d\mathbf r'\,
+  \frac{\chi_\alpha^*(\mathbf r)\chi_\beta(\mathbf r)\chi_\gamma^*(\mathbf r')\chi_\delta(\mathbf r')}{|\mathbf r-\mathbf r'|}.
+\end{equation}
+Transforming to the initial MO basis gives the four-centre MO integral,
+\begin{equation}
+  V_{pq} = \langle \psi_p|\hat{V}|\psi_q\rangle
+  = \sum_{\alpha\beta} C_{\alpha p}^{*} V_{\alpha\beta} C_{\beta q}
+  = -\sum_{\alpha\beta}\sum_{\gamma\delta}
+  C_{\alpha p}^{*} C_{\beta q} C_{\gamma c}^{*} C_{\delta c}\, (\alpha\beta|\gamma\delta)
+  = -(pq|cc).
+\end{equation}
+
+\subsection*{Model and perturbation series}
+
+\textbf{Assumption:} the initial orbitals are eigenfunctions of an unperturbed one-electron operator $\hat f_0$ with eigenvalues $\epsilon_p$, i.e.\ $\hat f_0 = \mathrm{diag}(\epsilon)$ in the $\{\psi_p\}$ basis. This is already implicit in Eq.~\eqref{eq:first_order}. The relaxed orbitals are taken as the eigenfunctions of $\hat f_0 + \lambda \hat V$,
+\begin{equation}
+  (\hat f_0 + \lambda \hat V)\,\phi_p(\lambda) = E_p(\lambda)\,\phi_p(\lambda),
+  \qquad \lambda = 1 \text{ for the physical core hole.}
+\end{equation}
+For a non-degenerate level, $\phi_p(\lambda)$ and $E_p(\lambda)$ are analytic near $\lambda=0$, so $\phi_p = \sum_k \lambda^k \phi_p^{(k)}$ and $E_p = \sum_k \lambda^k E_p^{(k)}$. Writing $c^{(k)}_{qp} = \langle\psi_q|\phi_p^{(k)}\rangle$ with $c^{(0)}_{qp} = \delta_{qp}$ and $c^{(k)}_{pp} = 0$ for $k\geq1$ (intermediate normalisation), and collecting powers of $\lambda$, gives the Rayleigh--Schr\"odinger recursion
+\begin{equation}
+  (\epsilon_p - \epsilon_q)\, c^{(k)}_{qp} = \sum_r V_{qr}\, c^{(k-1)}_{rp} - \sum_{j=1}^{k-1} E_p^{(j)}\, c^{(k-j)}_{qp},
+  \qquad E_p^{(k)} = \sum_r V_{pr}\, c^{(k-1)}_{rp}.
+\end{equation}
+\textbf{First order} ($k=1$) recovers Eq.~\eqref{eq:first_order}: $c^{(1)}_{qp} = V_{qp}/(\epsilon_p-\epsilon_q)$, so
+\begin{equation}
+  S_{pq} = \langle\phi_p|\psi_q\rangle \approx \frac{V_{pq}}{\epsilon_p-\epsilon_q} = \frac{(pq|cc)}{\epsilon_q-\epsilon_p}.
+\end{equation}
+\textbf{Second order} adds paths through a third orbital $r$ and the level shift of the hole, $V_{pp} = -(pp|cc)$:
+\begin{equation}
+  c^{(2)}_{qp} = \frac{1}{\epsilon_p-\epsilon_q}\left[\sum_{r\neq p,q}\frac{V_{qr}V_{rp}}{\epsilon_p-\epsilon_r}
+  + \frac{(V_{qq}-V_{pp})\,V_{qp}}{\epsilon_p-\epsilon_q}\right].
+\end{equation}
+The second term is the first correction from expanding $V_{qp}/[(\epsilon_p+V_{pp})-(\epsilon_q+V_{qq})]$: the hole moves the levels, and first order ignores this.
+
+\textbf{All orders.} The series is the Taylor expansion of the exact eigenvectors of $\hat f_0 + \lambda\hat V$ in $\lambda$. At $\lambda=1$ they follow from diagonalising
+\begin{equation}
+  \boxed{\left[\mathrm{diag}(\epsilon) - \mathbf J_c\right]\mathbf U = \mathbf U\,\mathrm{diag}(E),
+  \qquad (\mathbf J_c)_{pq} = (pq|cc),
+  \qquad \phi_p = \sum_q \psi_q U_{qp}
+  \;\Rightarrow\; S_{pq} = U_{qp}.}
+\end{equation}
+Each eigenvector is assigned to an initial orbital as in the orbital mapping of the overlaps method: each initial orbital takes the eigenvector it overlaps most, orbitals competing for the same eigenvector are reassigned by overlap times AO-composition similarity, and the phase is chosen so that $S_{pp}>0$, the choice the perturbation series makes.
+
+The series is the Taylor expansion of $\phi_p(\lambda)$ followed continuously from $\lambda=0$. Where it converges at $\lambda=1$ its sum is that followed eigenvector; where it does not, the followed eigenvector is its analytic continuation. The maximum-overlap assignment agrees with following unless the hole moves a level through an avoided crossing: for bromothiophene (core mo:31) $\psi_{38}$ is lowered past $\psi_{36}$, the two assignments exchange $\phi_{36}$ and $\phi_{38}$, and $S_{38,34}$ is $+0.369$ when followed against $-0.096$ by maximum overlap. Maximum overlap is used, so that both methods label the relaxed orbitals the same way.
+
+\subsection*{Comparison with first-order CHP}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+ & First order & All orders \\
+\midrule
+$S_{pq}$ & $(pq|cc)/(\epsilon_q-\epsilon_p)$, antisymmetric & $U_{qp}$, not antisymmetric \\
+$S_{pp}$ & set to 1 & $<1$ (normalised) \\
+Hole level shift $-(pp|cc)$ & absent & included \\
+Valid when & $|V_{pq}|,\ |V_{pp}-V_{qq}| \ll |\epsilon_p-\epsilon_q|$ & always defined \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+For bromothiophene (singlet, core $\psi_c = $ mo:31, valence RAS2 block), $|S_{pq}|$:
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+ & First order & All orders & Overlaps method \\
+\midrule
+$S_{34,38}$ / $S_{38,34}$ & 0.365 / 0.365 & 0.190 / 0.096 & 0.127 / 0.126 \\
+$S_{38,40}$ / $S_{40,38}$ & 0.267 / 0.267 & 0.150 / 0.194 & 0.057 / 0.153 \\
+$S_{34,40}$ / $S_{40,34}$ & 0.031 / 0.031 & 0.010 / 0.032 & 0.006 / 0.022 \\
+$S_{38,38}$ & 1 & 0.595 & 0.712 \\
+\bottomrule
+\end{tabular}
+\end{center}
+For $\phi_{34}$ and $\phi_{38}$ the series has a radius of convergence of $|\lambda| \approx 0.37$ (from the growth of $c^{(k)}$; partial sums converge to the diagonalisation at $\lambda = 0.1$ and $0.3$ and oscillate at $\lambda = 0.5$ and $1$). The hole lowers $\psi_{38}$ by about $0.4\,E_h$, more than its gaps to its neighbours, so no finite order converges at the physical strength. The first-order derivative $\partial S_{pq}/\partial\lambda|_{\lambda=0}$ of the diagonalisation reproduces Eq.~\eqref{eq:first_order} exactly.
+
+\subsection*{Assumptions and limitations}
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{The initial orbitals are assumed to diagonalise $\hat f_0$.} The SA natural orbitals diagonalise the state-averaged density, not the generalised Fock matrix $\mathbf F = \mathbf F^{I} + \mathbf F^{A}$; $\epsilon_p = F_{pp}$, but $F_{pq} \neq 0$ (up to $0.013\,E_h$ in the valence block, against $(pq|cc)$ up to $0.15\,E_h$). Dropping $F_{pq}$ treats the natural orbitals as canonical. Using the full $\mathbf F - \mathbf J_c$ instead would attribute the mixing caused by $\mathbf F$ itself to the hole ($S\neq 1$ at $\mathbf J_c = 0$), unless the initial orbitals are redefined as eigenvectors of $\mathbf F$, which are no longer the orbitals the CI vectors are expressed in. The effect on $S$ is $0.01$--$0.04$ here.
+  \item \textbf{State averaging.} $\epsilon_p$ are diagonal elements of a state-averaged Fock matrix, not orbital energies of a particular state, and their order is not guaranteed.
+  \item \textbf{Frozen, non-self-consistent potential.} $\hat V$ is the bare Coulomb field of the removed electron in the initial $\psi_c$; the response of the other electrons (screening) and the relaxation of $\psi_c$ are not iterated.
+  \item \textbf{Coulomb only.} The spin-averaged change of the Fock operator is $-\hat J_c + \tfrac12\hat K_c$; the exchange term is omitted (it changes $S$ little), so $S$ is the same for every final spin.
+  \item \textbf{Truncated space.} Only the valence (RAS2 and RAS3) orbitals are coupled; mixing with the core (RAS1) orbitals and with orbitals outside the active space is neglected.
+  \item \textbf{Near-degeneracy.} When the level shift brings two levels together ($\psi_{38}$ next to $\psi_{39}$), the relaxed orbitals are strongly mixed ($S_{38,38}\approx0.6$), the maximum-overlap labels and phases become ambiguous and can differ from those of the followed eigenvectors, and the result depends on initial-state gaps that the hole has invalidated.
+\end{itemize}
+
+\end{document}

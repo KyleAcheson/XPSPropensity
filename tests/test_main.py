@@ -27,14 +27,16 @@ def _record_calls(monkeypatch):
     monkeypatch.setattr(
         methods,
         "propensity_chp",
-        lambda initial, integrals, frontier=None, max_state=None: calls.update(chp=(initial, frontier, integrals)),
+        lambda initial, integrals, frontier=None, max_state=None, order=1: calls.update(
+            chp=(initial, frontier, integrals), order=order
+        ),
     )
     return calls
 
 
-def _chp_input(tmp_path, fcidump=FCIDUMP):
+def _chp_input(tmp_path, fcidump=FCIDUMP, **calculator):
     run_input = yaml.safe_load(INPUT.read_text(encoding="utf-8"))
-    run_input["Calculator"]["method"] = "chp"
+    run_input["Calculator"].update(method="chp", **calculator)
     del run_input["Final"]
     for key in ("wf_file", "state_file", "mcscf_file"):
         run_input["Initial"][key] = str((INPUT.parent / run_input["Initial"][key]).resolve())
@@ -74,11 +76,20 @@ def test_main_chp_loads_only_initial_calculation(monkeypatch, tmp_path):
 
     assert main_module.main(["-i", str(_chp_input(tmp_path))]) == 0
 
-    assert set(calls) == {"chp"}
+    assert set(calls) == {"chp", "order"}
+    assert calls["order"] == 1
     initial, frontier, integrals = calls["chp"]
     assert len(initial.states) == 10
     assert (frontier.homo, frontier.lumo) == ("mo:34", "mo:40")
     assert integrals.integrals.orbital_ids == initial.active_space.orbital_ids
+
+
+def test_main_chp_passes_the_order_on(monkeypatch, tmp_path):
+    calls = _record_calls(monkeypatch)
+
+    assert main_module.main(["-i", str(_chp_input(tmp_path, order="all"))]) == 0
+
+    assert calls["order"] == "all"
 
 
 def test_main_rejects_an_fcidump_file_of_another_calculation(monkeypatch, tmp_path, capsys):

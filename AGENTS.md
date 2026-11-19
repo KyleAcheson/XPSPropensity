@@ -10,6 +10,7 @@ Read the LaTeX sources, not the PDFs:
 - `docs/shakedown_cases.tex`: shake-down cases (3e/5e, GS/ES), orbital roles
   i, j, k, and the propensity rules and channels.
 - `docs/chp.tex`: the core-hole potential (CHP), S_pq ~ -(pq|cc) / (e_p - e_q).
+- `docs/chp_all_orders.tex`: CHP to all orders, the eigenvectors of diag(e) - J_c.
 
 ## Code map
 
@@ -36,7 +37,7 @@ YAML input (inputs.py, input_schema.yaml)
 | `composition.py` | Mulliken AO composition of MOs (mapping tie-breaks, orbital descriptions) |
 | `mapping.py` | Initial -> final active-orbital mapping (`OrbitalMapping`), mapped CI report |
 | `integrals/` | `CoreHoleIntegrals` ABC, `CoulombMatrix` (pq|cc), `StoredIntegrals` |
-| `overlap_sources.py` | `OrbitalOverlaps` ABC: `MappedOverlaps` (overlaps method), `CoreHoleOverlaps` (CHP) |
+| `overlap_sources.py` | `OrbitalOverlaps` ABC: `MappedOverlaps` (overlaps method), `CoreHoleOverlaps` ABC (CHP): `FirstOrderCoreHoleOverlaps`, `AllOrdersCoreHoleOverlaps` |
 | `frontier.py` | Orbital order (by populations), reference determinant, HOMO/LUMO |
 | `shakedown_transitions.py` | Find and classify shake-downs, `ShakeDown.overlaps(overlap_source)` |
 | `propensity_rules.py` | `Channel` and the `CHANNELS` table, evaluation and reports |
@@ -67,8 +68,8 @@ YAML input (inputs.py, input_schema.yaml)
   (data), not a reordering of a calculation; records are built once and
   validated on construction.
 - **Approximations are explicit and reported.** E.g. the dominant CSF stands
-  for a state, diagonal overlaps are set to 1, CHP is first order; warnings are
-  printed when they look unreliable.
+  for a state, diagonal overlaps are set to 1, CHP treats the SA orbitals as
+  eigenfunctions of diag(e); warnings are printed when they look unreliable.
 - **Tests check known identities.** E.g. every overlap provider must give
   `C.T @ S_AO @ C = 1` for each calculation (`tests/test_overlap.py`).
 

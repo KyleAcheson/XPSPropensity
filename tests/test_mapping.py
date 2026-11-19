@@ -12,10 +12,12 @@ from xpsoverlaps.composition import (
     describe_orbital_pairs,
     orbital_ao_weights,
     orbital_compositions,
+    orbital_compositions_from_coefficients,
 )
 from xpsoverlaps.mapping import (
     MappingOptions,
     OrbitalMappingError,
+    format_mapping,
     map_active_orbitals,
     mapped_ci_report,
     mapping_report,
@@ -102,6 +104,48 @@ def test_sulfur_2p_core_orbital_is_described_as_sulfur_p(valence_and_core):
     assert composition.dominant[0].label == "S5 2P[m=+0]"
     lines = describe_orbital_pairs([(composition, composition)])
     assert any("S5 2P[m=+0]" in line and "|" in line for line in lines)
+
+
+def test_compositions_of_a_coefficient_block_match_those_of_the_same_mos(valence_and_core):
+    initial, _ = valence_and_core
+    ids = ["mo:34", "mo:38", "mo:40"]
+    columns = [initial.orbitals.orbital_ids.index(i) for i in ids]
+
+    from_block = orbital_compositions_from_coefficients(
+        initial, initial.orbitals.coefficients[:, columns], ["x", "y", "z"]
+    )
+    by_id = orbital_compositions(initial, ids)
+
+    assert list(from_block) == ["x", "y", "z"]
+    for block_id, orbital_id in zip(from_block, ids):
+        assert from_block[block_id].orbital_id == block_id
+        assert from_block[block_id].groups == pytest.approx(by_id[orbital_id].groups)
+        assert from_block[block_id].dominant == by_id[orbital_id].dominant
+        assert composition_similarity(from_block[block_id], by_id[orbital_id]) == pytest.approx(1.0)
+
+
+def test_compositions_of_mixed_orbitals_stay_normalised(valence_and_core):
+    initial, _ = valence_and_core
+    columns = [initial.orbitals.orbital_ids.index(i) for i in ("mo:34", "mo:38")]
+    rotation = np.array([[0.6, -0.8], [0.8, 0.6]])  # orthogonal mixing of the two MOs
+
+    mixed = orbital_compositions_from_coefficients(
+        initial, initial.orbitals.coefficients[:, columns] @ rotation, ["p", "q"]
+    )
+
+    for composition in mixed.values():
+        assert sum(composition.groups.values()) == pytest.approx(1.0)
+        assert composition.dominant
+
+
+def test_compositions_of_a_coefficient_block_check_its_shape(valence_and_core):
+    initial, _ = valence_and_core
+    coefficients = initial.orbitals.coefficients[:, :2]
+
+    with pytest.raises(ValueError, match="2 columns for 3 orbital IDs"):
+        orbital_compositions_from_coefficients(initial, coefficients, ["a", "b", "c"])
+    with pytest.raises(ValueError, match="10 rows; the basis has 239 functions"):
+        orbital_compositions_from_coefficients(initial, coefficients[:10], ["a", "b"])
 
 
 def _composition(orbital_id, **groups):
@@ -293,6 +337,38 @@ def test_low_overlap_and_close_runner_up_warnings():
     assert any(w.startswith("Low overlap for a1 -> a1") for w in mapping.warnings)
     assert any(w.startswith("Close runner-up for a2 -> a2") for w in mapping.warnings)
     assert not any("a3 ->" in w for w in mapping.warnings)
+
+
+def test_each_match_carries_its_own_warnings():
+    overlap = _overlap([[0.45, 0.0, 0.0], [0.0, 0.70, 0.65], [0.0, 0.10, 0.99]])
+
+    matches = _match(overlap).matches
+
+    assert [len(m.warnings) for m in matches] == [1, 1, 0]
+    assert matches[0].warnings[0].startswith("Low overlap for a1 -> a1")
+    assert matches[1].warnings[0].startswith("Close runner-up for a2 -> a2")
+
+
+def test_an_orthogonal_matrix_over_the_active_orbitals_alone_maps_without_rotation_checks():
+    # e.g. eigenvectors U[initial, relaxed]: the full and the active orbital lists are the same.
+    U = np.array([[0.6, 0.0, 0.8], [0.64, 0.6, -0.48], [-0.48, 0.8, 0.36]])
+    compositions = {i: _composition(i, **{"X p": 1.0}) for i in ACTIVE + ["r1", "r2", "r3"]}
+
+    mapping = match_active_orbitals(U, ACTIVE, ["r1", "r2", "r3"], ACTIVE, ["r1", "r2", "r3"],
+                                    compositions, compositions)
+
+    assert [m.final_id for m in mapping.matches] == ["r3", "r1", "r2"]
+    assert not any("active space" in w for w in mapping.warnings)
+
+
+def test_mapping_table_can_show_initial_orbitals_under_other_labels():
+    mapping = _match(_overlap([[0.45, 0.0, 0.0], [0.0, 0.70, 0.65], [0.0, 0.10, 0.99]]))
+
+    plain = format_mapping(mapping)
+    marked = format_mapping(mapping, initial_labels={"a1": "a1*", "a2": "a2*", "a3": "a3"})
+
+    assert [line.split()[0] for line in marked[2:]] == ["a1*", "a2*", "a3"]
+    assert [line.split()[1:] for line in marked[2:]] == [line.split()[1:] for line in plain[2:]]
 
 
 def test_mapping_options_and_active_sizes_are_validated():

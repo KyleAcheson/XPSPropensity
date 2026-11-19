@@ -5,8 +5,8 @@
 # (mcscf_file given for a rasscf calculation, fcidump_file and Final per
 # method) are checked in xpsoverlaps/inputs.py.
 #
-# Properties restricted to a string `enum` are case-insensitive: input values
-# are lowercased before validation, so write enum (and matching `const`)
+# String values of properties restricted to an `enum` with string choices are
+# case-insensitive: they are lowercased before validation, so write enum (and matching `const`)
 # values in lowercase.
 
 $schema: https://json-schema.org/draft/2020-12/schema
@@ -29,6 +29,11 @@ properties:
           'overlaps' uses initial and final state orbitals; 'chp' approximates
           the overlaps from the initial state only (core-hole potential).
         enum: [overlaps, chp]
+      order:
+        description: >-
+          Method chp only, optional: 1 (the default) relaxes the orbitals to
+          first order in the core-hole potential, 'all' to all orders.
+        enum: [1, all]
 
   Initial:
     $ref: '#/$defs/calculation'

@@ -91,7 +91,9 @@ CASPT2, the RASSCF run of `mcscf_file`). It is checked against the initial
 calculation's active space and orbital energies. The rules are evaluated for
 each core orbital, and the summary gives each core orbital's intensity and
 their mean. Overlaps with |S_ab| above 0.5 are flagged: first-order relaxation
-is unreliable for nearly degenerate orbitals.
+is unreliable for nearly degenerate orbitals. With `order: all` under Calculator
+(default `order: 1`) the orbitals are relaxed to all orders instead, by diagonalising
+diag(e) − J_c (see `examples/brthph/singlet/input_chp_all.yaml` and `docs/chp_all_orders.tex`).
 
 ### Using it from Python
 
