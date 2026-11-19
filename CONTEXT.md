@@ -114,6 +114,29 @@ The two terms of an ES amplitude: D1 = |Pi + Omega|², D2 = ⅓|Pi − Omega|²,
 **Minors (M1–M4)**:
 The 2×2 minors of the valence overlap block that the 5e rules are written in.
 
+### Symmetry
+
+**Point group**:
+The Abelian point group (D2h or a subgroup) a calculation was run in; its irreps multiply by direct product.
+
+**Irrep**:
+An irreducible representation of the point group. Every orbital and every state belongs to exactly one.
+_Avoid_: symmetry (bare), when it is unclear whether an orbital's or a state's is meant
+
+**Initial irrep (Γ_I)** / **Final irrep (Γ_F)**:
+The irrep of an initial state / of a final state. Each calculation holds the states of one irrep.
+
+**Core-hole irrep (Γ_c)**:
+The irrep of the core orbital c the electron is removed from.
+
+**Symmetry-allowed final irrep**:
+Γ_F = Γ_I × Γ_c: the only final irrep with a non-zero Dyson norm for initial irrep Γ_I and core orbital c. Different core orbitals of one initial state can lead to different final irreps (e.g. S 2p in-plane a′ and out-of-plane a″ in Cs).
+_Avoid_: "same symmetry as the initial state" (the core hole changes it)
+
+**Cross-core shake-down**:
+A shake-down whose final state has its core hole in a core orbital c′ other than the ionised one, c. Zero under the propensity rules, which take the core block of S as the identity. Symmetry-allowed when Γ_b × Γ_c′ = Γ_a × Γ_c, and then non-zero in reality only through rotated core orbitals (Γ_c′ = Γ_c), core–valence overlaps or final-state CI mixing.
+_Avoid_: symmetry-forbidden shake-down (only some are)
+
 ### Methods
 
 **Overlaps method**:

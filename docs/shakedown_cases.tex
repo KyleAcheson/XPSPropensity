@@ -176,6 +176,58 @@ M_3&=S_{ij}S_{jk}-S_{ik}S_{jj}, & M_4&=S_{ii}S_{kj}-S_{ij}S_{ki}.
 (no spectator). The code keeps $S_{ii}$, $S_{jj}$, $S_{kk}$ in the formulas it prints and
 sets them to 1.
 
+\section{Point-group symmetry}
+
+In an Abelian point group (D$_{2h}$ and its subgroups) every orbital and state belongs to one
+irrep, every irrep is its own inverse, and $\hat a_c$ transforms as the core orbital's irrep
+$\Gamma_c$. The Dyson norm $|\langle\Phi^F|\hat a_c|\Psi_a\rangle|^2$ is therefore non-zero only if
+\[
+  \Gamma_F=\Gamma_a\times\Gamma_c .
+\]
+The rules take the final state's core hole to be in the ionised orbital $c$. The final state
+built on $b$ then has $\Gamma_F=\Gamma_b\times\Gamma_c$, so a shake-down needs
+$\Gamma_b\times\Gamma_c=\Gamma_a\times\Gamma_c$, i.e.\ $\Gamma_b=\Gamma_a$. Moving one
+electron $p\to q$ gives $\Gamma_b=\Gamma_a\times\Gamma_p\times\Gamma_q$, so equivalently the
+shake-down electron stays in one irrep, $\Gamma_p=\Gamma_q$. Within the rules a ground-state
+shake-down ($b$ the closed-shell, totally symmetric reference) therefore needs a totally
+symmetric initial state. The rules show the same: otherwise $i$ and $k$ lie in different irreps,
+$S_{ik}=0$, and the 3e GS amplitude $S_{ii}S_{ik}$ vanishes.
+
+Different core orbitals of one initial state reach different final irreps. In thiophenol
+(C$_s$), an A$'$ state ionised from an in-plane S\,2p (a$'$) reaches A$'$ final states, and from
+the out-of-plane S\,2p (a$''$) A$''$ final states. The overlaps method uses the final
+calculation of irrep $\Gamma_a\times\Gamma_c$; CHP labels each core orbital's result with it.
+
+\paragraph{Cross-core shake-downs.} A final state may instead have its core hole in another core
+orbital $c'$, with $c$ doubly occupied again. The rules take the core block of $S$ as the identity
+($S_{cc}=1$, $S_{cc'}=0$, $S_{ca}=S_{ac}=0$), so every cross-core shake-down is zero under them.
+Symmetry decides which of these zeros are exact:
+
+\begin{center}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Final hole $c'$ & $\Gamma_b$ & Rules & In reality \\
+\midrule
+$c'=c$ & $\Gamma_a$ & the rule & -- \\
+$c'\ne c$, $\Gamma_{c'}=\Gamma_c$ & $\Gamma_a$ & 0 & non-zero if the final core orbitals are rotated \\
+$c'\ne c$, $\Gamma_{c'}\ne\Gamma_c$ & $\Gamma_a$ & 0 & 0 by symmetry \\
+$c'\ne c$, $\Gamma_{c'}\ne\Gamma_c$ & $\ne\Gamma_a$, $\Gamma_b\Gamma_{c'}=\Gamma_a\Gamma_c$ & 0 & non-zero via core--valence overlaps or CI mixing \\
+any & $\ne\Gamma_a$, otherwise & 0 & 0 by symmetry \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent The second row needs the final core orbitals rotated relative to the initial ones, which is
+possible for near-degenerate 2p$_x$/2p$_y$. The fourth row is, for example, an A$''$ state
+($i$ a$'$, $k$ a$''$) ionised from S\,2p$_z$ (a$''$) reaching ``ground state + 2p$_x$ hole''
+(A$'\times$a$'$ = A$'$). Its shake-down electron changes irrep, so every rule evaluated with
+symmetry-blocked overlaps is exactly zero. Its amplitude needs core--valence overlaps (here
+$S_{ic'}S_{ck}$) or final-state CI mixing, which the dominant-configuration approximation drops.
+The code warns about both: the overlaps method reports the initial/final core overlap block and
+flags it when it is far from the identity, and every run with symmetry notes that cross-core
+shake-downs to states of other irreps are not included.
+
 \section{Not computed}
 
 \begin{itemize}\setlength\itemsep{0pt}
