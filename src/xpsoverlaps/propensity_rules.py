@@ -560,10 +560,16 @@ def core_hole_report(
     shake_downs: Sequence[ShakeDown],
     initial: Calculation,
     evaluations: Sequence[Tuple[CoreHoleOverlaps, Sequence[PropensityResult]]],
+    routes: Optional[Sequence[CoreHoleRoute]] = None,
 ) -> List[str]:
     """For each core orbital the rules evaluated with its core-hole overlaps, then one
-    summary of every computable shake-down's channels: the intensity per core orbital and their mean."""
+    summary of every computable shake-down's channels: the intensity per core orbital and their mean.
+
+    With symmetry (``routes``) each core orbital is labelled with its irrep and
+    the final irrep its hole reaches (ADR-0005).
+    """
     cores = [overlap_source.core for overlap_source, _ in evaluations]
+    titles = core_titles(cores, routes)
     lines = [
         "Propensity rules (core-hole potential)",
         "",
@@ -572,30 +578,82 @@ def core_hole_report(
         " triplet -> ES D2 and Q (GS dark).",
         "Every channel uses the same overlaps (Coulomb only): Q = 2 D2.",
     ]
+    if routes is not None:
+        lines.append("A core hole of irrep c reaches final states of irrep (initial irrep) x c only.")
     for core, (_, results) in zip(cores, evaluations):
-        title = f"Core hole in {core}"
+        title = titles.get(core, f"Core hole in {core}")
         lines += ["", title, "-" * len(title)]
         if not results:
             lines.append("No shake-down has a bright channel.")
         for result in results:
             lines += _result_lines(result)
 
-    results_by_core = {core: {result.shake_down: result for result in results}
-                       for core, (_, results) in zip(cores, evaluations)}
     columns = "".join(f"  {core:>10}" for core in cores)
-    lines += ["", "Summary", f"{'a -> b':>8}  {'Case':<6}  {'Channel':<21}{columns}  {'Mean':>10}"]
+    lines += ["", "Summary"]
+    if routes is not None:
+        lines.append("Final irreps: " + ", ".join(f"{core} ({route.core_irrep}) -> {route.final_irrep.upper()}"
+                                                  for route in routes for core in route.cores))
+    lines.append(f"{'a -> b':>8}  {'Case':<6}  {'Channel':<21}{columns}  {'Mean':>10}")
+    for sd, channel, intensities, note in core_hole_rows(shake_downs, initial, evaluations):
+        pair = f"{_number(sd.initial_state)} -> {_number(sd.lower_state)}"
+        if channel is None:
+            blanks = "".join(f"  {'-':>10}" for _ in cores)
+            lines.append(f"{pair:>8}  {sd.case:<6}  {'-':<21}{blanks}  {'-':>10}   {note}")
+            continue
+        values = "".join(f"  {intensities[core]:10.6f}" for core in cores)
+        lines.append(f"{pair:>8}  {sd.case:<6}  {channel.name:<21}{values}  "
+                     f"{sum(intensities.values()) / len(intensities):10.6f}")
+    return lines
+
+
+def core_titles(cores: Sequence[str], routes: Optional[Sequence[CoreHoleRoute]]) -> Dict[str, str]:
+    """Heading of each core orbital's results: "Core hole in mo:1_i2 (a") -> final A'" with symmetry."""
+    if routes is None:
+        return {core: f"Core hole in {core}" for core in cores}
+    return {core: f"Core hole in {core} ({route.core_irrep}) -> final {route.final_irrep.upper()}"
+            for route in routes for core in route.cores}
+
+
+def core_hole_rows(
+    shake_downs: Sequence[ShakeDown],
+    initial: Calculation,
+    evaluations: Sequence[Tuple[CoreHoleOverlaps, Sequence[PropensityResult]]],
+) -> List[Tuple[ShakeDown, Optional[Channel], Dict[str, float], Optional[str]]]:
+    """Every computable shake-down's channels with the intensity per core orbital, or a note why it has none."""
+    results_by_core = {overlap_source.core: {result.shake_down: result for result in results}
+                       for overlap_source, results in evaluations}
+    rows = []
     for sd in shake_downs:
         if not sd.computable:
             continue
-        pair = f"{_number(sd.initial_state)} -> {_number(sd.lower_state)}"
         channels, note = bright_channels(sd, initial)
         if not channels:
-            blanks = "".join(f"  {'-':>10}" for _ in cores)
-            lines.append(f"{pair:>8}  {sd.case:<6}  {'-':<21}{blanks}  {'-':>10}   {note}")
+            rows.append((sd, None, {}, note))
         for channel in channels:
-            intensities = [next(r for r in results_by_core[core][sd].channels if r.channel is channel).intensity
-                           for core in cores]
-            values = "".join(f"  {value:10.6f}" for value in intensities)
-            lines.append(f"{pair:>8}  {sd.case:<6}  {channel.name:<21}{values}  "
-                         f"{sum(intensities) / len(intensities):10.6f}")
+            rows.append((sd, channel, {
+                core: next(r for r in by_sd[sd].channels if r.channel is channel).intensity
+                for core, by_sd in results_by_core.items()
+            }, None))
+    return rows
+
+
+def core_hole_closing_summary(blocks: Sequence[Tuple[str, Sequence[CoreHoleRoute], Sequence[Tuple]]]) -> List[str]:
+    """The core-hole summaries of several initial calculations in one table, one row per core orbital.
+
+    ``blocks`` holds each initial calculation's irrep, core-hole routes and ``core_hole_rows``.
+    """
+    lines = ["Summary over all initial calculations (core-hole potential)", "",
+             f"{'Init':<4}  {'a -> b':>8}  {'Case':<6}  {'Channel':<21}  {'Core':<9} {'Irr':<4}  {'To':<4}  "
+             f"{'Intensity':>10}"]
+    for irrep, routes, rows in blocks:
+        route_of = {core: route for route in routes for core in route.cores}
+        for sd, channel, intensities, note in rows:
+            pair = f"{_number(sd.initial_state)} -> {_number(sd.lower_state)}"
+            if channel is None:
+                lines.append(f"{irrep.upper():<4}  {pair:>8}  {sd.case:<6}  {'-':<21}  {'-':<9} {'':<4}  {'':<4}  "
+                             f"{'-':>10}   {note}")
+            for core, intensity in intensities.items():
+                route = route_of[core]
+                lines.append(f"{irrep.upper():<4}  {pair:>8}  {sd.case:<6}  {channel.name:<21}  {core:<9} "
+                             f"{route.core_irrep:<4}  {route.final_irrep.upper():<4}  {intensity:10.6f}")
     return lines

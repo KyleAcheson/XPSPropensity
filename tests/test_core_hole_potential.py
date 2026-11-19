@@ -86,7 +86,7 @@ def test_fcidump_follows_orbital_index_when_labels_are_permuted(tmp_path, rasscf
     "edit,message",
     [
         (lambda f: f.attrs.modify("NORB", 11), "it has 11 orbitals; the active space has 12"),
-        (lambda f: f.attrs.modify("ORBSYM", np.array([1] * 6 + [2] * 6)), "written with symmetry"),
+        (lambda f: f.attrs.modify("ORBSYM", np.array([1] * 6 + [2] * 6)), "are not those of the active orbitals"),
         (lambda f: f.attrs.modify("NELEC", 16), "it has 16 active electrons; the calculation has 18"),
         (lambda f: f["ORBITAL_INDEX"].__setitem__(0, 2), "ORBITAL_INDEX is not a permutation"),
         (lambda f: f["ORBITAL_ENERGIES"].__setitem__(3, -0.3), "orbital energy of mo:34 is -0.3"),

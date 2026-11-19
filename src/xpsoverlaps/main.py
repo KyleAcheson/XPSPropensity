@@ -148,15 +148,23 @@ def _run(input_file: Path) -> int:
                 print(failure, file=sys.stderr)
             return 1
     else:
-        initial, frontier, max_state = initials[0].calculation, initials[0].frontier, initials[0].max_state
         try:
-            integrals = get_active_integrals(program, run_input["Initial"][0]["fcidump_file"], initial)
-        except IntegralFileError as error:
+            methods.check_calculations(initials, [])
+        except methods.CalculationSetError as error:
             logger.error("%s", error)
             print(error, file=sys.stderr)
             return 1
-        methods.propensity_chp(initial, StoredIntegrals(integrals), frontier, max_state,
-                               order=run_input["Calculator"]["order"])
+        with_integrals = []
+        for block, initial in zip(run_input["Initial"], initials):
+            try:
+                integrals = get_active_integrals(program, block["fcidump_file"], initial.calculation)
+            except IntegralFileError as error:
+                message = str(error) if len(initials) == 1 else f"{initial.label}: {error}"
+                logger.error("%s", message)
+                print(message, file=sys.stderr)
+                return 1
+            with_integrals.append(initial._replace(integrals=StoredIntegrals(integrals)))
+        methods.propensity_chp(with_integrals, order=run_input["Calculator"]["order"])
     return 0
 
 

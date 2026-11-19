@@ -148,3 +148,56 @@ def test_homo_and_lumo_of_a_symmetric_calculation_name_an_orbital_of_an_irrep(tm
     code, _ = _run(tmp_path, _rasscf(THIOPHENOL, "valence-dz-a") | {"homo": 2, "lumo": 6}, _rasscf(THIOPHENOL, "core-dz-a"))
     assert code == 1
     assert "give the HOMO as <index>_i<irrep>, e.g. 2_i2" in capsys.readouterr().err
+
+
+# --- First-order core-hole potential -------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def thiophenol_chp(tmp_path_factory):
+    output = tmp_path_factory.mktemp("chp") / "chp.out"
+    code = main_module.main(["-i", str(ROOT / "examples" / "thiophenol" / "singlet" / "input_chp.yaml"),
+                             "-o", str(output)])
+    assert code == 0
+    return output.read_text(encoding="utf-8")
+
+
+C1 = "Initial 1: A' (valence-a-caspt2.caspt2.h5)"
+C2 = 'Initial 2: A" (valence-ap-caspt2.caspt2.h5)'
+
+
+def test_chp_labels_each_core_hole_with_the_final_irrep_it_reaches(thiophenol_chp):
+    # Every core orbital of every Initial block: thiophenol A'->A', A'->A", A"->A", A"->A'.
+    expected = {C1: ("mo:21_i1 (a') -> final A'", "mo:22_i1 (a') -> final A'", 'mo:1_i2 (a") -> final A"'),
+                C2: ("mo:21_i1 (a') -> final A\"", "mo:22_i1 (a') -> final A\"", "mo:1_i2 (a\") -> final A'")}
+    for title, cores in expected.items():
+        part = _part(thiophenol_chp, title)
+        overlaps, rules = part.split("Core-hole overlaps", 1)[1].split("Propensity rules (core-hole potential)", 1)
+        for core in cores:
+            assert f"Core hole in {core}" in overlaps and f"Core hole in {core}" in rules
+        assert "Final irreps: " + ", ".join(core.replace("final ", "") for core in cores) in rules
+
+
+def test_chp_runs_each_initial_block_and_warns_about_cross_core_shake_downs(thiophenol_chp):
+    for title, label in ((C1, "Initial 1 (A')"), (C2, 'Initial 2 (A")')):
+        assert _part(thiophenol_chp, title).count(f"{label}: cross-core shake-downs") == 1
+    # The a" block has no closed-shell state: no GS shake-down.
+    a2 = _part(thiophenol_chp, C2).split("Shake-down transitions between initial states", 1)[1].split("----", 1)[0]
+    assert "(from populations)" in a2 and " GS " not in a2
+
+
+def test_chp_closing_summary_covers_every_initial_block_and_core(thiophenol_chp):
+    summary = thiophenol_chp.split("Summary over all initial calculations (core-hole potential)\n\n", 1)[1]
+    rows = [line.split() for line in summary.split("\n\n", 1)[0].splitlines()[1:]]
+    routes = {(row[0], row[-3], row[-2]) for row in rows}
+    assert routes == {("A'", "a'", "A'"), ("A'", 'a"', 'A"'), ('A"', "a'", 'A"'), ('A"', 'a"', "A'")}
+
+
+def test_chp_rejects_two_initial_blocks_of_the_same_irrep(tmp_path, capsys):
+    block = _caspt2(THIOPHENOL, "valence-a-caspt2", "valence-dz-a") | {
+        "fcidump_file": str(THIOPHENOL / "valence-dz-a.FciDmp.h5")}
+    input_file = tmp_path / "chp.yaml"
+    input_file.write_text(yaml.safe_dump({"Calculator": {"program": "molcas", "method": "chp"},
+                                          "Initial": [block, block]}), encoding="utf-8")
+    assert main_module.main(["-i", str(input_file), "-o", str(tmp_path / "chp.out")]) == 1
+    assert "Initial 1 and Initial 2 have the same irrep A'" in capsys.readouterr().err

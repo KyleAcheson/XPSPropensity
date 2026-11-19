@@ -83,7 +83,10 @@ initial calculation of irrep I reaches final states of irrep I × c only, so its
 rules use the Final block of that irrep (ADR-0005); a closing summary covers
 all Initial blocks. `homo`/`lumo` then name an orbital as `<index>_i<irrep>`,
 e.g. `24_i1` for `mo:24_i1`. A block whose orbitals cannot be mapped onto a
-final calculation is reported and skipped, and the run exits with code 1.
+final calculation is reported and skipped, and the run exits with code 1. With
+`method: chp` each Initial block gives its own `fcidump_file`, and each core
+orbital's results are labelled with the final irrep its hole reaches
+(`examples/thiophenol/singlet/input_chp.yaml`).
 Run with:
 
 ```bash
@@ -125,9 +128,10 @@ from an HDF5 file (`wf_file`) plus its log (`state_file`). CASPT2 HDF5 files
 lack orbital energies and populations, so a CASPT2 calculation reads them from
 the RASSCF HDF5 file it was built on (`mcscf_file`). Calculations run with
 symmetry are read (MOs in the AO basis, an irrep per orbital and state, IDs such
-as `mo:34_i1` for the 34th MO of irrep 1); the overlaps method uses symmetry,
-the core-hole potential does not yet. Every file's AO overlap is checked
-against Molcas's own.
+as `mo:34_i1` for the 34th MO of irrep 1), including FCIDUMP files written
+with symmetry; the overlaps method and the first-order core-hole potential use
+symmetry, the all-orders core-hole potential does not yet. Every file's AO
+overlap is checked against Molcas's own.
 
 ### Package structure
 

@@ -57,8 +57,11 @@ from xpsoverlaps.overlap_sources import (
 from xpsoverlaps.propensity_rules import (
     SummaryRow,
     closing_summary,
+    core_hole_closing_summary,
     core_hole_report,
+    core_hole_rows,
     core_hole_routes,
+    core_titles,
     evaluate_final,
     evaluate_shake_downs,
     propensity_report,
@@ -86,12 +89,14 @@ class InitialBlockError(ValueError):
 
 
 class InitialCalculation(NamedTuple):
-    """One Initial block: a calculation (of one irrep, with symmetry) and its input HOMO/LUMO and max_state."""
+    """One Initial block: a calculation (of one irrep, with symmetry), its input HOMO/LUMO and
+    max_state, and for the core-hole potential its integrals (pq|cc)."""
 
     label: str  # "Initial" for a single block, else "Initial 1", "Initial 2", ...
     calculation: Calculation
     frontier: Optional[FrontierOrbitals] = None
     max_state: Optional[int] = None
+    integrals: Optional[CoreHoleIntegrals] = None  # method chp only
 
     @property
     def irrep(self) -> str:
@@ -123,7 +128,7 @@ def check_calculations(
     for label, calculation in labelled:
         if len({state.symmetry for state in calculation.states}) > 1:
             problems.append(f"{label} must contain states of one irrep.")
-    symmetric = len(finals[0].point_group.irreps) > 1 if finals else False
+    symmetric = len(labelled[0][1].point_group.irreps) > 1
     seen: Dict[str, str] = {}
     for initial in initials:
         if initial.irrep in seen:
@@ -304,8 +309,8 @@ def _log_shake_downs(
 
 
 def propensity_chp(
-    initial: Calculation,
-    integrals: CoreHoleIntegrals,
+    initials: Union[Calculation, Sequence[InitialCalculation]],
+    integrals: Optional[CoreHoleIntegrals] = None,
     frontier: Optional[FrontierOrbitals] = None,
     max_state: Optional[int] = None,
     order: Literal[1, "all"] = 1,
@@ -313,47 +318,81 @@ def propensity_chp(
     """Approximate Dyson norms from the initial state using a core-hole potential.
 
     Each core (RAS1) orbital c in turn relaxes the initial orbitals in -J_c,
-    with (pq|cc) from ``integrals`` and e the initial orbital energies: to
+    with (pq|cc) from the integrals and e the initial orbital energies: to
     first order (``order`` 1), S_ab = (ab|cc) / (e_b - e_a) between the RAS2
     orbitals, or to all orders (``order`` "all") by diagonalising
-    diag(e) - J_c over the valence (RAS2 and RAS3) orbitals. ``frontier`` and
-    ``max_state`` are as in ``propensity_overlaps``.
+    diag(e) - J_c over the valence (RAS2 and RAS3) orbitals.
+
+    ``initials`` is one initial calculation (with ``integrals``, ``frontier``
+    and ``max_state`` as in ``propensity_overlaps``), or one
+    ``InitialCalculation`` per irrep, each with its own integrals. With
+    symmetry each core orbital's results are labelled with the final irrep
+    Γ_I × Γ_c its hole reaches, and a closing summary covers all blocks.
     """
     if order not in (1, "all"):
         raise ValueError(f"The core-hole potential order must be 1 or 'all', not {order!r}.")
-    if initial.orbitals.energies is None:
-        raise ValueError("The core-hole potential needs the initial orbital energies (CASPT2: give mcscf_file).")
+    if isinstance(initials, Calculation):
+        initials = [InitialCalculation("Initial", initials, frontier, max_state, integrals)]
+    for initial in initials:
+        if initial.calculation.orbitals.energies is None:
+            raise ValueError("The core-hole potential needs the initial orbital energies (CASPT2: give mcscf_file).")
+        if initial.integrals is None:
+            raise ValueError(f"{initial.label} has no integrals (pq|cc) for the core-hole potential.")
+    check_calculations(initials, [])
+    symmetric = len(initials[0].calculation.point_group.irreps) > 1
+    blocks = [_chp_for_initial(initial, order, symmetric) for initial in initials]
+    if len(initials) > 1:
+        _section(core_hole_closing_summary([block for block in blocks if block is not None]))
+
+
+def _chp_for_initial(initial: InitialCalculation, order: Literal[1, "all"], symmetric: bool):
+    """The sections of one Initial block; returns (irrep, core-hole routes, summary rows), or None
+    when no rules could be evaluated."""
+    calculation = initial.calculation
+    if symmetric:
+        logger.info("")
+        logger.info("=" * len(initial.title))
+        logger.info(initial.title)
+        logger.info("=" * len(initial.title))
     logger.info("")
-    orbital_order = _log_orbital_order(initial, [], frontier, max_state)
+    orbital_order = _log_orbital_order(calculation, [], initial.frontier, initial.max_state)
     logger.info("")
     logger.info(_DASHES)
     logger.info("")
-    shake_downs = _log_shake_downs(initial, orbital_order, max_state)
+    shake_downs = _log_shake_downs(calculation, orbital_order, initial.max_state)
+    if symmetric:
+        logger.info("")
+        logger.warning(
+            "%s (%s): cross-core shake-downs to states of other irreps are symmetry-allowed but not included: "
+            "they need core-valence overlaps or final-state CI mixing (ADR-0005).",
+            initial.label, initial.irrep.upper())
     logger.info("")
     logger.info(_DASHES)
     if orbital_order is None:
-        return
+        return None
     cores = [orbital_id for orbital_id, label in orbital_order.unranked if label == "core"]
     if not cores:
         logger.warning("No core (RAS1) orbitals: the core-hole potential needs at least one.")
-        return
+        return None
+    routes = core_hole_routes(calculation, cores) if symmetric else None
 
     role_orbitals = list(reversed(orbital_order.occupied)) + list(orbital_order.virtual)  # RAS2
-    energies = dict(zip(initial.orbitals.orbital_ids, initial.orbitals.energies))
+    energies = dict(zip(calculation.orbitals.orbital_ids, calculation.orbitals.energies))
     overlap_sources: List[CoreHoleOverlaps]
     if order == 1:
-        coulomb = integrals.coulomb(cores, role_orbitals)
+        coulomb = initial.integrals.coulomb(cores, role_orbitals)
         overlap_sources = [FirstOrderCoreHoleOverlaps(coulomb[core], energies) for core in cores]
     else:
         valence = role_orbitals + [orbital_id for orbital_id, label in orbital_order.unranked if label == "RAS3"]
-        coulomb = integrals.coulomb(cores, valence)
-        overlap_sources = [AllOrdersCoreHoleOverlaps(coulomb[core], energies, initial) for core in cores]
+        coulomb = initial.integrals.coulomb(cores, valence)
+        overlap_sources = [AllOrdersCoreHoleOverlaps(coulomb[core], energies, calculation) for core in cores]
     labels = {o: orbital_order.label(o) for o in role_orbitals}
-    _section(core_hole_overlap_report(overlap_sources, labels, integrals.source))
+    _section(core_hole_overlap_report(overlap_sources, labels, initial.integrals.source, core_titles(cores, routes)))
     warned = sum(len(overlap_source.warnings()) for overlap_source in overlap_sources)
     if warned:
         logger.warning("%d %s", warned, overlap_sources[0].warning_summary)
-    if shake_downs:
-        evaluations = [(source, evaluate_shake_downs(shake_downs, initial, source))
-                       for source in overlap_sources]
-        _section(core_hole_report(shake_downs, initial, evaluations))
+    if not shake_downs:
+        return None
+    evaluations = [(source, evaluate_shake_downs(shake_downs, calculation, source)) for source in overlap_sources]
+    _section(core_hole_report(shake_downs, calculation, evaluations, routes))
+    return initial.irrep, routes or [], core_hole_rows(shake_downs, calculation, evaluations)

@@ -27,8 +27,8 @@ def _record_calls(monkeypatch):
     monkeypatch.setattr(
         methods,
         "propensity_chp",
-        lambda initial, integrals, frontier=None, max_state=None, order=1: calls.update(
-            chp=(initial, frontier, integrals), order=order
+        lambda initials, integrals=None, frontier=None, max_state=None, order=1: calls.update(
+            chp=initials, order=order
         ),
     )
     return calls
@@ -79,10 +79,10 @@ def test_main_chp_loads_only_initial_calculation(monkeypatch, tmp_path):
 
     assert set(calls) == {"chp", "order"}
     assert calls["order"] == 1
-    initial, frontier, integrals = calls["chp"]
-    assert len(initial.states) == 10
-    assert (frontier.homo, frontier.lumo) == ("mo:34", "mo:40")
-    assert integrals.integrals.orbital_ids == initial.active_space.orbital_ids
+    [initial] = calls["chp"]  # one Initial block, with its HOMO/LUMO and integrals
+    assert len(initial.calculation.states) == 10
+    assert (initial.frontier.homo, initial.frontier.lumo) == ("mo:34", "mo:40")
+    assert initial.integrals.integrals.orbital_ids == initial.calculation.active_space.orbital_ids
 
 
 def test_main_chp_passes_the_order_on(monkeypatch, tmp_path):

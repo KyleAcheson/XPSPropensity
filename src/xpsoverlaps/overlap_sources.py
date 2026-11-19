@@ -18,7 +18,7 @@ pairs it with a shake-down's orbital roles i, j, k.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Mapping, Sequence, Tuple
+from typing import List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -267,10 +267,12 @@ class AllOrdersCoreHoleOverlaps(CoreHoleOverlaps):
 
 
 def core_hole_overlap_report(
-    overlap_sources: Sequence[CoreHoleOverlaps], labels: Mapping[str, str], integral_source: str
+    overlap_sources: Sequence[CoreHoleOverlaps], labels: Mapping[str, str], integral_source: str,
+    core_titles: Optional[Mapping[str, str]] = None,
 ) -> List[str]:
     """For each core orbital the matrix S_ab = <phi_a|psi_b> over the role (RAS2) orbitals,
-    the keys of ``labels``, rows a (relaxed) and columns b, then the source's details."""
+    the keys of ``labels``, rows a (relaxed) and columns b, then the source's details.
+    ``core_titles`` heads each core orbital's block (default "Core hole in <core>")."""
     lines = [
         "Core-hole overlaps",
         "",
@@ -280,7 +282,7 @@ def core_hole_overlap_report(
     ]
     ids = list(labels)
     for overlap_source in overlap_sources:
-        lines += ["", f"Core hole in {overlap_source.core}",
+        lines += ["", (core_titles or {}).get(overlap_source.core, f"Core hole in {overlap_source.core}"),
                   f"{'':<8}  {'':<8}" + "".join(f"{overlap_source.label(b):>9}" for b in ids)]
         for a in ids:
             lines.append(f"{labels[a]:<8}  {overlap_source.label(a):<8}"

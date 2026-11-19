@@ -3,7 +3,10 @@
 Format details (``src/rasscf/fcidump*.F90``):
 
 - Molcas numbers the active orbitals 1..NORB irrep by irrep and, within an
-  irrep, in MO order after the frozen and inactive orbitals. RASSCF can
+  irrep, in MO order after the frozen and inactive orbitals: the MO order of
+  the active orbitals, not the CI-string order, which with symmetry lists the
+  RAS spaces first. ``ORBSYM`` is each orbital's irrep (1-based) and ``ISYM``
+  the states' irrep (0-based). RASSCF can
   permute these labels (orbital reordering, GAS): ``ORBITAL_INDEX[i]`` is the
   label of the i-th active orbital, while ``ORBITAL_ENERGIES`` stays in
   active-orbital order.
@@ -15,7 +18,8 @@ Format details (``src/rasscf/fcidump*.F90``):
   only identify the orbitals; exact energies come from the calculation.
 
 The file holds no MO coefficients: it is matched to a calculation by the
-number of active orbitals and electrons and by the orbital energies.
+number of active orbitals and electrons, the orbital and state irreps, and the
+orbital energies.
 """
 
 from __future__ import annotations
@@ -40,14 +44,15 @@ _PERMUTATIONS = ((0, 1, 2, 3), (1, 0, 2, 3), (0, 1, 3, 2), (1, 0, 3, 2),
 def read_fcidump(path: str | Path, calculation: Calculation) -> ActiveIntegrals:
     """The (pq|rs) integrals of a Molcas FCIDUMP HDF5 file, over ``calculation``'s active orbitals.
 
-    Raises ``IntegralFileError`` if the file uses symmetry or does not match
-    ``calculation``'s active space and orbital energies.
+    Raises ``IntegralFileError`` if the file does not match ``calculation``'s
+    active space, irreps and orbital energies.
     """
     path = Path(path)
     with MolcasHdf5(path) as fcidump:
         norb = int(fcidump.attribute("NORB"))
         nelec = fcidump.attribute("NELEC")
-        orbsym = np.atleast_1d(fcidump.attribute("ORBSYM"))
+        orbsym = [int(irrep) for irrep in np.atleast_1d(fcidump.attribute("ORBSYM"))]
+        isym = fcidump.attribute("ISYM")
         labels = np.asarray(fcidump.dataset("ORBITAL_INDEX"), dtype=int)
         energies = np.asarray(fcidump.dataset("ORBITAL_ENERGIES"), dtype=float)
         indices = np.asarray(fcidump.dataset("TWO_EL_INT_INDEX"), dtype=int)
@@ -55,10 +60,16 @@ def read_fcidump(path: str | Path, calculation: Calculation) -> ActiveIntegrals:
 
     active = _active_orbitals(calculation)
     problems = []
-    if np.any(orbsym != 1):
-        problems.append("it was written with symmetry, which is not supported yet")
     if norb != len(active):
         problems.append(f"it has {norb} orbitals; the active space has {len(active)}")
+    irreps = calculation.point_group.irreps
+    irrep_of = dict(zip(calculation.orbitals.orbital_ids, calculation.orbitals.irreps))
+    if not problems and orbsym != [irreps.index(irrep_of[orbital_id]) + 1 for orbital_id in active]:
+        problems.append(f"its orbital irreps (ORBSYM {orbsym}) are not those of the active orbitals")
+    state_irreps = {state.symmetry for state in calculation.states}
+    if isym is not None and len(state_irreps) == 1 and int(isym) != irreps.index(state_irreps.pop()):
+        problems.append(f"it was written for states of irrep {irreps[int(isym)]} (ISYM {int(isym)}); "
+                        "the calculation's states are of another irrep")
     electrons = calculation.active_space.electron_count
     if nelec is not None and electrons is not None and int(nelec) != electrons:
         problems.append(f"it has {int(nelec)} active electrons; the calculation has {electrons}")
@@ -79,14 +90,20 @@ def read_fcidump(path: str | Path, calculation: Calculation) -> ActiveIntegrals:
 
 
 def _active_orbitals(calculation: Calculation) -> List[str]:
-    """The active orbital IDs, checked to follow MO order without gaps as Molcas numbers them."""
-    active = list(calculation.active_space.orbital_ids)
-    positions = [calculation.orbitals.orbital_ids.index(orbital_id) for orbital_id in active]
-    if positions != list(range(positions[0], positions[0] + len(positions))):
-        raise IntegralFileError(
-            "FCIDUMP orbitals follow the MO order, but the active orbitals are not consecutive MOs in "
-            "CI-string order; they cannot be matched."
-        )
+    """The active orbital IDs in FCIDUMP order: MO order, irrep by irrep.
+
+    Molcas's active orbitals are consecutive MOs within each irrep; they are
+    checked to be, as the FCIDUMP numbering relies on it.
+    """
+    ids, irreps = calculation.orbitals.orbital_ids, calculation.orbitals.irreps
+    active = sorted(calculation.active_space.orbital_ids, key=ids.index)
+    for irrep in dict.fromkeys(irreps[ids.index(o)] for o in active):
+        positions = [ids.index(o) for o in active if irreps[ids.index(o)] == irrep]
+        if positions != list(range(positions[0], positions[0] + len(positions))):
+            raise IntegralFileError(
+                f"FCIDUMP orbitals follow the MO order, but the active orbitals of irrep {irrep} are not "
+                "consecutive MOs; they cannot be matched."
+            )
     return active
 
 

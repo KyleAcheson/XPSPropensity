@@ -14,7 +14,7 @@ import pytest
 
 from xpsoverlaps.model import PointGroup
 from xpsoverlaps.overlap import get_overlap_provider
-from xpsoverlaps.readers import get_calculation
+from xpsoverlaps.readers import IntegralFileError, get_active_integrals, get_calculation
 
 ROOT = Path(__file__).parents[1]
 THIOPHENOL = ROOT / "data" / "molcas" / "thiophenol" / "s2p" / "dz"
@@ -154,3 +154,30 @@ def test_desymmetrised_mos_are_orthonormal_over_the_ao_basis(name, request):
     C = calculation.orbitals.coefficients
     S = get_overlap_provider(calculation.basis, calculation.basis).cross_overlap(calculation.basis, calculation.basis)
     np.testing.assert_allclose(C.T @ S @ C, np.eye(C.shape[1]), atol=1e-10)
+
+
+# --- FCIDUMP integrals with symmetry -----------------------------------------
+
+
+def test_fcidump_integrals_written_with_symmetry_are_put_on_the_right_orbitals(thiophenol_a):
+    integrals = get_active_integrals("molcas", THIOPHENOL / "valence-dz-a.FciDmp.h5", thiophenol_a)
+    J = integrals.two_electron
+    index = integrals.orbital_ids.index
+    # Values from the text FCIDUMP; Molcas numbers the active orbitals irrep by irrep (ORBSYM 6 a', 8 a"):
+    # 1, 2 = mo:21_i1, mo:22_i1 (a' S 2p), 7 = mo:1_i2 (a" S 2p).
+    c1, c2, c3 = index("mo:21_i1"), index("mo:22_i1"), index("mo:1_i2")
+    assert J[c1, c1, c1, c1] == pytest.approx(2.2501778717)
+    assert J[c2, c1, c2, c1] == pytest.approx(0.11678714201)
+    assert J[c3, c3, c1, c1] == pytest.approx(2.0130170379)
+    assert J[c3, c3, c3, c3] == pytest.approx(2.2420504350)
+    # (pq|cc) vanishes between orbitals of different irreps.
+    irrep = dict(zip(thiophenol_a.orbitals.orbital_ids, thiophenol_a.orbitals.irreps))
+    ids = integrals.orbital_ids
+    for c in (c1, c3):
+        cross = [J[p, q, c, c] for p in range(len(ids)) for q in range(len(ids)) if irrep[ids[p]] != irrep[ids[q]]]
+        assert max(abs(value) for value in cross) == 0.0
+
+
+def test_an_fcidump_file_of_another_irrep_is_rejected(thiophenol_a):
+    with pytest.raises(IntegralFileError, match="ISYM"):
+        get_active_integrals("molcas", THIOPHENOL / "valence-dz-ap.FciDmp.h5", thiophenol_a)
