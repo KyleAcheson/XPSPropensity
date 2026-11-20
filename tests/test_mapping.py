@@ -302,31 +302,36 @@ def test_collision_with_opposite_composition_follows_composition():
     assert [m.final_id for m in mapping.matches] == ["a2", "a1", "a3"]
 
 
-def test_initial_orbital_rotating_out_of_active_space_is_an_error():
+def test_an_initial_orbital_rotated_out_of_the_active_space_is_left_unmatched():
     overlap = _overlap(np.eye(3) * 0.4)
     overlap[1, 4] = 0.9  # initial a1 overlaps most with final secondary s1
 
+    mapping = _match(overlap)
+
+    assert mapping.unmatched_initial == ["a1"] and not mapping.has_match("a1")
+    assert [(m.initial_id, m.final_id) for m in mapping.matches] == [("a2", "a2"), ("a3", "a3")]
+    assert mapping.unmatched_final == ["a1"]  # its partner, left over
+    assert mapping.rotated_out == ["Initial active a1 overlaps most with final s1 (|S| = 0.900), "
+                                   "which is outside the final active space."]
+    assert mapping.active_index_map == [None, 1, 2]
+    with pytest.raises(OrbitalMappingError, match="a1 has no match"):
+        mapping.final_id("a1")
     with pytest.raises(OrbitalMappingError, match="Initial active a1 overlaps most with final s1"):
-        _match(overlap)
+        _match(overlap, rotated_out="error")
 
 
-def test_final_orbital_rotating_into_active_space_is_detected():
+def test_a_final_orbital_rotated_into_the_active_space_is_left_unmatched():
     overlap = _overlap(np.eye(3) * 0.6)
     overlap[0, 0] = 0.5
     overlap[0, 3] = 0.9  # final a3 overlaps most with initial inactive i1
 
+    mapping = _match(overlap)
+
+    assert mapping.unmatched_final == ["a3"]
+    assert mapping.unmatched_initial == ["a3"]  # its partner rotated out
+    assert any(message.startswith("Final active a3 overlaps most with initial i1") for message in mapping.rotated_out)
     with pytest.raises(OrbitalMappingError, match="Final active a3 overlaps most with initial i1"):
-        _match(overlap)
-
-
-def test_rotation_out_can_be_downgraded_to_a_warning():
-    overlap = _overlap(np.eye(3) * 0.4)
-    overlap[1, 4] = 0.9
-
-    mapping = _match(overlap, rotated_out="warning")
-
-    assert any("outside the final active space" in w for w in mapping.warnings)
-    assert [m.final_id for m in mapping.matches] == ACTIVE
+        _match(overlap, rotated_out="error")
 
 
 def test_low_overlap_and_close_runner_up_warnings():
@@ -373,6 +378,6 @@ def test_mapping_table_can_show_initial_orbitals_under_other_labels():
 
 def test_mapping_options_and_active_sizes_are_validated():
     with pytest.raises(ValueError, match="rotated_out"):
-        MappingOptions(rotated_out="ignore")
+        MappingOptions(rotated_out="warning")
     with pytest.raises(OrbitalMappingError, match="differ in size"):
         match_active_orbitals(np.eye(5), IDS, IDS, ACTIVE, ["a1", "a2"], {}, {})

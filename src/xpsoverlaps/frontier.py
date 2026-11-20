@@ -342,7 +342,7 @@ def orbital_order_report(order: OrbitalOrder, initial: Calculation, finals: Sequ
         final_population, final_energy = _populations(final.calculation)
         lines += ["", final.title, f"{'Label':<8}  {'Initial':<8}  {'Final':<8}  {'Population':>10}  {'Energy':>10}"]
         for orbital_id in rows:
-            final_id = final.mapping.final_id(orbital_id)
+            final_id = final.mapping.final_id(orbital_id) if final.mapping.has_match(orbital_id) else "-"
             lines.append(
                 f"{order.label(orbital_id):<8}  {orbital_id:<8}  {final_id:<8}  "
                 f"{_number(final_population, final_id)}  {_number(final_energy, final_id)}"

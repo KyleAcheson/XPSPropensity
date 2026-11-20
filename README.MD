@@ -82,8 +82,11 @@ files. Each Initial block is analysed on its own. A core hole of irrep c in an
 initial calculation of irrep I reaches final states of irrep I × c only, so its
 rules use the Final block of that irrep (ADR-0005); a closing summary covers
 all Initial blocks. `homo`/`lumo` then name an orbital as `<index>_i<irrep>`,
-e.g. `24_i1` for `mo:24_i1`. A block whose orbitals cannot be mapped onto a
-final calculation is reported and skipped, and the run exits with code 1. With
+e.g. `24_i1` for `mo:24_i1`. An active orbital that has rotated out of the
+active space between the initial and a final calculation is left unmatched,
+with a warning; shake-downs that need it are reported as not computable. A
+block whose orbitals cannot be mapped at all (e.g. active spaces of different
+sizes) is reported and skipped, and the run exits with code 1. With
 `method: chp` each Initial block gives its own `fcidump_file`, and each core
 orbital's results are labelled with the final irrep its hole reaches
 (`examples/thiophenol/singlet/input_chp.yaml`).

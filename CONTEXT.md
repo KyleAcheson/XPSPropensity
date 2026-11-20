@@ -70,6 +70,10 @@ _Avoid_: energy order, orbital ladder
 The correspondence between initial and final active orbitals, by largest overlap.
 _Avoid_: reordering, matching (as a verb that suggests changing the calculation)
 
+**Unmatched orbital**:
+An active orbital whose largest overlap is with an orbital outside the other calculation's active space (it has rotated out of the active space), so the orbital mapping gives it no partner. A shake-down with an unmatched orbital in one of its orbital roles is not computable with that final calculation.
+_Avoid_: missing orbital, lost orbital
+
 ### Shake-downs
 
 **Shake-down**:

@@ -41,11 +41,13 @@ class IrrepMappingError(ValueError):
 class MappingOptions:
     min_overlap: float = 0.5  # warn if a matched |S| is below this
     close_second_ratio: float = 0.8  # warn if runner-up |S| / matched |S| is at least this
-    rotated_out: Literal["error", "warning"] = "error"  # for orbitals leaving the active space
+    # Orbitals whose best partner lies outside the other active space: left unmatched (with a
+    # warning), or an error.
+    rotated_out: Literal["unmatched", "error"] = "unmatched"
 
     def __post_init__(self) -> None:
-        if self.rotated_out not in {"error", "warning"}:
-            raise ValueError("rotated_out must be 'error' or 'warning'.")
+        if self.rotated_out not in {"unmatched", "error"}:
+            raise ValueError("rotated_out must be 'unmatched' or 'error'.")
 
 
 class OrbitalMatch(NamedTuple):
@@ -62,7 +64,12 @@ class OrbitalMatch(NamedTuple):
 
 @dataclass(frozen=True, eq=False)
 class OrbitalMapping:
-    """Initial active orbital -> final active orbital, in initial active order."""
+    """Initial active orbital -> final active orbital, in initial active order.
+
+    An active orbital whose best partner lies outside the other calculation's
+    active space has rotated out of it: it has no match (``unmatched_initial``,
+    ``unmatched_final``) and ``rotated_out`` says where it went.
+    """
 
     matches: List[OrbitalMatch]
     initial_active_ids: List[str]
@@ -73,9 +80,19 @@ class OrbitalMapping:
     initial_orbital_ids: List[str]  # row order of mo_overlap
     final_orbital_ids: List[str]  # column order of mo_overlap
     warnings: List[str] = field(default_factory=list)
+    unmatched_initial: List[str] = field(default_factory=list)
+    unmatched_final: List[str] = field(default_factory=list)
+    rotated_out: List[str] = field(default_factory=list)  # one message per rotated-out orbital
+
+    def has_match(self, initial_id: str) -> bool:
+        return any(match.initial_id == initial_id for match in self.matches)
 
     def final_id(self, initial_id: str) -> str:
-        return next(match.final_id for match in self.matches if match.initial_id == initial_id)
+        """The final orbital matched to ``initial_id``; an error for an unmatched orbital."""
+        for match in self.matches:
+            if match.initial_id == initial_id:
+                return match.final_id
+        raise OrbitalMappingError(f"{initial_id} has no match: it has rotated out of the active space.")
 
     def overlap(self, initial_id: str, final_id: str) -> float:
         """Signed <psi_initial|phi_final> between any two orbitals."""
@@ -83,9 +100,10 @@ class OrbitalMapping:
         return float(self.mo_overlap[row, self.final_orbital_ids.index(final_id)])
 
     @property
-    def active_index_map(self) -> List[int]:
-        """``index_map[k]``: final active position matched to initial active position ``k``."""
-        return [self.final_active_ids.index(match.final_id) for match in self.matches]
+    def active_index_map(self) -> List[Optional[int]]:
+        """``index_map[k]``: final active position matched to initial active position ``k`` (None if unmatched)."""
+        return [self.final_active_ids.index(self.final_id(i)) if self.has_match(i) else None
+                for i in self.initial_active_ids]
 
 
 def match_active_orbitals(
@@ -102,9 +120,10 @@ def match_active_orbitals(
 
     1. Every active orbital's largest |S| partner over *all* MOs of the other
        calculation must be active, otherwise it has rotated out of the active
-       space (error or warning, see ``MappingOptions.rotated_out``).
-    2. Within the active block, each initial orbital takes its largest-|S|
-       final orbital.
+       space: it is left unmatched, with a warning (or it is an error, see
+       ``MappingOptions.rotated_out``).
+    2. Within the remaining active block, each initial orbital takes its
+       largest-|S| final orbital.
     3. If that is not one-to-one, orbitals competing for the same partner are
        reassigned among the remaining final orbitals by |S| x AO-composition
        similarity, highest first.
@@ -125,12 +144,18 @@ def match_active_orbitals(
 
     initial_rows = [list(initial_orbital_ids).index(i) for i in initial_active_ids]
     final_columns = [list(final_orbital_ids).index(j) for j in final_active_ids]
-    warnings = _check_active_space_rotation(
+    rotated_out, out_rows, out_columns = _check_active_space_rotation(
         overlap, initial_orbital_ids, final_orbital_ids, initial_rows, final_columns, options
     )
+    warnings = list(rotated_out)
 
     active = np.abs(overlap[np.ix_(initial_rows, final_columns)])
+    # Rotated-out orbitals take no part in the matching.
+    active[[k for k, row in enumerate(initial_rows) if row in out_rows], :] = -1.0
+    active[:, [k for k, column in enumerate(final_columns) if column in out_columns]] = -1.0
     n_active = len(initial_active_ids)
+    matchable_rows = [k for k, row in enumerate(initial_rows) if row not in out_rows]
+    matchable_columns = [k for k, column in enumerate(final_columns) if column not in out_columns]
 
     def similarity(row: int, column: int) -> float:
         return composition_similarity(
@@ -140,12 +165,12 @@ def match_active_orbitals(
 
     best = active.argmax(axis=1)
     claimants: Dict[int, List[int]] = {}
-    for row, column in enumerate(best):
-        claimants.setdefault(int(column), []).append(row)
+    for row in matchable_rows:
+        claimants.setdefault(int(best[row]), []).append(row)
     contested_rows = [row for rows in claimants.values() if len(rows) > 1 for row in rows]
 
     assignment: Dict[int, int] = {
-        row: int(best[row]) for row in range(n_active) if row not in contested_rows
+        row: int(best[row]) for row in matchable_rows if row not in contested_rows
     }
     assigned_by = {row: "overlap" for row in assignment}
     if contested_rows:
@@ -157,7 +182,7 @@ def match_active_orbitals(
                     f"initial orbitals ({names}); these are assigned by |S| x AO-composition "
                     "similarity."
                 )
-        free_columns = [c for c in range(n_active) if c not in assignment.values()]
+        free_columns = [c for c in matchable_columns if c not in assignment.values()]
         scored = sorted(
             (
                 (active[row, column] * similarity(row, column), row, column)
@@ -172,9 +197,9 @@ def match_active_orbitals(
                 assigned_by[row] = "composition"
 
     matches = []
-    for row in range(n_active):
+    for row in sorted(assignment):
         column = assignment[row]
-        others = [c for c in range(n_active) if c != column]
+        others = [c for c in matchable_columns if c != column]
         runner_up = max(others, key=lambda c: active[row, c]) if others else None
         match = OrbitalMatch(
             initial_id=initial_active_ids[row],
@@ -204,6 +229,9 @@ def match_active_orbitals(
         initial_orbital_ids=list(initial_orbital_ids),
         final_orbital_ids=list(final_orbital_ids),
         warnings=warnings,
+        unmatched_initial=[initial_active_ids[row] for row in range(n_active) if row not in assignment],
+        unmatched_final=[final_active_ids[c] for c in range(n_active) if c not in assignment.values()],
+        rotated_out=rotated_out,
     )
 
 
@@ -214,13 +242,15 @@ def _check_active_space_rotation(
     initial_rows: Sequence[int],
     final_columns: Sequence[int],
     options: MappingOptions,
-) -> List[str]:
-    """Problems where an active orbital's best partner lies outside the other active space."""
+) -> Tuple[List[str], List[int], List[int]]:
+    """Active orbitals whose best partner lies outside the other active space: a message for
+    each, and their initial rows and final columns in ``overlap``."""
     magnitude = np.abs(overlap)
-    problems = []
+    problems, out_rows, out_columns = [], [], []
     for row in initial_rows:
         column = int(magnitude[row].argmax())
         if column not in final_columns:
+            out_rows.append(row)
             problems.append(
                 f"Initial active {initial_orbital_ids[row]} overlaps most with final "
                 f"{final_orbital_ids[column]} (|S| = {magnitude[row, column]:.3f}), which is "
@@ -229,6 +259,7 @@ def _check_active_space_rotation(
     for column in final_columns:
         row = int(magnitude[:, column].argmax())
         if row not in initial_rows:
+            out_columns.append(column)
             problems.append(
                 f"Final active {final_orbital_ids[column]} overlaps most with initial "
                 f"{initial_orbital_ids[row]} (|S| = {magnitude[row, column]:.3f}), which is "
@@ -239,7 +270,7 @@ def _check_active_space_rotation(
             "Active orbitals have rotated out of the active space:\n  "
             + "\n  ".join(problems)
         )
-    return problems
+    return problems, out_rows, out_columns
 
 
 def _match_warnings(match: OrbitalMatch, options: MappingOptions) -> List[str]:
@@ -285,6 +316,8 @@ def format_mapping(mapping: OrbitalMapping, initial_labels: Optional[Mapping[str
             f"{initial_labels.get(match.initial_id, match.initial_id):<8} {match.final_id:<8} {match.overlap:+8.3f} "
             f"{match.similarity:5.2f}   {runner_up}   {match.assigned_by}"
         )
+    lines += [f"{initial_labels.get(i, i):<8} {'-':<8} {'-':>8} {'-':>5}   {'-':<10} {'-':>6} {'-':>5}   no match"
+              for i in mapping.unmatched_initial]
     return lines
 
 
@@ -345,12 +378,15 @@ def mapping_report(mapping: OrbitalMapping, irreps: Optional[Mapping[str, str]] 
     symmetry, splits the match table into one table per irrep.
     """
     lines = ["Active orbital mapping (initial -> final), by MO overlap", ""]
+    lines += unmatched_warning(mapping)
     if irreps is None:
         lines += format_mapping(mapping)
     else:
-        for irrep in dict.fromkeys(irreps[match.initial_id] for match in mapping.matches):
-            matches = [match for match in mapping.matches if irreps[match.initial_id] == irrep]
-            lines += [f"Irrep {irrep}", *format_mapping(dataclasses.replace(mapping, matches=matches)), ""]
+        for irrep in dict.fromkeys(irreps[i] for i in mapping.initial_active_ids):
+            part = dataclasses.replace(
+                mapping, matches=[match for match in mapping.matches if irreps[match.initial_id] == irrep],
+                unmatched_initial=[i for i in mapping.unmatched_initial if irreps[i] == irrep])
+            lines += [f"Irrep {irrep}", *format_mapping(part), ""]
         lines.pop()
     lines.append("")
     if mapping.warnings:
@@ -364,6 +400,21 @@ def mapping_report(mapping: OrbitalMapping, irreps: Optional[Mapping[str, str]] 
         for match in mapping.matches
     ]
     return lines + describe_orbital_pairs(pairs)
+
+
+def unmatched_warning(mapping: OrbitalMapping) -> List[str]:
+    """A prominent block naming the orbitals that rotated out of the active space and so have no match
+    (empty if there are none): shake-downs whose orbital roles include them cannot be computed."""
+    if not mapping.unmatched_initial and not mapping.unmatched_final:
+        return []
+    stars = "*" * 80
+    lines = [stars, "* WARNING: active orbitals without a match (rotated out of the active space)", "*"]
+    lines += [f"*   {message}" for message in mapping.rotated_out]
+    lines += [f"*   Unmatched initial: {', '.join(mapping.unmatched_initial) or '-'};  "
+              f"unmatched final: {', '.join(mapping.unmatched_final) or '-'}.",
+              "*   Shake-downs whose orbital roles i, j, k include an unmatched initial orbital are",
+              "*   not computable with this final calculation.", stars, ""]
+    return lines
 
 
 class CoreOverlapBlock:
@@ -403,7 +454,7 @@ class CoreOverlapBlock:
             f"{abs(self.mapping.overlap(c, self.mapping.final_id(c))):.3f} < {self.DIAGONAL_WARNING}; the rules "
             "take the core block of S as the identity, so cross-core shake-downs are not included (ADR-0005)."
             for initial_cores, _ in self.blocks.values() for c in initial_cores
-            if abs(self.mapping.overlap(c, self.mapping.final_id(c))) < self.DIAGONAL_WARNING
+            if self.mapping.has_match(c) and abs(self.mapping.overlap(c, self.mapping.final_id(c))) < self.DIAGONAL_WARNING
         ]
 
 
@@ -411,9 +462,10 @@ def remap_occupations(occupations: Sequence[str], mapping: OrbitalMapping) -> Li
     """Final-state occupations reordered onto the initial active orbitals.
 
     Position k holds the occupation of the final orbital matched to initial
-    active orbital k, so initial and final strings compare position by position.
+    active orbital k, so initial and final strings compare position by position;
+    "-" where initial orbital k has no match.
     """
-    return [occupations[position] for position in mapping.active_index_map]
+    return ["-" if position is None else occupations[position] for position in mapping.active_index_map]
 
 
 def open_shells_reordered(occupations: Sequence[str], mapping: OrbitalMapping) -> bool:
@@ -422,7 +474,7 @@ def open_shells_reordered(occupations: Sequence[str], mapping: OrbitalMapping) -
     ``u``/``d`` couple the open shells in orbital order, so the remapped string
     is then not the same CSF; its occupation numbers are still exact.
     """
-    positions = [p for p in mapping.active_index_map if occupations[p] in "ud"]
+    positions = [p for p in mapping.active_index_map if p is not None and occupations[p] in "ud"]
     return positions != sorted(positions)
 
 
@@ -437,7 +489,7 @@ def mapped_ci_report(initial: Calculation, final: Calculation, mapping: OrbitalM
         "",
         "Position k refers to initial orbital k and to the final orbital matched to it:",
         f"  initial: {' '.join(mapping.initial_active_ids)}",
-        f"  final:   {' '.join(match.final_id for match in mapping.matches)}",
+        f"  final:   {' '.join(mapping.final_id(i) if mapping.has_match(i) else '-' for i in mapping.initial_active_ids)}",
         "",
         f"Initial states ({initial.provenance.method})",
         f"{'State':>5}  {'Energy (Eh)':>16}  {'CI vector':<{width}}  {'Weight':>8}",

@@ -53,6 +53,10 @@ class OrbitalOverlaps(ABC):
         """Initial orbital ``a`` and, if the source has one, the final orbital standing for phi_a."""
         return a
 
+    def unavailable(self, orbital_ids: Sequence[str]) -> Optional[str]:
+        """Why the overlaps between ``orbital_ids`` cannot be given, or None if they can."""
+        return None
+
 
 class MappedOverlaps(OrbitalOverlaps):
     """Overlaps method: S_ab = |<phi_final(a)|psi_b>| with the final orbital matched to a."""
@@ -68,6 +72,14 @@ class MappedOverlaps(OrbitalOverlaps):
 
     def describe_orbital(self, a: str) -> str:
         return f"{a} -> final {self.mapping.final_id(a)}"
+
+    def unavailable(self, orbital_ids: Sequence[str]) -> Optional[str]:
+        """An orbital without a final match (rotated out of the active space) has no phi_a."""
+        unmatched = [o for o in orbital_ids if not self.mapping.has_match(o)]
+        if not unmatched:
+            return None
+        return (f"{', '.join(unmatched)} rotated out of the active space and so "
+                f"{'has' if len(unmatched) == 1 else 'have'} no final orbital matched to it")
 
 
 class CoreHoleOverlaps(OrbitalOverlaps):

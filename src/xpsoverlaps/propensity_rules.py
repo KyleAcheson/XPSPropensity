@@ -315,7 +315,7 @@ class PropensityResult(NamedTuple):
     overlap_values: Dict[str, float]  # role pair -> S used by the evaluated channels (diagonals = 1)
     diagonals: Dict[str, float]  # role pair ("ii", ...) -> actual S
     channels: List[ChannelResult]  # evaluated channels
-    note: Optional[str] = None  # why no channel is bright
+    note: Optional[str] = None  # why no channel is bright, or why the overlap source cannot evaluate it
 
     @property
     def values(self) -> Dict[str, float]:
@@ -350,6 +350,10 @@ def compute_propensity(
     S = shake_down.overlaps(overlap_source)
     channels, note = bright_channels(shake_down, initial)
     selected = [c for c in channels if final_spin is None or c.final_spin == final_spin]
+    unavailable = overlap_source.unavailable(list(shake_down.orbital_roles.values()))
+    if unavailable is not None:  # not computable with this overlap source
+        return PropensityResult(shake_down, _initial_spin(shake_down, initial), S, {}, {}, [],
+                                f"not computable: {unavailable}")
     pairs = dict.fromkeys(pair for channel in selected for pair in channel.overlaps)
     return PropensityResult(
         shake_down,
@@ -398,8 +402,10 @@ def _result_lines(result: PropensityResult) -> List[str]:
         "",
         f"{_number(sd.initial_state)} -> {_number(sd.lower_state)}   {sd.case}   "
         f"initial S = {result.initial_spin:g}" + (f"   (d = {sd.d} omitted)" if sd.d else ""),
-        "  " + "   ".join(S.describe_role(role) for role in S.orbital_roles),
     ]
+    if not result.channels and result.note:
+        return lines + [f"  {result.note}"]
+    lines.append("  " + "   ".join(S.describe_role(role) for role in S.orbital_roles))
     lines += [f"  S_{pair} = {S.describe(pair)} = {value:.4f}" for pair, value in result.overlap_values.items()
               if pair[0] != pair[1]]
     for pair, value in result.diagonals.items():
@@ -488,8 +494,11 @@ def summary_rows(
                     rows.append(SummaryRow(sd, channel, route, None, None,
                                            f"no S = {channel.final_spin:g}{irrep} final calculation"))
                     continue
-                result = next(r for r in results_by_final[final.label][sd].channels if r.channel is channel)
-                rows.append(SummaryRow(sd, channel, route, final.label, result.intensity))
+                result = results_by_final[final.label][sd]
+                evaluated = next((r for r in result.channels if r.channel is channel), None)
+                rows.append(SummaryRow(sd, channel, route, final.label,
+                                       evaluated.intensity if evaluated else None,
+                                       None if evaluated else result.note))
     return rows
 
 

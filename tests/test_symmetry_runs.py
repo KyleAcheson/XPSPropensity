@@ -11,6 +11,10 @@ import pytest
 import yaml
 
 from xpsoverlaps import main as main_module
+from xpsoverlaps.mapping import MappedFinal, map_active_orbitals
+from xpsoverlaps.propensity_rules import evaluate_final, propensity_report
+from xpsoverlaps.readers import get_calculation
+from xpsoverlaps.shakedown_transitions import ShakeDown
 
 ROOT = Path(__file__).parents[1]
 THIOPHENOL = ROOT / "data" / "molcas" / "thiophenol" / "s2p" / "dz"
@@ -83,21 +87,41 @@ def test_the_core_orbital_overlap_block_is_reported_per_irrep(thiophenol_rasscf)
     assert 'Irrep a"\nInitial    mo:1_i2\nmo:1_i2      1.000' in block
 
 
-def test_the_example_runs_every_initial_block_and_reports_the_one_that_cannot_be_mapped(tmp_path, capsys):
-    # valence-dz-ap holds the S 3s instead of the S-H sigma in its a' RAS2 (to be rerun, see #17): its
-    # block is skipped with the mapping error; the a' block and the closing summary are still produced.
+def test_the_example_maps_an_initial_block_whose_orbital_rotated_out_and_warns_about_it(tmp_path, capsys):
+    # valence-dz-ap holds the S 3s instead of the S-H sigma in its a' RAS2 (to be rerun, see #17): that
+    # orbital, and the core run's sigma, are left unmatched with a warning; the other orbitals map and both
+    # blocks are evaluated, as no shake-down uses the S 3s.
     output = tmp_path / "example.out"
     assert main_module.main(["-i", str(ROOT / "examples" / "thiophenol" / "singlet" / "input.yaml"),
-                             "-o", str(output)]) == 1
+                             "-o", str(output)]) == 0
     text = output.read_text(encoding="utf-8")
-    first, second = "Initial 1: A' (valence-a-caspt2.caspt2.h5)", 'Initial 2: A" (valence-ap-caspt2.caspt2.h5)'
-    assert "Propensity rules" in _part(text, first)
-    skipped = 'Initial 2 (A") is skipped: its active orbitals cannot be mapped onto Final.'
-    assert skipped in _part(text, second) and "Propensity rules" not in _part(text, second)
+    second = 'Initial 2: A" (valence-ap-caspt2.caspt2.h5)'
+    part = _part(text, second)
+    assert "* WARNING: active orbitals without a match (rotated out of the active space)" in part
+    assert "*   Unmatched initial: mo:23_i1;  unmatched final: mo:23_i1." in part
+    assert re.search(r"^mo:23_i1 +-( +-)+ +no match$", part, re.M)  # its row in the mapping table
+    assert "Propensity rules" in part
     summary = text.split("Summary over all initial calculations", 1)[1]
-    assert {row.split()[0] for row in summary.split("Not evaluated:")[0].strip().splitlines()[2:]} == {"A'"}
-    assert skipped in summary.split("Not evaluated:")[1]
-    assert skipped in capsys.readouterr().err
+    assert {row.split()[0] for row in summary.strip().split("\n\n")[0].splitlines()[2:]} == {"A'", 'A"'}
+    assert ('Initial 2 -> Final: active orbitals rotated out of the active space have no match '
+            '(initial mo:23_i1; final mo:23_i1)') in capsys.readouterr().err
+
+
+def test_a_shake_down_that_needs_an_unmatched_orbital_is_not_computable(tmp_path):
+    # A shake-down whose j would be the unmatched S 3s (mo:23_i1) of valence-dz-ap.
+    initial, final = (get_calculation("molcas", "rasscf", THIOPHENOL / f"{name}.rasscf.h5", THIOPHENOL / f"{name}.log")
+                      for name in ("valence-dz-ap", "core-dz-ap"))
+    mapped = MappedFinal("Final", final, map_active_orbitals(initial, final), 0.5)
+    shake_down = ShakeDown("rasscf:2", "rasscf:1", ("mo:23_i1", "mo:2_i2"), "5e ES",
+                           i="mo:2_i2", j="mo:23_i1", k="mo:25_i1")
+    [result] = evaluate_final([shake_down], initial, mapped)
+    assert result.channels == []
+    assert result.note == ("not computable: mo:23_i1 rotated out of the active space and so has no final "
+                           "orbital matched to it")
+    lines = propensity_report([shake_down], initial, [(mapped, [result])])
+    assert "  not computable: mo:23_i1 rotated out of the active space and so has no final orbital matched to it" in lines
+    assert any(line.endswith("-   not computable: mo:23_i1 rotated out of the active space and so has no final "
+                             "orbital matched to it") for line in lines)
 
 
 def test_a_missing_final_irrep_is_reported(tmp_path):

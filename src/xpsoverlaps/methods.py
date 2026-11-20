@@ -46,6 +46,7 @@ from xpsoverlaps.mapping import (
     map_active_orbitals,
     mapped_ci_report,
     mapping_report,
+    unmatched_warning,
 )
 from xpsoverlaps.model import Calculation
 from xpsoverlaps.overlap_sources import (
@@ -229,6 +230,13 @@ def _overlaps_for_initial(
                                     core_orbitals(final.calculation), final.label) for final in mapped]
     _section([line for final, block in zip(mapped, core_blocks)
               for line in _titled(final, mapping_report(final.mapping, active_irreps) + [""] + block.report())])
+    for final in mapped:
+        if final.mapping.unmatched_initial or final.mapping.unmatched_final:
+            logger.warning(
+                "%s -> %s: active orbitals rotated out of the active space have no match (initial %s; final %s); "
+                "shake-downs that need them are not computable (see the orbital mapping).", initial.label,
+                final.label, ", ".join(final.mapping.unmatched_initial) or "-",
+                ", ".join(final.mapping.unmatched_final) or "-")
     for block in core_blocks:
         for warning in block.warnings():
             logger.warning(warning)
